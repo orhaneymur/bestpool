@@ -1,0 +1,54 @@
+{{- $reg := .Values.image.registry }}
+{{- $prefix := ternary "" (printf "%s/" $reg) (eq $reg "") }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: havuz-backend
+  namespace: {{ .Values.namespace }}
+spec:
+  replicas: {{ .Values.backend.replicas }}
+  selector:
+    matchLabels: { app: havuz-backend }
+  template:
+    metadata:
+      labels: { app: havuz-backend }
+    spec:
+      containers:
+        - name: backend
+          image: "{{ $prefix }}{{ .Values.image.backend }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: 4000
+          envFrom:
+            - configMapRef: { name: havuz-config }
+          env:
+            - name: PORT
+              value: "4000"
+            - name: NODE_ENV
+              value: "production"
+            - name: DB_PASSWORD
+              valueFrom: { secretKeyRef: { name: havuz-secrets, key: DB_PASSWORD } }
+            - name: JWT_SECRET
+              valueFrom: { secretKeyRef: { name: havuz-secrets, key: JWT_SECRET } }
+            - name: ADMIN_PASSWORD
+              valueFrom: { secretKeyRef: { name: havuz-secrets, key: ADMIN_PASSWORD } }
+          readinessProbe:
+            httpGet: { path: /health, port: 4000 }
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /health, port: 4000 }
+            initialDelaySeconds: 20
+            periodSeconds: 15
+          resources: {{ toYaml .Values.backend.resources | nindent 12 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+  namespace: {{ .Values.namespace }}
+spec:
+  selector: { app: havuz-backend }
+  ports:
+    - port: 4000
+      targetPort: 4000

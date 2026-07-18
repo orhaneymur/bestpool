@@ -1,0 +1,32 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: havuz
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: havuz-secrets
+  namespace: havuz
+type: Opaque
+stringData:
+  DB_PASSWORD: "havuz_parola"
+  MYSQL_ROOT_PASSWORD: "root_parola"
+  JWT_SECRET: "DEGISTIRIN-uretimde-cok-gizli-uzun-anahtar"
+  ADMIN_PASSWORD: "Admin123!"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: havuz-config
+  namespace: havuz
+data:
+  DB_HOST: "havuz-mysql"
+  DB_PORT: "3306"
+  DB_NAME: "havuz_teklif"
+  DB_USER: "havuz"
+  DB_SYNC: "true"
+  JWT_EXPIRES_IN: "12h"
+  CORS_ORIGIN: "*"
+  ADMIN_EMAIL: "admin@havuz.local"
+  ADMIN_NAME: "Sistem Yoneticisi"

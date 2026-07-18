@@ -1,0 +1,23 @@
+{
+  "name": "havuz-teklif-backend",
+  "version": "1.0.0",
+  "description": "Havuz hizmet/bakım teklif ve cari yönetim sistemi - Backend API",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "seed": "node src/seed/seed.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "exceljs": "^4.4.0",
+    "express": "^4.19.2",
+    "jsonwebtoken": "^9.0.2",
+    "mysql2": "^3.11.0",
+    "pdfmake": "^0.2.10",
+    "sequelize": "^6.37.3"
+  }
+}

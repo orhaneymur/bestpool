@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: havuz-frontend
+  namespace: havuz
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: havuz-frontend
+  template:
+    metadata:
+      labels:
+        app: havuz-frontend
+    spec:
+      containers:
+        - name: frontend
+          image: havuz-teklif-frontend:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 80
+          readinessProbe:
+            httpGet: { path: /, port: 80 }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests: { cpu: "20m", memory: "32Mi" }
+            limits: { cpu: "200m", memory: "128Mi" }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: havuz-frontend
+  namespace: havuz
+spec:
+  selector:
+    app: havuz-frontend
+  ports:
+    - port: 80
+      targetPort: 80
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: havuz-ingress
+  namespace: havuz
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: havuz.local   # kendi alan adınızla değiştirin
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: havuz-frontend
+                port:
+                  number: 80

@@ -1,0 +1,52 @@
+namespace: havuz
+
+image:
+  # Kendi container registry'nizi buraya yazın (ör. registry.ornek.com/havuz)
+  registry: ""
+  backend: havuz-teklif-backend
+  frontend: havuz-teklif-frontend
+  tag: latest
+  pullPolicy: IfNotPresent
+
+backend:
+  replicas: 2
+  resources:
+    requests: { cpu: "50m", memory: "128Mi" }
+    limits: { cpu: "500m", memory: "512Mi" }
+
+frontend:
+  replicas: 2
+  resources:
+    requests: { cpu: "20m", memory: "32Mi" }
+    limits: { cpu: "200m", memory: "128Mi" }
+
+mysql:
+  enabled: true
+  storage: 5Gi
+  resources:
+    requests: { cpu: "100m", memory: "512Mi" }
+    limits: { cpu: "1", memory: "1Gi" }
+
+config:
+  dbName: havuz_teklif
+  dbUser: havuz
+  dbSync: "true"
+  corsOrigin: "*"
+  jwtExpiresIn: "12h"
+  adminEmail: admin@havuz.local
+  adminName: "Sistem Yoneticisi"
+
+# ÜRETİMDE MUTLAKA DEĞİŞTİRİN (veya --set ile geçin)
+secrets:
+  dbPassword: "havuz_parola"
+  mysqlRootPassword: "root_parola"
+  jwtSecret: "DEGISTIRIN-uretimde-cok-gizli-uzun-anahtar"
+  adminPassword: "Admin123!"
+
+ingress:
+  enabled: true
+  className: nginx
+  host: havuz.local
+  tls:
+    enabled: false
+    secretName: havuz-tls

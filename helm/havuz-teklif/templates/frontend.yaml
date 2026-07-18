@@ -1,0 +1,65 @@
+{{- $reg := .Values.image.registry }}
+{{- $prefix := ternary "" (printf "%s/" $reg) (eq $reg "") }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: havuz-frontend
+  namespace: {{ .Values.namespace }}
+spec:
+  replicas: {{ .Values.frontend.replicas }}
+  selector:
+    matchLabels: { app: havuz-frontend }
+  template:
+    metadata:
+      labels: { app: havuz-frontend }
+    spec:
+      containers:
+        - name: frontend
+          image: "{{ $prefix }}{{ .Values.image.frontend }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: 80
+          readinessProbe:
+            httpGet: { path: /, port: 80 }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources: {{ toYaml .Values.frontend.resources | nindent 12 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: havuz-frontend
+  namespace: {{ .Values.namespace }}
+spec:
+  selector: { app: havuz-frontend }
+  ports:
+    - port: 80
+      targetPort: 80
+{{- if .Values.ingress.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: havuz-ingress
+  namespace: {{ .Values.namespace }}
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+spec:
+  ingressClassName: {{ .Values.ingress.className }}
+  {{- if .Values.ingress.tls.enabled }}
+  tls:
+    - hosts: [{{ .Values.ingress.host | quote }}]
+      secretName: {{ .Values.ingress.tls.secretName }}
+  {{- end }}
+  rules:
+    - host: {{ .Values.ingress.host | quote }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: havuz-frontend
+                port:
+                  number: 80
+{{- end }}

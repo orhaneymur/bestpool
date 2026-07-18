@@ -1,0 +1,14 @@
+# Bağımlılıklar
+node_modules/
+# Derleme çıktısı
+frontend/dist/
+# Ortam dosyaları
+.env
+*.env.local
+# Loglar
+*.log
+npm-debug.log*
+# OS / editör
+.DS_Store
+.vscode/
+.idea/

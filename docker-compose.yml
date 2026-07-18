@@ -1,0 +1,56 @@
+services:
+  db:
+    image: mysql:8.0
+    container_name: havuz-db
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: havuz_teklif
+      MYSQL_USER: havuz
+      MYSQL_PASSWORD: havuz_parola
+      MYSQL_ROOT_PASSWORD: root_parola
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-proot_parola"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    ports:
+      - "3306:3306"
+
+  backend:
+    build: ./backend
+    container_name: havuz-backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PORT: 4000
+      NODE_ENV: production
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_NAME: havuz_teklif
+      DB_USER: havuz
+      DB_PASSWORD: havuz_parola
+      DB_SYNC: "true"
+      JWT_SECRET: degistirin-cok-gizli-anahtar
+      JWT_EXPIRES_IN: 12h
+      CORS_ORIGIN: "*"
+      ADMIN_EMAIL: admin@havuz.local
+      ADMIN_PASSWORD: Admin123!
+      ADMIN_NAME: Sistem Yoneticisi
+    ports:
+      - "4000:4000"
+
+  frontend:
+    build: ./frontend
+    container_name: havuz-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "8080:80"
+
+volumes:
+  db_data:
