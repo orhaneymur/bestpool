@@ -61,11 +61,15 @@ export async function buildQuoteExcel(quote, setting) {
 
   // Toplamlar
   r += 1;
+  const earlyBird = Number(quote.early_bird_discount || 0);
+  const contractAmount = Number(quote.total || 0) - earlyBird;
   const totals = [
     ['Ara Toplam', quote.subtotal],
     ['İndirim', -Number(quote.discount_amount || 0)],
     ['KDV', quote.vat_amount],
-    ['GENEL TOPLAM', quote.total],
+    ['Genel Toplam', quote.total],
+    ...(earlyBird > 0 ? [['Erken Rezervasyon İndirimi', -earlyBird]] : []),
+    ['SÖZLEŞME BEDELİ', contractAmount],
   ];
   totals.forEach(([label, val], idx) => {
     ws.getCell(r, 5).value = label;
@@ -102,9 +106,52 @@ export async function buildQuoteExcel(quote, setting) {
     });
   }
 
+  // Çalışma saatleri (haftalık program)
+  const schedules = quote.schedules || [];
+  if (schedules.length) {
+    const DAY_TR = { pazartesi: 'Pazartesi', sali: 'Salı', carsamba: 'Çarşamba', persembe: 'Perşembe', cuma: 'Cuma', cumartesi: 'Cumartesi', pazar: 'Pazar', tatil: 'Resmi Tatil' };
+    const DAY_ORDER = ['pazartesi', 'sali', 'carsamba', 'persembe', 'cuma', 'cumartesi', 'pazar', 'tatil'];
+    for (const [seasonKey, seasonLabel] of [['normal', 'Normal Sezon'], ['okul', 'Okul Dönemi / Sezon Dışı']]) {
+      const rows = schedules.filter((s) => s.season_type === seasonKey)
+        .sort((a, b) => DAY_ORDER.indexOf(a.day_label) - DAY_ORDER.indexOf(b.day_label));
+      if (!rows.length) continue;
+      r += 2;
+      ws.getCell(r, 1).value = 'ÇALIŞMA SAATLERİ — ' + seasonLabel;
+      ws.getCell(r, 1).font = { bold: true, color: { argb: BLUE } };
+      r++;
+      ['Gün', 'Açılış', 'Kapanış'].forEach((h, i) => {
+        const c = ws.getCell(r, i + 1);
+        c.value = h; c.font = { bold: true, color: { argb: 'FFFFFF' } };
+        c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BLUE } };
+      });
+      r++;
+      rows.forEach((row) => {
+        ws.getCell(r, 1).value = DAY_TR[row.day_label] || row.day_label;
+        ws.getCell(r, 2).value = row.is_closed ? 'Kapalı' : (row.open_time || '-');
+        ws.getCell(r, 3).value = row.is_closed ? '—' : (row.close_time || '-');
+        r++;
+      });
+    }
+  }
+
+  // Özel şartlar / ek açıklamalar
+  const notes = (quote.special_notes || []).slice().sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+  if (notes.length) {
+    r += 2;
+    ws.getCell(r, 1).value = 'ÖZEL ŞARTLAR / EK AÇIKLAMALAR';
+    ws.getCell(r, 1).font = { bold: true, color: { argb: BLUE } };
+    r++;
+    notes.forEach((n) => {
+      ws.getCell(r, 1).value = [n.label ? n.label + '.' : '', n.body].filter(Boolean).join(' ');
+      ws.mergeCells(r, 1, r, 6);
+      ws.getCell(r, 1).alignment = { wrapText: true };
+      r++;
+    });
+  }
+
   if (quote.notes) {
     r += 1;
-    ws.getCell(r, 1).value = 'Notlar: ' + quote.notes;
+    ws.getCell(r, 1).value = 'Dahili Not: ' + quote.notes;
     ws.mergeCells(r, 1, r, 6);
     ws.getCell(r, 1).alignment = { wrapText: true };
   }

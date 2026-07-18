@@ -70,6 +70,7 @@ export const Quote = sequelize.define('Quote', {
   subtotal: { type: DataTypes.DECIMAL(12, 2), defaultValue: 0 },
   discount_rate: { type: DataTypes.DECIMAL(5, 2), defaultValue: 0 }, // %
   discount_amount: { type: DataTypes.DECIMAL(12, 2), defaultValue: 0 },
+  early_bird_discount: { type: DataTypes.DECIMAL(12, 2), defaultValue: 0 }, // Erken rezervasyon indirimi (sabit tutar)
   vat_amount: { type: DataTypes.DECIMAL(12, 2), defaultValue: 0 },
   total: { type: DataTypes.DECIMAL(12, 2), defaultValue: 0 },
   currency: { type: DataTypes.STRING(8), defaultValue: 'TRY' },
@@ -103,13 +104,40 @@ export const QuoteInstallment = sequelize.define('QuoteInstallment', {
   paid_at: { type: DataTypes.DATEONLY },
 }, { tableName: 'quote_installments' });
 
+// --- Teklif Çalışma Saatleri (Haftalık Program) ---
+// Her teklif için iki sezon (normal / okul dönemi) x gün bazlı açılış-kapanış saatleri.
+export const QuoteSchedule = sequelize.define('QuoteSchedule', {
+  id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+  quote_id: { type: DataTypes.INTEGER, allowNull: false },
+  season_type: { type: DataTypes.ENUM('normal', 'okul'), defaultValue: 'normal' }, // Normal Sezon / Okul Dönemi
+  day_label: { type: DataTypes.STRING(20), allowNull: false }, // pazartesi..pazar, tatil
+  open_time: { type: DataTypes.STRING(5) },  // "09:00"
+  close_time: { type: DataTypes.STRING(5) }, // "19:00"
+  is_closed: { type: DataTypes.BOOLEAN, defaultValue: false }, // o gün kapalı
+  sort_order: { type: DataTypes.INTEGER, defaultValue: 0 },
+}, { tableName: 'quote_schedules' });
+
+// --- Teklif Özel Maddeleri / Ek Açıklamalar (Additional Comments) ---
+// Kullanıcının dinamik ekleyip çıkarabildiği, PDF'e basılan özel maddeler.
+export const QuoteNote = sequelize.define('QuoteNote', {
+  id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+  quote_id: { type: DataTypes.INTEGER, allowNull: false },
+  label: { type: DataTypes.STRING(10) }, // A, B, C... (opsiyonel)
+  body: { type: DataTypes.TEXT, allowNull: false },
+  sort_order: { type: DataTypes.INTEGER, defaultValue: 0 },
+}, { tableName: 'quote_notes' });
+
 // --- Şirket Ayarları ---
 export const Setting = sequelize.define('Setting', {
   id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
   company_name: { type: DataTypes.STRING(200) },
   company_address: { type: DataTypes.TEXT },
   company_phone: { type: DataTypes.STRING(60) },
+  company_fax: { type: DataTypes.STRING(60) },
   company_email: { type: DataTypes.STRING(160) },
+  company_website: { type: DataTypes.STRING(160) },
+  company_tagline: { type: DataTypes.STRING(200) }, // Kapak sloganı
+  rev_label: { type: DataTypes.STRING(40), defaultValue: 'Rev 06/2025' }, // PDF alt bilgi revizyon etiketi
   tax_office: { type: DataTypes.STRING(120) },
   tax_no: { type: DataTypes.STRING(40) },
   logo_url: { type: DataTypes.STRING(300) },
@@ -134,5 +162,11 @@ QuoteItem.belongsTo(ServiceItem, { foreignKey: 'service_item_id', as: 'service' 
 
 Quote.hasMany(QuoteInstallment, { foreignKey: 'quote_id', as: 'installments', onDelete: 'CASCADE' });
 QuoteInstallment.belongsTo(Quote, { foreignKey: 'quote_id' });
+
+Quote.hasMany(QuoteSchedule, { foreignKey: 'quote_id', as: 'schedules', onDelete: 'CASCADE' });
+QuoteSchedule.belongsTo(Quote, { foreignKey: 'quote_id' });
+
+Quote.hasMany(QuoteNote, { foreignKey: 'quote_id', as: 'special_notes', onDelete: 'CASCADE' });
+QuoteNote.belongsTo(Quote, { foreignKey: 'quote_id' });
 
 export { sequelize };

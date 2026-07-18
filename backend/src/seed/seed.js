@@ -2,6 +2,9 @@ import dotenv from 'dotenv';
 import bcrypt from 'bcryptjs';
 import { sequelize, User, ServiceItem, ContractTemplate, Setting, Customer } from '../models/index.js';
 import { DEFAULT_CONTRACT_BODY } from './contractTemplate.js';
+import { DEFAULT_CONTRACT_BODY_EN } from './contractTemplateEn.js';
+
+const EN_TEMPLATE_NAME = 'Commercial Swimming Pool Management Agreement — General Terms (EN)';
 
 dotenv.config();
 
@@ -47,11 +50,19 @@ export async function ensureSeed() {
     console.log('[seed] Hizmet kataloğu yüklendi.');
   }
 
-  // Varsayılan sözleşme şablonu
+  // Türkçe sözleşme şablonu (ilk kurulumda)
   const tplCount = await ContractTemplate.count();
   if (tplCount === 0) {
-    await ContractTemplate.create({ name: 'Havuz İşletme ve Bakım Sözleşmesi (Varsayılan)', body: DEFAULT_CONTRACT_BODY, is_default: true });
-    console.log('[seed] Varsayılan sözleşme şablonu oluşturuldu.');
+    await ContractTemplate.create({ name: 'Havuz İşletme ve Bakım Sözleşmesi (TR)', body: DEFAULT_CONTRACT_BODY, is_default: false });
+    console.log('[seed] Türkçe sözleşme şablonu oluşturuldu.');
+  }
+
+  // İngilizce genel hükümler şablonu (örnek sözleşmeden) — mevcut değilse ekle ve varsayılan yap
+  let enTpl = await ContractTemplate.findOne({ where: { name: EN_TEMPLATE_NAME } });
+  if (!enTpl) {
+    await ContractTemplate.update({ is_default: false }, { where: {} });
+    enTpl = await ContractTemplate.create({ name: EN_TEMPLATE_NAME, body: DEFAULT_CONTRACT_BODY_EN, is_default: true });
+    console.log('[seed] İngilizce sözleşme şablonu oluşturuldu ve varsayılan yapıldı.');
   }
 
   // Örnek müşteri

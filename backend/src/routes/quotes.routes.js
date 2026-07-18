@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { sequelize, Quote, QuoteItem, QuoteInstallment, Customer, ContractTemplate, User, Setting } from '../models/index.js';
+import { sequelize, Quote, QuoteItem, QuoteInstallment, QuoteSchedule, QuoteNote, Customer, ContractTemplate, User, Setting } from '../models/index.js';
 import { auth } from '../middleware/auth.js';
 import { computeTotals } from '../services/pricing.js';
 import { buildQuotePdf } from '../services/pdf.js';
@@ -17,11 +17,43 @@ async function nextQuoteNo() {
   return `${prefix}-${year}-${seq}`;
 }
 
+async function saveSchedules(quoteId, schedules, t) {
+  const rows = Array.isArray(schedules) ? schedules : [];
+  for (const [i, s] of rows.entries()) {
+    if (!s || !s.day_label) continue;
+    await QuoteSchedule.create({
+      quote_id: quoteId,
+      season_type: s.season_type === 'okul' ? 'okul' : 'normal',
+      day_label: s.day_label,
+      open_time: s.is_closed ? null : (s.open_time || null),
+      close_time: s.is_closed ? null : (s.close_time || null),
+      is_closed: !!s.is_closed,
+      sort_order: s.sort_order ?? i,
+    }, { transaction: t });
+  }
+}
+
+async function saveNotes(quoteId, notes, t) {
+  const rows = Array.isArray(notes) ? notes : [];
+  for (const [i, n] of rows.entries()) {
+    const body = (n?.body || '').trim();
+    if (!body) continue;
+    await QuoteNote.create({
+      quote_id: quoteId,
+      label: n.label || null,
+      body,
+      sort_order: n.sort_order ?? i,
+    }, { transaction: t });
+  }
+}
+
 function fullQuoteInclude() {
   return [
     { model: Customer },
     { model: QuoteItem, as: 'items' },
     { model: QuoteInstallment, as: 'installments' },
+    { model: QuoteSchedule, as: 'schedules' },
+    { model: QuoteNote, as: 'special_notes' },
     { model: ContractTemplate, as: 'template' },
     { model: User, as: 'creator', attributes: ['id', 'name', 'email'] },
   ];
@@ -69,6 +101,7 @@ router.post('/', async (req, res) => {
       subtotal: totals.subtotal,
       discount_rate: totals.discount_rate,
       discount_amount: totals.discount_amount,
+      early_bird_discount: body.early_bird_discount || 0,
       vat_amount: totals.vat_amount,
       total: totals.total,
       currency: body.currency || 'TRY',
@@ -99,6 +132,9 @@ router.post('/', async (req, res) => {
         amount: inst.amount || 0,
       }, { transaction: t });
     }
+
+    await saveSchedules(quote.id, body.schedules, t);
+    await saveNotes(quote.id, body.special_notes, t);
 
     await t.commit();
     const created = await Quote.findByPk(quote.id, { include: fullQuoteInclude() });
@@ -132,6 +168,7 @@ router.put('/:id', async (req, res) => {
       subtotal: totals.subtotal,
       discount_rate: totals.discount_rate,
       discount_amount: totals.discount_amount,
+      early_bird_discount: body.early_bird_discount || 0,
       vat_amount: totals.vat_amount,
       total: totals.total,
       currency: body.currency || quote.currency,
@@ -152,6 +189,11 @@ router.put('/:id', async (req, res) => {
     for (const inst of (body.installments || [])) {
       await QuoteInstallment.create({ quote_id: quote.id, label: inst.label, due_date: inst.due_date || null, amount: inst.amount || 0 }, { transaction: t });
     }
+
+    await QuoteSchedule.destroy({ where: { quote_id: quote.id }, transaction: t });
+    await saveSchedules(quote.id, body.schedules, t);
+    await QuoteNote.destroy({ where: { quote_id: quote.id }, transaction: t });
+    await saveNotes(quote.id, body.special_notes, t);
 
     await t.commit();
     res.json(await Quote.findByPk(quote.id, { include: fullQuoteInclude() }));
