@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-// Üretimde nginx aynı origin'den /api'yi backend'e yönlendirir.
+// In production, nginx proxies /api to the backend on the same origin.
 const api = axios.create({ baseURL: '/api' });
 
 api.interceptors.request.use((config) => {
@@ -21,7 +21,7 @@ api.interceptors.response.use(
   }
 );
 
-// Dosya (PDF/Excel) indirme yardımcı fonksiyonu
+/** Download a blob response (PDF / Excel) as a file */
 export async function downloadFile(url, filename) {
   const res = await api.get(url, { responseType: 'blob' });
   const blobUrl = window.URL.createObjectURL(res.data);

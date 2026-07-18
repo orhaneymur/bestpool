@@ -7,11 +7,12 @@ const router = Router();
 router.use(auth());
 
 router.get('/summary', async (_req, res) => {
-  const [customerCount, quoteCount, statusRows, totalAccepted] = await Promise.all([
+  const [customerCount, quoteCount, statusRows, totalAccepted, totalPotential] = await Promise.all([
     Customer.count(),
     Quote.count(),
     Quote.findAll({ attributes: ['status', [fn('COUNT', col('id')), 'count']], group: ['status'], raw: true }),
     Quote.sum('total', { where: { status: 'kabul' } }),
+    Quote.sum('total'),
   ]);
 
   const byStatus = { taslak: 0, gonderildi: 0, kabul: 0, red: 0 };
@@ -28,6 +29,7 @@ router.get('/summary', async (_req, res) => {
     quoteCount,
     byStatus,
     totalAccepted: Number(totalAccepted || 0),
+    totalPotential: Number(totalPotential || 0),
     recent,
   });
 });

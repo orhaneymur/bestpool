@@ -1,38 +1,38 @@
-import { NavLink, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext.jsx';
+import { useLocation } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import Sidebar from './layout/Sidebar.jsx';
+import Topbar from './layout/Topbar.jsx';
+
+/** Pages still using the legacy CSS compatibility layer */
+function isLegacyPath(pathname) {
+  if (pathname === '/quotes') return true; // list page still legacy-styled
+  if (pathname.startsWith('/quotes/')) return false; // wizard is new UI
+  return ['/customers', '/services', '/templates', '/settings'].some(
+    (p) => pathname === p || pathname.startsWith(`${p}/`)
+  );
+}
 
 export default function Layout({ children }) {
-  const { user, logout } = useAuth();
-  const nav = useNavigate();
-  const roleLabel = { admin: 'Yönetici', sales: 'Satış', viewer: 'Görüntüleyici' };
-
-  const links = [
-    { to: '/', label: 'Panel', icon: '📊', end: true },
-    { to: '/quotes', label: 'Teklifler', icon: '📄' },
-    { to: '/customers', label: 'Müşteriler (Cari)', icon: '👥' },
-    { to: '/services', label: 'Hizmet Kataloğu', icon: '🧾' },
-    { to: '/templates', label: 'Sözleşme Şablonları', icon: '📁' },
-    { to: '/settings', label: 'Ayarlar', icon: '⚙️' },
-  ];
+  const location = useLocation();
+  const isLegacy = isLegacyPath(location.pathname);
 
   return (
-    <div className="layout">
-      <aside className="sidebar">
-        <div className="brand">🏊 Havuz Teklif<br />& Cari Sistemi</div>
-        {links.map((l) => (
-          <NavLink key={l.to} to={l.to} end={l.end} className={({ isActive }) => (isActive ? 'active' : '')}>
-            <span style={{ fontSize: 16 }}>{l.icon}</span> <span>{l.label}</span>
-          </NavLink>
-        ))}
-        <div className="spacer" />
-        <div className="userbox">
-          <div style={{ fontWeight: 700, color: '#fff' }}>{user?.name}</div>
-          <div>{roleLabel[user?.role] || user?.role}</div>
-          <button className="ghost" style={{ color: '#ffd', paddingLeft: 0, marginTop: 6 }}
-            onClick={() => { logout(); nav('/login'); }}>Çıkış Yap →</button>
-        </div>
-      </aside>
-      <main className="main">{children}</main>
+    <div className="flex min-h-screen bg-background bg-grid">
+      <Sidebar />
+      <div className="flex min-w-0 flex-1 flex-col">
+        <Topbar />
+        <main className="flex-1 px-4 py-6 lg:px-8 lg:py-8">
+          <motion.div
+            key={location.pathname}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, ease: 'easeOut' }}
+            className={`mx-auto w-full max-w-[1280px] ${isLegacy ? 'legacy' : ''}`}
+          >
+            {children}
+          </motion.div>
+        </main>
+      </div>
     </div>
   );
 }

@@ -22,40 +22,40 @@ export default function Customers() {
   return (
     <div>
       <div className="topbar">
-        <h1>Müşteriler (Cari)</h1>
-        <button onClick={() => setForm({ ...EMPTY })}>+ Yeni Müşteri</button>
+        <h1>Customers</h1>
+        <button onClick={() => setForm({ ...EMPTY })}>+ New Customer</button>
       </div>
 
       <div className="toolbar">
-        <input placeholder="Ara: ad, kod, telefon, vergi no…" value={q} onChange={(e) => setQ(e.target.value)} style={{ maxWidth: 340 }} />
-        <span className="pill">{rows.length} kayıt</span>
+        <input placeholder="Search name, code, phone, tax ID…" value={q} onChange={(e) => setQ(e.target.value)} style={{ maxWidth: 340 }} />
+        <span className="pill">{rows.length} record{rows.length === 1 ? '' : 's'}</span>
       </div>
 
       {form && (
         <form className="card" onSubmit={save}>
-          <h3 style={{ marginTop: 0 }}>{form.id ? 'Müşteri Düzenle' : 'Yeni Müşteri'}</h3>
+          <h3 style={{ marginTop: 0 }}>{form.id ? 'Edit Customer' : 'New Customer'}</h3>
           <div className="grid grid-3">
-            <div><label>Cari Kodu</label><input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} placeholder="Otomatik" /></div>
-            <div style={{ gridColumn: 'span 2' }}><label>Müşteri / Tesis Adı *</label><input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
-            <div><label>Yetkili Kişi</label><input value={form.contact_person} onChange={(e) => setForm({ ...form, contact_person: e.target.value })} /></div>
-            <div><label>Telefon</label><input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
-            <div><label>E-posta</label><input value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
-            <div><label>Şehir</label><input value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} /></div>
-            <div><label>Vergi Dairesi</label><input value={form.tax_office} onChange={(e) => setForm({ ...form, tax_office: e.target.value })} /></div>
-            <div><label>Vergi / TC No</label><input value={form.tax_no} onChange={(e) => setForm({ ...form, tax_no: e.target.value })} /></div>
-            <div style={{ gridColumn: 'span 3' }}><label>Adres</label><input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} /></div>
-            <div style={{ gridColumn: 'span 3' }}><label>Notlar</label><textarea rows="2" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
+            <div><label>Account code</label><input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} placeholder="Auto" /></div>
+            <div style={{ gridColumn: 'span 2' }}><label>Customer / Facility name *</label><input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
+            <div><label>Contact person</label><input value={form.contact_person} onChange={(e) => setForm({ ...form, contact_person: e.target.value })} /></div>
+            <div><label>Phone</label><input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
+            <div><label>Email</label><input value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
+            <div><label>City</label><input value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} /></div>
+            <div><label>Tax office</label><input value={form.tax_office} onChange={(e) => setForm({ ...form, tax_office: e.target.value })} /></div>
+            <div><label>Tax ID</label><input value={form.tax_no} onChange={(e) => setForm({ ...form, tax_no: e.target.value })} /></div>
+            <div style={{ gridColumn: 'span 3' }}><label>Address</label><input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} /></div>
+            <div style={{ gridColumn: 'span 3' }}><label>Notes</label><textarea rows="2" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
           </div>
           <div className="row" style={{ marginTop: 12 }}>
-            <button type="submit">Kaydet</button>
-            <button type="button" className="secondary" onClick={() => setForm(null)}>Vazgeç</button>
+            <button type="submit">Save</button>
+            <button type="button" className="secondary" onClick={() => setForm(null)}>Cancel</button>
           </div>
         </form>
       )}
 
       <div className="card">
         <table>
-          <thead><tr><th>Kod</th><th>Müşteri</th><th>Yetkili</th><th>Telefon</th><th>Şehir</th><th></th></tr></thead>
+          <thead><tr><th>Code</th><th>Customer</th><th>Contact</th><th>Phone</th><th>City</th><th></th></tr></thead>
           <tbody>
             {rows.map((c) => (
               <tr key={c.id}>
@@ -64,10 +64,10 @@ export default function Customers() {
                 <td>{c.contact_person || '-'}</td>
                 <td>{c.phone || '-'}</td>
                 <td>{c.city || '-'}</td>
-                <td className="right"><button className="ghost" onClick={() => setForm(c)}>Düzenle</button></td>
+                <td className="right"><button className="ghost" onClick={() => setForm(c)}>Edit</button></td>
               </tr>
             ))}
-            {rows.length === 0 && <tr><td colSpan="6" className="muted">Kayıt yok.</td></tr>}
+            {rows.length === 0 && <tr><td colSpan="6" className="muted">No records.</td></tr>}
           </tbody>
         </table>
       </div>

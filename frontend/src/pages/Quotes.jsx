@@ -18,24 +18,33 @@ export default function Quotes() {
   return (
     <div>
       <div className="topbar">
-        <h1>Teklifler</h1>
-        <Link to="/quotes/new"><button>+ Yeni Teklif</button></Link>
+        <h1>Proposals</h1>
+        <Link to="/quotes/new"><button>+ New Proposal</button></Link>
       </div>
 
       <div className="toolbar">
         <select value={status} onChange={(e) => setStatus(e.target.value)} style={{ maxWidth: 220 }}>
-          <option value="">Tüm durumlar</option>
-          <option value="taslak">Taslak</option>
-          <option value="gonderildi">Gönderildi</option>
-          <option value="kabul">Kabul</option>
-          <option value="red">Red</option>
+          <option value="">All statuses</option>
+          <option value="taslak">Draft</option>
+          <option value="gonderildi">Sent</option>
+          <option value="kabul">Accepted</option>
+          <option value="red">Rejected</option>
         </select>
-        <span className="pill">{rows.length} teklif</span>
+        <span className="pill">{rows.length} proposal{rows.length === 1 ? '' : 's'}</span>
       </div>
 
       <div className="card">
         <table>
-          <thead><tr><th>Teklif No</th><th>Müşteri</th><th>Tarih</th><th>Durum</th><th className="right">Tutar</th><th className="right">İşlemler</th></tr></thead>
+          <thead>
+            <tr>
+              <th>Proposal #</th>
+              <th>Customer</th>
+              <th>Date</th>
+              <th>Status</th>
+              <th className="right">Amount</th>
+              <th className="right">Actions</th>
+            </tr>
+          </thead>
           <tbody>
             {rows.map((q) => (
               <tr key={q.id}>
@@ -54,7 +63,7 @@ export default function Quotes() {
                 </td>
               </tr>
             ))}
-            {rows.length === 0 && <tr><td colSpan="6" className="muted">Teklif yok.</td></tr>}
+            {rows.length === 0 && <tr><td colSpan="6" className="muted">No proposals.</td></tr>}
           </tbody>
         </table>
       </div>
