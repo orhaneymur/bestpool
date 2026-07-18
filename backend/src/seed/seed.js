@@ -44,11 +44,7 @@ export async function ensureSeed() {
     console.log('[seed] Şirket ayarları oluşturuldu.');
   } else {
     const s = await Setting.findByPk(1);
-    const legacyNames = [
-      'İSTANBUL SPOR ETKİNLİKLERİ VE İŞLETMECİLİĞİ TİC. A.Ş.',
-      'ISTANBUL SPOR ETKINLIKLERI VE ISLETMECILIGI TIC. A.S.',
-    ];
-    if (s && (!s.company_name || legacyNames.includes(s.company_name))) {
+    if (s && s.company_name !== COMPANY_NAME) {
       await s.update({ company_name: COMPANY_NAME });
       console.log('[seed] Şirket adı güncellendi:', COMPANY_NAME);
     }
