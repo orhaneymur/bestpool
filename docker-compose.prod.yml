@@ -1,7 +1,10 @@
+# İzole üretim kurulumu.
+# Bu stack'i her zaman kendi proje adıyla çalıştırın (diğer sitelerden izole olması için):
+#   docker compose -p bestpool -f docker-compose.prod.yml up -d
+# Böylece network, volume ve container isimleri "bestpool_" ön ekiyle ayrışır.
 services:
   db:
     image: mysql:8.0
-    container_name: havuz-db
     restart: unless-stopped
     command: ["--default-authentication-plugin=mysql_native_password"]
     environment:
@@ -11,6 +14,8 @@ services:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root_parola}
     volumes:
       - db_data:/var/lib/mysql
+    networks:
+      - bestpool_net
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${MYSQL_ROOT_PASSWORD:-root_parola}"]
       interval: 10s
@@ -19,7 +24,6 @@ services:
 
   backend:
     image: since1907/bestpool-backend:latest
-    container_name: havuz-backend
     restart: unless-stopped
     depends_on:
       db:
@@ -39,15 +43,25 @@ services:
       ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@havuz.local}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-Admin123!}
       ADMIN_NAME: Sistem Yoneticisi
+    networks:
+      - bestpool_net
 
   frontend:
     image: since1907/bestpool-frontend:latest
-    container_name: havuz-frontend
     restart: unless-stopped
     depends_on:
       - backend
+    # Sadece localhost'a ve benzersiz bir porta bağlanır; dışarıya reverse proxy üzerinden açılır.
+    # Diğer 5 site ile port çakışmasını önlemek için BIND_IP=127.0.0.1 (varsayılan) bırakın.
     ports:
-      - "${HTTP_PORT:-8080}:80"
+      - "${BIND_IP:-127.0.0.1}:${HTTP_PORT:-8090}:80"
+    networks:
+      - bestpool_net
+
+networks:
+  bestpool_net:
+    name: bestpool_net
 
 volumes:
   db_data:
+    name: bestpool_db_data
