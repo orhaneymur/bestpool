@@ -1,0 +1,53 @@
+services:
+  db:
+    image: mysql:8.0
+    container_name: havuz-db
+    restart: unless-stopped
+    command: ["--default-authentication-plugin=mysql_native_password"]
+    environment:
+      MYSQL_DATABASE: havuz_teklif
+      MYSQL_USER: havuz
+      MYSQL_PASSWORD: ${DB_PASSWORD:-havuz_parola}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root_parola}
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${MYSQL_ROOT_PASSWORD:-root_parola}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    image: since1907/bestpool-backend:latest
+    container_name: havuz-backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PORT: 4000
+      NODE_ENV: production
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_NAME: havuz_teklif
+      DB_USER: havuz
+      DB_PASSWORD: ${DB_PASSWORD:-havuz_parola}
+      DB_SYNC: "true"
+      JWT_SECRET: ${JWT_SECRET:-degistirin-cok-gizli-anahtar}
+      JWT_EXPIRES_IN: 12h
+      CORS_ORIGIN: ${CORS_ORIGIN:-*}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@havuz.local}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-Admin123!}
+      ADMIN_NAME: Sistem Yoneticisi
+
+  frontend:
+    image: since1907/bestpool-frontend:latest
+    container_name: havuz-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "${HTTP_PORT:-8080}:80"
+
+volumes:
+  db_data:
