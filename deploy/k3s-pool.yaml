@@ -1,0 +1,229 @@
+# =============================================================================
+# bestpool / Havuz Teklif — k3s'e izole kurulum (namespace: havuz)
+# Bu cluster'a özel: Traefik ingress + pool.derneklab.com + Docker Hub imajları.
+# Mevcut 5 siteyi ETKİLEMEZ (ayrı namespace, ayrı ingress host kuralı).
+#
+# Uygulamak için:
+#   sudo k3s kubectl apply -f deploy/k3s-pool.yaml
+#   sudo k3s kubectl -n havuz get pods -w
+#
+# ⚠️ ÖNCE aşağıdaki Secret değerlerini DEĞİŞTİRİN (JWT_SECRET, parolalar).
+# =============================================================================
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: havuz
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: havuz-secrets
+  namespace: havuz
+type: Opaque
+stringData:
+  DB_PASSWORD: "DEGISTIR-guclu-db-parolasi"
+  MYSQL_ROOT_PASSWORD: "DEGISTIR-guclu-root-parolasi"
+  JWT_SECRET: "DEGISTIR-cok-uzun-rastgele-gizli-anahtar"
+  ADMIN_PASSWORD: "DEGISTIR-guclu-admin-parolasi"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: havuz-config
+  namespace: havuz
+data:
+  DB_HOST: "havuz-mysql"
+  DB_PORT: "3306"
+  DB_NAME: "havuz_teklif"
+  DB_USER: "havuz"
+  DB_SYNC: "true"
+  JWT_EXPIRES_IN: "12h"
+  # Frontend /api'yi aynı origin'den çağırdığı için CORS kritik değil; yine de domaine sınırlanabilir.
+  CORS_ORIGIN: "*"
+  ADMIN_EMAIL: "admin@havuz.local"
+  ADMIN_NAME: "Sistem Yoneticisi"
+---
+# ----------------------------- MySQL ----------------------------------------
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: havuz-mysql-pvc
+  namespace: havuz
+spec:
+  accessModes: ["ReadWriteOnce"]
+  # k3s varsayılan StorageClass'ı (local-path) kullanılır.
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: havuz-mysql
+  namespace: havuz
+spec:
+  serviceName: havuz-mysql
+  replicas: 1
+  selector:
+    matchLabels: { app: havuz-mysql }
+  template:
+    metadata:
+      labels: { app: havuz-mysql }
+    spec:
+      containers:
+        - name: mysql
+          image: mysql:8.0
+          args: ["--default-authentication-plugin=mysql_native_password"]
+          ports:
+            - containerPort: 3306
+          env:
+            - name: MYSQL_DATABASE
+              valueFrom: { configMapKeyRef: { name: havuz-config, key: DB_NAME } }
+            - name: MYSQL_USER
+              valueFrom: { configMapKeyRef: { name: havuz-config, key: DB_USER } }
+            - name: MYSQL_PASSWORD
+              valueFrom: { secretKeyRef: { name: havuz-secrets, key: DB_PASSWORD } }
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom: { secretKeyRef: { name: havuz-secrets, key: MYSQL_ROOT_PASSWORD } }
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/mysql
+          readinessProbe:
+            exec:
+              command: ["sh", "-c", "mysqladmin ping -h localhost -p$MYSQL_ROOT_PASSWORD"]
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          resources:
+            requests: { cpu: "100m", memory: "512Mi" }
+            limits: { cpu: "1", memory: "1Gi" }
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: havuz-mysql-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: havuz-mysql
+  namespace: havuz
+spec:
+  selector: { app: havuz-mysql }
+  ports:
+    - port: 3306
+      targetPort: 3306
+---
+# ----------------------------- Backend --------------------------------------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: havuz-backend
+  namespace: havuz
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: havuz-backend }
+  template:
+    metadata:
+      labels: { app: havuz-backend }
+    spec:
+      containers:
+        - name: backend
+          image: since1907/bestpool-backend:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 4000
+          envFrom:
+            - configMapRef: { name: havuz-config }
+          env:
+            - name: PORT
+              value: "4000"
+            - name: NODE_ENV
+              value: "production"
+            - name: DB_PASSWORD
+              valueFrom: { secretKeyRef: { name: havuz-secrets, key: DB_PASSWORD } }
+            - name: JWT_SECRET
+              valueFrom: { secretKeyRef: { name: havuz-secrets, key: JWT_SECRET } }
+            - name: ADMIN_PASSWORD
+              valueFrom: { secretKeyRef: { name: havuz-secrets, key: ADMIN_PASSWORD } }
+          readinessProbe:
+            httpGet: { path: /health, port: 4000 }
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /health, port: 4000 }
+            initialDelaySeconds: 20
+            periodSeconds: 15
+          resources:
+            requests: { cpu: "50m", memory: "128Mi" }
+            limits: { cpu: "500m", memory: "512Mi" }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  # nginx.conf "http://backend:4000" adresine proxy'ler; servis adı "backend" olmalı.
+  name: backend
+  namespace: havuz
+spec:
+  selector: { app: havuz-backend }
+  ports:
+    - port: 4000
+      targetPort: 4000
+---
+# ----------------------------- Frontend -------------------------------------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: havuz-frontend
+  namespace: havuz
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: havuz-frontend }
+  template:
+    metadata:
+      labels: { app: havuz-frontend }
+    spec:
+      containers:
+        - name: frontend
+          image: since1907/bestpool-frontend:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 80
+          readinessProbe:
+            httpGet: { path: /, port: 80 }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests: { cpu: "20m", memory: "32Mi" }
+            limits: { cpu: "200m", memory: "128Mi" }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: havuz-frontend
+  namespace: havuz
+spec:
+  selector: { app: havuz-frontend }
+  ports:
+    - port: 80
+      targetPort: 80
+---
+# ----------------------------- Ingress (Traefik) ----------------------------
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: havuz-ingress
+  namespace: havuz
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: pool.derneklab.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: havuz-frontend
+                port:
+                  number: 80
