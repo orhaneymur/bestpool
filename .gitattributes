@@ -1,0 +1,2 @@
+# Shell scriptleri Linux'ta CRLF sorunu yaşamasın diye daima LF ile saklanır/çıkarılır.
+*.sh text eol=lf
