@@ -30,17 +30,28 @@ export async function ensureSeed() {
   }
 
   // Ayarlar
+  const COMPANY_NAME = 'Four Seasons Pool Management';
   const settingCount = await Setting.count();
   if (settingCount === 0) {
     await Setting.create({
       id: 1,
-      company_name: 'İSTANBUL SPOR ETKİNLİKLERİ VE İŞLETMECİLİĞİ TİC. A.Ş.',
+      company_name: COMPANY_NAME,
       company_phone: '',
       company_email: 'sporistanbulyapayzeka@gmail.com',
       quote_prefix: 'TEK',
       default_vat_rate: 20,
     });
     console.log('[seed] Şirket ayarları oluşturuldu.');
+  } else {
+    const s = await Setting.findByPk(1);
+    const legacyNames = [
+      'İSTANBUL SPOR ETKİNLİKLERİ VE İŞLETMECİLİĞİ TİC. A.Ş.',
+      'ISTANBUL SPOR ETKINLIKLERI VE ISLETMECILIGI TIC. A.S.',
+    ];
+    if (s && (!s.company_name || legacyNames.includes(s.company_name))) {
+      await s.update({ company_name: COMPANY_NAME });
+      console.log('[seed] Şirket adı güncellendi:', COMPANY_NAME);
+    }
   }
 
   // Hizmet kataloğu

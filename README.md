@@ -2,7 +2,7 @@
 
 Havuz işletme, bakım, cankurtaran ve kimyasal hizmetleri için **fiyat teklifi hazırlama**, **PDF/Excel çıktısı alma** ve **müşteri (cari) yönetimi** yapan web tabanlı bir uygulama.
 
-İSTANBUL SPOR ETKİNLİKLERİ VE İŞLETMECİLİĞİ TİC. A.Ş. için geliştirilmiştir. İleride **ön muhasebe** (fatura, tahsilat, gider) modüllerine genişletilebilecek şekilde tasarlanmıştır.
+**Four Seasons Pool Management** için geliştirilmiştir. İleride **ön muhasebe** (fatura, tahsilat, gider) modüllerine genişletilebilecek şekilde tasarlanmıştır.
 
 ---
 

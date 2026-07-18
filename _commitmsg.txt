@@ -1,6 +1,0 @@
-feat: premium SaaS UI, English-only frontend, proposal wizard with live PDF preview
-
-- Tailwind/shadcn-style shell: sidebar, topbar, dashboard metrics
-- Multi-step proposal wizard with split-screen live paper preview
-- Full UI copy switched to English (status labels, forms, wizard)
-- Deploy-ready frontend assets and stats API pipeline value field

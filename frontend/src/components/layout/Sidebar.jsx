@@ -42,8 +42,8 @@ export default function Sidebar() {
           <Waves className="h-5 w-5" />
         </div>
         <div className="hidden min-w-0 leading-tight lg:block">
-          <div className="truncate text-sm font-semibold tracking-tight text-white">BestPool</div>
-          <div className="truncate text-[11px] text-sidebar-muted">Contract Studio</div>
+          <div className="truncate text-sm font-semibold tracking-tight text-white">Four Seasons</div>
+          <div className="truncate text-[11px] text-sidebar-muted">Pool Management</div>
         </div>
       </div>
 

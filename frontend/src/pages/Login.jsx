@@ -58,7 +58,7 @@ export default function Login() {
               <Waves className="h-6 w-6" />
             </div>
             <div>
-              <div className="text-lg font-semibold tracking-tight">BestPool</div>
+              <div className="text-lg font-semibold tracking-tight">Four Seasons Pool Management</div>
               <div className="text-sm text-slate-400">Contract Studio</div>
             </div>
           </div>
@@ -81,7 +81,7 @@ export default function Login() {
               <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground">
                 <Waves className="h-4 w-4" />
               </div>
-              <span className="text-sm font-semibold">BestPool</span>
+              <span className="text-sm font-semibold">Four Seasons</span>
             </div>
             <CardTitle className="text-xl">Sign in to your account</CardTitle>
             <CardDescription>Authenticate to continue to proposals and customers.</CardDescription>

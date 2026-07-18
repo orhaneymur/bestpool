@@ -7,7 +7,7 @@ router.use(auth());
 
 async function getOrCreate() {
   let s = await Setting.findByPk(1);
-  if (!s) s = await Setting.create({ id: 1, company_name: 'İSTANBUL SPOR ETKİNLİKLERİ VE İŞLETMECİLİĞİ TİC. A.Ş.' });
+  if (!s) s = await Setting.create({ id: 1, company_name: 'Four Seasons Pool Management' });
   return s;
 }
 
