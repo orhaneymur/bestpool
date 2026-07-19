@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { CalendarPlus, Equal, Plus, Trash2 } from 'lucide-react';
+import { CalendarPlus, Equal, Plus, Trash2, Sparkles } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx';
 import { Input } from '@/components/ui/input.jsx';
 import { Label } from '@/components/ui/label.jsx';
@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button.jsx';
 import { Progress } from '@/components/ui/progress.jsx';
 import { fmtMoney } from '@/api/utils.js';
 import { AYLAR, round2 } from '../utils/quoteMath.js';
+import { STANDARD_CLAUSES, cloneStandardClauses } from '../utils/defaultClauses.js';
 import { cn } from '@/lib/utils.js';
 
 export default function StepPayment({
@@ -51,7 +52,15 @@ export default function StepPayment({
       });
       cur.setMonth(cur.getMonth() + 1);
     }
-    setInstallments(rows);
+    // Equal-split across months with payment slots (skip $0 later if user wants)
+    const each = rows.length ? round2(contractAmount / rows.length) : 0;
+    let acc = 0;
+    const filled = rows.map((r, i) => {
+      const amount = i === rows.length - 1 ? round2(contractAmount - acc) : each;
+      acc = round2(acc + amount);
+      return { ...r, amount };
+    });
+    setInstallments(filled);
   }
 
   function addNote() {
@@ -59,14 +68,48 @@ export default function StepPayment({
     setSpecialNotes((a) => [...a, { label: nextLabel, body: '' }]);
   }
 
+  function loadStandardClauses() {
+    setSpecialNotes(cloneStandardClauses());
+  }
+
+  function addPreset(clause) {
+    setSpecialNotes((a) => {
+      if (a.some((n) => n.body === clause.body)) return a;
+      const label = String.fromCharCode(65 + a.length);
+      return [...a, { label: clause.label || label, body: clause.body }];
+    });
+  }
+
   return (
     <div className="space-y-4">
       <Card>
         <CardHeader className="pb-3">
           <CardTitle>Compensation schedule</CardTitle>
-          <CardDescription>Watch remaining amount update as you distribute installments.</CardDescription>
+          <CardDescription>
+            Total contract price from staffing/services. Distribute into installments for Section IV.
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label>Early bird discount ($ off total)</Label>
+              <Input
+                type="number"
+                step="0.01"
+                value={q.early_bird_discount || 0}
+                onChange={(e) => setQ({ ...q, early_bird_discount: Number(e.target.value) })}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Early bird deadline (valid until)</Label>
+              <Input
+                type="date"
+                value={q.valid_until || ''}
+                onChange={(e) => setQ({ ...q, valid_until: e.target.value })}
+              />
+            </div>
+          </div>
+
           <div className="rounded-2xl border border-border bg-muted/30 p-4">
             <div className="mb-2 flex flex-wrap items-end justify-between gap-2">
               <div>
@@ -92,7 +135,7 @@ export default function StepPayment({
           <div className="flex flex-wrap gap-2">
             <Button type="button" variant="outline" size="sm" className="gap-1" onClick={monthlyInstallments}>
               <CalendarPlus className="h-3.5 w-3.5" />
-              By month
+              Monthly + equal split
             </Button>
             {[2, 3, 4, 6, 12].map((n) => (
               <Button key={n} type="button" variant="secondary" size="sm" className="gap-1" onClick={() => splitInstallments(n)}>
@@ -156,17 +199,37 @@ export default function StepPayment({
       </Card>
 
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+        <CardHeader className="flex flex-col gap-3 space-y-0 pb-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <CardTitle>Additional comments</CardTitle>
-            <CardDescription>Clauses printed in PDF Section III.</CardDescription>
+            <CardDescription>Printed verbatim in PDF Section III (A, B, C…).</CardDescription>
           </div>
-          <Button type="button" variant="secondary" size="sm" className="gap-1" onClick={addNote}>
-            <Plus className="h-3.5 w-3.5" />
-            Clause
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" variant="outline" size="sm" className="gap-1" onClick={loadStandardClauses}>
+              <Sparkles className="h-3.5 w-3.5" />
+              Load standard clauses
+            </Button>
+            <Button type="button" variant="secondary" size="sm" className="gap-1" onClick={addNote}>
+              <Plus className="h-3.5 w-3.5" />
+              Clause
+            </Button>
+          </div>
         </CardHeader>
-        <CardContent className="space-y-2">
+        <CardContent className="space-y-3">
+          <div className="flex flex-wrap gap-1.5">
+            {STANDARD_CLAUSES.map((c) => (
+              <button
+                key={c.label}
+                type="button"
+                title={c.body}
+                onClick={() => addPreset(c)}
+                className="rounded-full border border-border bg-muted/40 px-2.5 py-1 text-[11px] font-semibold text-muted-foreground transition-colors hover:border-accent/40 hover:bg-accent/10 hover:text-accent"
+              >
+                + {c.label}
+              </button>
+            ))}
+          </div>
+
           {specialNotes.map((n, i) => (
             <div key={i} className="flex gap-2">
               <Input
@@ -175,10 +238,12 @@ export default function StepPayment({
                 onChange={(e) => setSpecialNotes((a) => a.map((x, idx) => (idx === i ? { ...x, label: e.target.value } : x)))}
                 placeholder="A"
               />
-              <Input
+              <textarea
+                rows={2}
                 value={n.body}
                 onChange={(e) => setSpecialNotes((a) => a.map((x, idx) => (idx === i ? { ...x, body: e.target.value } : x)))}
                 placeholder="Clause text…"
+                className="min-h-[2.5rem] flex-1 rounded-xl border border-input bg-transparent px-3 py-2 text-sm shadow-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/20"
               />
               <Button
                 type="button"
@@ -191,7 +256,9 @@ export default function StepPayment({
             </div>
           ))}
           {specialNotes.length === 0 && (
-            <p className="text-sm text-muted-foreground">e.g. permits included, overtime rate…</p>
+            <p className="text-sm text-muted-foreground">
+              Tip: click <strong>Load standard clauses</strong> for the usual permit / overtime / opening set, then edit.
+            </p>
           )}
         </CardContent>
       </Card>
@@ -203,7 +270,7 @@ export default function StepPayment({
         <CardContent>
           <div className="grid gap-4 sm:grid-cols-3">
             <div className="space-y-2 sm:col-span-2">
-              <Label>Contract template (general terms)</Label>
+              <Label>Contract template (general terms VI–XIX)</Label>
               <select
                 className="flex h-10 w-full rounded-lg border border-input bg-card px-3 text-sm shadow-soft"
                 value={q.contract_template_id || ''}

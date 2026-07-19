@@ -13,7 +13,9 @@ Havuz işletme, bakım, cankurtaran ve kimyasal hizmetleri için **fiyat teklifi
 - **Otomatik Fiyatlandırma + Manuel Düzeltme** — hizmet kataloğundan birim fiyat gelir; miktar × birim fiyat otomatik hesaplanır; indirim ve KDV canlı hesaplanır. Cankurtaran kalemi (kişi × saat × hafta) tek tıkla eklenir.
 - **Ödeme Planı / Taksitler** — eşit taksitlere bölme veya elle satır ekleme.
 - **Sözleşme Şablonları** — sabit yasal metin (varsayılan Türkçe şablon dahil), teklife eklenip PDF'e basılır.
-- **PDF ve Excel Çıktısı** — kurumsal başlıklı, Türkçe karakter destekli teklif çıktıları; doğrudan indirilir.
+- **PDF ve Excel Çıktısı** — Premier tarzı çok sayfalı sözleşme PDF’i (Kapak + Section I–V + genel hükümler); service line items, additional comments, taksit planı ve early bird notu basılır.
+- **Teklif Takibi** — sezon yılı filtresi, durum kartları, arama, **Duplicate** ile geçen yıl teklifini yeni sezona kopyalama.
+- **Standart Maddeler** — Section III için hazır clause seti (permit, overtime, opening/closing vb.); tek tıkla yüklenir.
 - **Çok Kullanıcılı + Roller** — `admin`, `sales`, `viewer`. JWT tabanlı kimlik doğrulama.
 - **Panel (Dashboard)** — teklif/müşteri sayıları, durum dağılımı, son teklifler.
 

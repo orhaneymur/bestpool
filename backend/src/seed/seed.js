@@ -36,17 +36,27 @@ export async function ensureSeed() {
     await Setting.create({
       id: 1,
       company_name: COMPANY_NAME,
+      company_tagline: 'Where Customer Service is a Policy, Not a Department',
       company_phone: '',
       company_email: 'sporistanbulyapayzeka@gmail.com',
-      quote_prefix: 'TEK',
-      default_vat_rate: 20,
+      quote_prefix: 'PROP',
+      rev_label: 'Rev 06/2025',
+      default_vat_rate: 0,
     });
     console.log('[seed] Şirket ayarları oluşturuldu.');
   } else {
     const s = await Setting.findByPk(1);
-    if (s && s.company_name !== COMPANY_NAME) {
-      await s.update({ company_name: COMPANY_NAME });
-      console.log('[seed] Şirket adı güncellendi:', COMPANY_NAME);
+    if (s) {
+      const patch = {};
+      if (s.company_name !== COMPANY_NAME) patch.company_name = COMPANY_NAME;
+      if (!s.company_tagline) {
+        patch.company_tagline = 'Where Customer Service is a Policy, Not a Department';
+      }
+      if (!s.rev_label) patch.rev_label = 'Rev 06/2025';
+      if (Object.keys(patch).length) {
+        await s.update(patch);
+        console.log('[seed] Şirket ayarları güncellendi:', patch);
+      }
     }
   }
 

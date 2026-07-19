@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ArrowLeft, ArrowRight, Save, Loader2, Eye, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Save, Loader2, Eye, X, Copy } from 'lucide-react';
 import api, { downloadFile } from '@/api/client.js';
 import { Button } from '@/components/ui/button.jsx';
 import WizardStepper from './WizardStepper.jsx';
@@ -17,6 +17,7 @@ import {
   round2,
   weeksBetween,
 } from './utils/quoteMath.js';
+import { cloneStandardClauses } from './utils/defaultClauses.js';
 
 const STEPS = [
   { id: 'customer', label: 'Customer' },
@@ -59,7 +60,7 @@ export default function ProposalWizard({ id, initialCustomerId }) {
   const [items, setItems] = useState([emptyItem()]);
   const [installments, setInstallments] = useState([]);
   const [schedules, setSchedules] = useState(buildDefaultSchedules());
-  const [specialNotes, setSpecialNotes] = useState([]);
+  const [specialNotes, setSpecialNotes] = useState(() => (id ? [] : cloneStandardClauses()));
 
   useEffect(() => {
     Promise.all([api.get('/customers'), api.get('/services'), api.get('/templates')]).then(
@@ -187,6 +188,21 @@ export default function ProposalWizard({ id, initialCustomerId }) {
             <Eye className="h-4 w-4" />
             Preview
           </Button>
+          {(savedId || id) && (
+            <Button
+              type="button"
+              variant="outline"
+              className="gap-2"
+              onClick={async () => {
+                const sid = savedId || id;
+                const { data } = await api.post(`/quotes/${sid}/duplicate`);
+                nav(`/quotes/${data.id}`);
+              }}
+            >
+              <Copy className="h-4 w-4" />
+              Duplicate
+            </Button>
+          )}
           <Button type="button" variant="outline" onClick={() => save()} disabled={saving} className="gap-2">
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
             Save
@@ -294,6 +310,7 @@ export default function ProposalWizard({ id, initialCustomerId }) {
             schedules={schedules}
             specialNotes={specialNotes}
             installments={installments}
+            items={items}
             totals={totals}
             contractAmount={contractAmount}
             canExport={!!(savedId || id)}
@@ -321,6 +338,7 @@ export default function ProposalWizard({ id, initialCustomerId }) {
               schedules={schedules}
               specialNotes={specialNotes}
               installments={installments}
+              items={items}
               totals={totals}
               contractAmount={contractAmount}
               canExport={!!(savedId || id)}

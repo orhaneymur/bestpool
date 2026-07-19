@@ -15,6 +15,7 @@ export default function LivePaperPreview({
   schedules,
   specialNotes,
   installments,
+  items = [],
   totals,
   contractAmount,
   onPdf,
@@ -144,6 +145,31 @@ export default function LivePaperPreview({
           <div className="mb-2 border-b border-slate-900 pb-1 text-[10px] font-bold uppercase tracking-wide text-slate-900">
             Section IV. Compensation Schedule
           </div>
+          {items.filter((it) => it.description?.trim()).length > 0 && (
+            <div className="mb-3">
+              <div className="mb-1 font-semibold text-slate-700">Services Included</div>
+              <table className="mb-2 w-full border-collapse text-[9px]">
+                <thead>
+                  <tr className="bg-slate-900 text-white">
+                    <th className="px-1 py-0.5 text-left">Description</th>
+                    <th className="px-1 py-0.5 text-right">Qty</th>
+                    <th className="px-1 py-0.5 text-right">Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.filter((it) => it.description?.trim()).map((it, i) => (
+                    <tr key={i} className="border-b border-slate-200 odd:bg-slate-50">
+                      <td className="px-1 py-0.5">{it.description}</td>
+                      <td className="px-1 py-0.5 text-right">{it.quantity}</td>
+                      <td className="px-1 py-0.5 text-right">
+                        <Money n={Number(it.quantity || 0) * Number(it.unit_price || 0)} cur={q.currency} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
           <div className="mb-2 flex flex-wrap justify-between gap-2">
             <div>
               <span className="text-slate-500">Total Contract Price: </span>

@@ -93,7 +93,7 @@ export default function StepCustomer({ q, setQ, customers, selectedCustomer }) {
           </div>
           <CardDescription>Start and end dates appear in PDF Section II.</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-3">
             <div className="space-y-2">
               <Label>Start date</Label>
@@ -119,6 +119,16 @@ export default function StepCustomer({ q, setQ, customers, selectedCustomer }) {
                 onChange={(e) => setQ({ ...q, valid_until: e.target.value })}
               />
             </div>
+          </div>
+          <div className="space-y-2">
+            <Label>School / off-season calendar note (PDF Section II)</Label>
+            <textarea
+              rows={2}
+              value={q.notes || ''}
+              onChange={(e) => setQ({ ...q, notes: e.target.value })}
+              placeholder="e.g. County public schools are scheduled to close on 6/12/26 and reopen on 8/31/26. If these dates change, additional charges may apply."
+              className="w-full rounded-xl border border-input bg-transparent px-3 py-2 text-sm shadow-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/20"
+            />
           </div>
         </CardContent>
       </Card>

@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { Op } from 'sequelize';
 import { sequelize, Quote, QuoteItem, QuoteInstallment, QuoteSchedule, QuoteNote, Customer, ContractTemplate, User, Setting } from '../models/index.js';
 import { auth } from '../middleware/auth.js';
 import { computeTotals } from '../services/pricing.js';
@@ -59,16 +60,46 @@ function fullQuoteInclude() {
   ];
 }
 
-// Liste (filtre: müşteri, durum)
+// Liste (filtre: müşteri, durum, sezon yılı, arama)
 router.get('/', async (req, res) => {
-  const where = {};
-  if (req.query.customer_id) where.customer_id = req.query.customer_id;
-  if (req.query.status) where.status = req.query.status;
-  const rows = await Quote.findAll({
-    where,
+  const and = [];
+  if (req.query.customer_id) and.push({ customer_id: req.query.customer_id });
+  if (req.query.status) and.push({ status: req.query.status });
+  if (req.query.year) {
+    const y = Number(req.query.year);
+    if (y) {
+      and.push({
+        [Op.or]: [
+          { season_start: { [Op.between]: [`${y}-01-01`, `${y}-12-31`] } },
+          { created_at: { [Op.between]: [`${y}-01-01`, `${y}-12-31 23:59:59`] } },
+        ],
+      });
+    }
+  }
+  if (req.query.q) {
+    const q = `%${String(req.query.q).trim()}%`;
+    and.push({
+      [Op.or]: [
+        { quote_no: { [Op.like]: q } },
+        { facility_name: { [Op.like]: q } },
+      ],
+    });
+  }
+  let rows = await Quote.findAll({
+    where: and.length ? { [Op.and]: and } : {},
     include: [{ model: Customer, attributes: ['id', 'name', 'code'] }],
     order: [['created_at', 'DESC']],
   });
+  if (req.query.q) {
+    const needle = String(req.query.q).trim().toLowerCase();
+    rows = rows.filter((r) => {
+      const hay = [r.quote_no, r.facility_name, r.Customer?.name, r.Customer?.code]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      return hay.includes(needle);
+    });
+  }
   res.json(rows);
 });
 
@@ -209,6 +240,71 @@ router.patch('/:id/status', async (req, res) => {
   if (!quote) return res.status(404).json({ error: 'Teklif bulunamadı.' });
   await quote.update({ status: req.body.status });
   res.json(quote);
+});
+
+// Mevcut teklifi kopyala (yeni sezon için hızlı başlangıç)
+router.post('/:id/duplicate', auth(['admin', 'sales']), async (req, res) => {
+  const t = await sequelize.transaction();
+  try {
+    const src = await Quote.findByPk(req.params.id, { include: fullQuoteInclude() });
+    if (!src) {
+      await t.rollback();
+      return res.status(404).json({ error: 'Teklif bulunamadı.' });
+    }
+    const copy = await Quote.create({
+      quote_no: await nextQuoteNo(),
+      customer_id: src.customer_id,
+      contract_template_id: src.contract_template_id,
+      created_by: req.user.id,
+      facility_name: src.facility_name,
+      facility_address: src.facility_address,
+      season_start: src.season_start,
+      season_end: src.season_end,
+      lifeguard_count: src.lifeguard_count,
+      hours_per_week: src.hours_per_week,
+      subtotal: src.subtotal,
+      discount_rate: src.discount_rate,
+      discount_amount: src.discount_amount,
+      early_bird_discount: src.early_bird_discount,
+      vat_amount: src.vat_amount,
+      total: src.total,
+      currency: src.currency,
+      status: 'taslak',
+      valid_until: null,
+      notes: src.notes,
+    }, { transaction: t });
+
+    for (const [i, it] of (src.items || []).entries()) {
+      await QuoteItem.create({
+        quote_id: copy.id,
+        service_item_id: it.service_item_id,
+        description: it.description,
+        quantity: it.quantity,
+        unit: it.unit,
+        unit_price: it.unit_price,
+        vat_rate: it.vat_rate,
+        line_total: it.line_total,
+        sort_order: i,
+      }, { transaction: t });
+    }
+    for (const inst of (src.installments || [])) {
+      await QuoteInstallment.create({
+        quote_id: copy.id,
+        label: inst.label,
+        due_date: inst.due_date,
+        amount: inst.amount,
+      }, { transaction: t });
+    }
+    await saveSchedules(copy.id, (src.schedules || []).map((s) => s.toJSON ? s.toJSON() : s), t);
+    await saveNotes(copy.id, (src.special_notes || []).map((n) => n.toJSON ? n.toJSON() : n), t);
+
+    await t.commit();
+    res.status(201).json(await Quote.findByPk(copy.id, { include: fullQuoteInclude() }));
+  } catch (err) {
+    await t.rollback();
+    console.error(err);
+    res.status(500).json({ error: 'Teklif kopyalanamadı: ' + err.message });
+  }
 });
 
 router.delete('/:id', auth(['admin', 'sales']), async (req, res) => {
