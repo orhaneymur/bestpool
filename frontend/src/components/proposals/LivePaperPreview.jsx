@@ -36,25 +36,25 @@ export default function LivePaperPreview({
 
   return (
     <div className="flex h-full flex-col">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+      <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <div>
           <div className="text-sm font-semibold text-foreground">Live contract preview</div>
           <div className="text-xs text-muted-foreground">Digital paper simulation of the customer PDF</div>
         </div>
-        <div className="flex gap-2">
+        <div className="grid grid-cols-2 gap-2 sm:flex">
           <Button type="button" variant="outline" size="sm" className="gap-1.5" disabled={!canExport} onClick={onExcel}>
             <Sheet className="h-3.5 w-3.5" />
-            Excel Report
+            Excel
           </Button>
           <Button type="button" variant="accent" size="sm" className="gap-1.5" disabled={!canExport} onClick={onPdf}>
             <FileDown className="h-3.5 w-3.5" />
-            Export PDF
+            PDF
           </Button>
         </div>
       </div>
 
-      <div className="relative flex-1 overflow-auto rounded-2xl bg-gradient-to-b from-slate-200/80 to-slate-300/50 p-4 sm:p-6">
-        <div className="mx-auto min-h-[720px] max-w-[520px] origin-top rounded-[2px] bg-white px-7 py-8 text-[10.5px] leading-relaxed text-slate-800 shadow-paper ring-1 ring-black/5 transition-transform duration-300 sm:scale-100">
+      <div className="relative flex-1 overflow-auto rounded-2xl bg-gradient-to-b from-slate-200/80 to-slate-300/50 p-3 sm:p-6">
+        <div className="mx-auto min-h-[560px] max-w-[520px] origin-top rounded-[2px] bg-white px-4 py-6 text-[10.5px] leading-relaxed text-slate-800 shadow-paper ring-1 ring-black/5 transition-transform duration-300 sm:min-h-[720px] sm:px-7 sm:py-8">
           {/* Cover-ish header */}
           <div className="mb-5 text-center">
             <div className="text-[9px] italic text-slate-500">Commercial Swimming Pool Management Agreement</div>

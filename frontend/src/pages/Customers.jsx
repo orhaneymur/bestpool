@@ -1,8 +1,25 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import api from '../api/client.js';
+import { Plus, Search } from 'lucide-react';
+import api from '@/api/client.js';
+import PageHeader from '@/components/layout/PageHeader.jsx';
+import { Button } from '@/components/ui/button.jsx';
+import { Input } from '@/components/ui/input.jsx';
+import { Label } from '@/components/ui/label.jsx';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card.jsx';
 
-const EMPTY = { code: '', name: '', contact_person: '', phone: '', email: '', city: '', address: '', tax_office: '', tax_no: '', notes: '' };
+const EMPTY = {
+  code: '',
+  name: '',
+  contact_person: '',
+  phone: '',
+  email: '',
+  city: '',
+  address: '',
+  tax_office: '',
+  tax_no: '',
+  notes: '',
+};
 
 export default function Customers() {
   const [rows, setRows] = useState([]);
@@ -10,67 +27,200 @@ export default function Customers() {
   const [form, setForm] = useState(null);
 
   const load = () => api.get('/customers', { params: { q } }).then((r) => setRows(r.data));
-  useEffect(() => { load(); }, [q]);
+  useEffect(() => {
+    load();
+  }, [q]);
 
   async function save(e) {
     e.preventDefault();
     if (form.id) await api.put(`/customers/${form.id}`, form);
     else await api.post('/customers', form);
-    setForm(null); load();
+    setForm(null);
+    load();
   }
 
   return (
-    <div>
-      <div className="topbar">
-        <h1>Customers</h1>
-        <button onClick={() => setForm({ ...EMPTY })}>+ New Customer</button>
-      </div>
+    <div className="space-y-4 sm:space-y-5">
+      <PageHeader title="Customers" subtitle="Accounts, contacts, and facility owners">
+        <Button type="button" variant="accent" className="gap-2" onClick={() => setForm({ ...EMPTY })}>
+          <Plus className="h-4 w-4" />
+          New Customer
+        </Button>
+      </PageHeader>
 
-      <div className="toolbar">
-        <input placeholder="Search name, code, phone, tax ID…" value={q} onChange={(e) => setQ(e.target.value)} style={{ maxWidth: 340 }} />
-        <span className="pill">{rows.length} record{rows.length === 1 ? '' : 's'}</span>
+      <div className="relative">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          className="h-11 pl-9"
+          placeholder="Search name, code, phone, tax ID…"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+        />
       </div>
 
       {form && (
-        <form className="card" onSubmit={save}>
-          <h3 style={{ marginTop: 0 }}>{form.id ? 'Edit Customer' : 'New Customer'}</h3>
-          <div className="grid grid-3">
-            <div><label>Account code</label><input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} placeholder="Auto" /></div>
-            <div style={{ gridColumn: 'span 2' }}><label>Customer / Facility name *</label><input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
-            <div><label>Contact person</label><input value={form.contact_person} onChange={(e) => setForm({ ...form, contact_person: e.target.value })} /></div>
-            <div><label>Phone</label><input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
-            <div><label>Email</label><input value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
-            <div><label>City</label><input value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} /></div>
-            <div><label>Tax office</label><input value={form.tax_office} onChange={(e) => setForm({ ...form, tax_office: e.target.value })} /></div>
-            <div><label>Tax ID</label><input value={form.tax_no} onChange={(e) => setForm({ ...form, tax_no: e.target.value })} /></div>
-            <div style={{ gridColumn: 'span 3' }}><label>Address</label><input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} /></div>
-            <div style={{ gridColumn: 'span 3' }}><label>Notes</label><textarea rows="2" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
-          </div>
-          <div className="row" style={{ marginTop: 12 }}>
-            <button type="submit">Save</button>
-            <button type="button" className="secondary" onClick={() => setForm(null)}>Cancel</button>
-          </div>
-        </form>
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle>{form.id ? 'Edit Customer' : 'New Customer'}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={save} className="space-y-4">
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="space-y-1.5">
+                  <Label>Account code</Label>
+                  <Input
+                    value={form.code}
+                    onChange={(e) => setForm({ ...form, code: e.target.value })}
+                    placeholder="Auto"
+                  />
+                </div>
+                <div className="space-y-1.5 sm:col-span-2">
+                  <Label>Customer / Facility name *</Label>
+                  <Input
+                    required
+                    value={form.name}
+                    onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Contact person</Label>
+                  <Input
+                    value={form.contact_person}
+                    onChange={(e) => setForm({ ...form, contact_person: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Phone</Label>
+                  <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Email</Label>
+                  <Input
+                    type="email"
+                    value={form.email}
+                    onChange={(e) => setForm({ ...form, email: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>City</Label>
+                  <Input value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Tax office</Label>
+                  <Input
+                    value={form.tax_office}
+                    onChange={(e) => setForm({ ...form, tax_office: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Tax ID</Label>
+                  <Input value={form.tax_no} onChange={(e) => setForm({ ...form, tax_no: e.target.value })} />
+                </div>
+                <div className="space-y-1.5 sm:col-span-2 lg:col-span-3">
+                  <Label>Address</Label>
+                  <Input
+                    value={form.address}
+                    onChange={(e) => setForm({ ...form, address: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-1.5 sm:col-span-2 lg:col-span-3">
+                  <Label>Notes</Label>
+                  <textarea
+                    rows={2}
+                    value={form.notes}
+                    onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                    className="flex w-full rounded-xl border border-input bg-transparent px-3 py-2 text-sm shadow-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/20"
+                  />
+                </div>
+              </div>
+              <div className="flex flex-col-reverse gap-2 sm:flex-row">
+                <Button type="button" variant="outline" onClick={() => setForm(null)}>
+                  Cancel
+                </Button>
+                <Button type="submit" variant="accent">
+                  Save
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
       )}
 
-      <div className="card">
-        <table>
-          <thead><tr><th>Code</th><th>Customer</th><th>Contact</th><th>Phone</th><th>City</th><th></th></tr></thead>
-          <tbody>
-            {rows.map((c) => (
-              <tr key={c.id}>
-                <td>{c.code}</td>
-                <td><Link to={`/customers/${c.id}`}>{c.name}</Link></td>
-                <td>{c.contact_person || '-'}</td>
-                <td>{c.phone || '-'}</td>
-                <td>{c.city || '-'}</td>
-                <td className="right"><button className="ghost" onClick={() => setForm(c)}>Edit</button></td>
-              </tr>
-            ))}
-            {rows.length === 0 && <tr><td colSpan="6" className="muted">No records.</td></tr>}
-          </tbody>
-        </table>
+      {/* Mobile cards */}
+      <div className="grid gap-3 md:hidden">
+        {rows.map((c) => (
+          <Card key={c.id}>
+            <CardContent className="p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <Link to={`/customers/${c.id}`} className="text-base font-semibold hover:text-accent">
+                    {c.name}
+                  </Link>
+                  <div className="mt-0.5 text-xs text-muted-foreground">{c.code || '—'}</div>
+                </div>
+                <Button type="button" variant="outline" size="sm" onClick={() => setForm(c)}>
+                  Edit
+                </Button>
+              </div>
+              <div className="mt-3 grid gap-1 text-sm text-muted-foreground">
+                <div>{c.contact_person || 'No contact'}</div>
+                <div>{c.phone || '—'}</div>
+                <div>{c.city || '—'}</div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+        {rows.length === 0 && (
+          <Card>
+            <CardContent className="p-8 text-center text-sm text-muted-foreground">No records.</CardContent>
+          </Card>
+        )}
       </div>
+
+      {/* Desktop table */}
+      <Card className="hidden overflow-hidden md:block">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border bg-muted/40 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                <th className="px-4 py-3">Code</th>
+                <th className="px-4 py-3">Customer</th>
+                <th className="px-4 py-3">Contact</th>
+                <th className="px-4 py-3">Phone</th>
+                <th className="px-4 py-3">City</th>
+                <th className="px-4 py-3 text-right" />
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border/70">
+              {rows.map((c) => (
+                <tr key={c.id} className="hover:bg-muted/30">
+                  <td className="px-4 py-3 text-muted-foreground">{c.code}</td>
+                  <td className="px-4 py-3">
+                    <Link to={`/customers/${c.id}`} className="font-semibold hover:text-accent">
+                      {c.name}
+                    </Link>
+                  </td>
+                  <td className="px-4 py-3 text-muted-foreground">{c.contact_person || '—'}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{c.phone || '—'}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{c.city || '—'}</td>
+                  <td className="px-4 py-3 text-right">
+                    <Button type="button" variant="ghost" size="sm" onClick={() => setForm(c)}>
+                      Edit
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+              {rows.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="px-4 py-10 text-center text-muted-foreground">
+                    No records.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </Card>
     </div>
   );
 }

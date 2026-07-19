@@ -33,50 +33,74 @@ export default function RecentQuotes({ quotes = [] }) {
             </Button>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-y border-border/70 bg-muted/30 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  <th className="px-6 py-3 font-semibold">Proposal</th>
-                  <th className="px-4 py-3 font-semibold">Customer</th>
-                  <th className="px-4 py-3 font-semibold">Date</th>
-                  <th className="px-4 py-3 font-semibold">Status</th>
-                  <th className="px-6 py-3 text-right font-semibold">Amount</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/60">
-                {quotes.map((q) => (
-                  <tr key={q.id} className="group transition-colors duration-200 hover:bg-muted/40">
-                    <td className="px-6 py-3.5">
-                      <Link
-                        to={`/quotes/${q.id}`}
-                        className="font-semibold text-foreground transition-colors group-hover:text-accent"
-                      >
-                        {q.quote_no}
-                      </Link>
-                      {q.facility_name && (
-                        <div className="mt-0.5 truncate text-xs text-muted-foreground">
-                          {q.facility_name}
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-4 py-3.5 text-muted-foreground">
+          <>
+            <div className="divide-y divide-border/70 md:hidden">
+              {quotes.map((q) => (
+                <Link
+                  key={q.id}
+                  to={`/quotes/${q.id}`}
+                  className="flex items-start justify-between gap-3 px-4 py-3.5 transition-colors hover:bg-muted/40"
+                >
+                  <div className="min-w-0">
+                    <div className="font-semibold text-foreground">{q.quote_no}</div>
+                    <div className="mt-0.5 truncate text-xs text-muted-foreground">
                       {q.Customer?.name || '—'}
-                    </td>
-                    <td className="px-4 py-3.5 tabular-nums text-muted-foreground">
-                      {fmtDate(q.created_at)}
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <Badge variant={q.status}>{statusLabel[q.status] || q.status}</Badge>
-                    </td>
-                    <td className="px-6 py-3.5 text-right font-semibold tabular-nums text-foreground">
+                    </div>
+                    <div className="mt-1 text-[11px] text-muted-foreground">{fmtDate(q.created_at)}</div>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <Badge variant={q.status}>{statusLabel[q.status] || q.status}</Badge>
+                    <div className="mt-2 text-sm font-semibold tabular-nums">
                       {fmtMoney(q.total, q.currency)}
-                    </td>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+
+            <div className="hidden overflow-x-auto md:block">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-y border-border/70 bg-muted/30 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    <th className="px-6 py-3 font-semibold">Proposal</th>
+                    <th className="px-4 py-3 font-semibold">Customer</th>
+                    <th className="px-4 py-3 font-semibold">Date</th>
+                    <th className="px-4 py-3 font-semibold">Status</th>
+                    <th className="px-6 py-3 text-right font-semibold">Amount</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-border/60">
+                  {quotes.map((q) => (
+                    <tr key={q.id} className="group transition-colors duration-200 hover:bg-muted/40">
+                      <td className="px-6 py-3.5">
+                        <Link
+                          to={`/quotes/${q.id}`}
+                          className="font-semibold text-foreground transition-colors group-hover:text-accent"
+                        >
+                          {q.quote_no}
+                        </Link>
+                        {q.facility_name && (
+                          <div className="mt-0.5 truncate text-xs text-muted-foreground">
+                            {q.facility_name}
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-4 py-3.5 text-muted-foreground">{q.Customer?.name || '—'}</td>
+                      <td className="px-4 py-3.5 tabular-nums text-muted-foreground">
+                        {fmtDate(q.created_at)}
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <Badge variant={q.status}>{statusLabel[q.status] || q.status}</Badge>
+                      </td>
+                      <td className="px-6 py-3.5 text-right font-semibold tabular-nums text-foreground">
+                        {fmtMoney(q.total, q.currency)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </CardContent>
     </Card>

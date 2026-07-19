@@ -110,10 +110,10 @@ Canlı ortam k3s + Traefik + Cloudflare kullanır. HTTPS için en güvenli ve di
 
 ## 📱 Mobil Uyumluluk
 
-- Telefonda alt gezinme çubuğu (Home / Proposals / Customers / More)
-- Masaüstünde yan menü (sidebar)
-- Teklif sihirbazında canlı PDF önizleme mobilde **Preview** ile açılır
-- Legacy listeler (müşteri/hizmet tabloları) yatay kaydırılabilir
+- Telefonda hamburger menü + sola kayan drawer (masaüstünde klasik sidebar)
+- Listeler mobilde **kart**, tablette/masaüstünde **tablo**
+- Dashboard metrikleri 2 sütun; teklif sihirbazı adım çubuğu + Preview sheet
+- Formlar tek sütuna düşer; dokunma alanları büyütülmüştür
 
 ## ☸️ Kubernetes ile Yayınlama
 

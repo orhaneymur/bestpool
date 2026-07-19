@@ -89,13 +89,13 @@ export default function StatCard({
 
         <div className="relative mt-4 flex items-end justify-between gap-3">
           <div className="min-w-0">
-            <div className="truncate text-[1.65rem] font-semibold tracking-tight text-foreground">
+            <div className="truncate text-xl font-semibold tracking-tight text-foreground sm:text-[1.65rem]">
               {value}
             </div>
             <div className="mt-1 text-sm font-medium text-muted-foreground">{label}</div>
             {hint && <div className="mt-0.5 text-[11px] text-muted-foreground/70">{hint}</div>}
           </div>
-          <Sparkline className={t.spark} />
+          <Sparkline className={cn('hidden sm:block', t.spark)} />
         </div>
       </Card>
     </motion.div>

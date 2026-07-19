@@ -1,57 +1,112 @@
 import { useEffect, useState } from 'react';
-import api from '../api/client.js';
+import { Plus } from 'lucide-react';
+import api from '@/api/client.js';
+import PageHeader from '@/components/layout/PageHeader.jsx';
+import { Button } from '@/components/ui/button.jsx';
+import { Input } from '@/components/ui/input.jsx';
+import { Label } from '@/components/ui/label.jsx';
+import { Badge } from '@/components/ui/badge.jsx';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card.jsx';
 
 export default function Templates() {
   const [rows, setRows] = useState([]);
   const [form, setForm] = useState(null);
 
   const load = () => api.get('/templates').then((r) => setRows(r.data));
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+  }, []);
 
   async function save(e) {
     e.preventDefault();
     if (form.id) await api.put(`/templates/${form.id}`, form);
     else await api.post('/templates', form);
-    setForm(null); load();
+    setForm(null);
+    load();
   }
 
   return (
-    <div>
-      <div className="topbar">
-        <h1>Contract Templates</h1>
-        <button onClick={() => setForm({ name: '', body: '', is_default: false })}>+ New Template</button>
-      </div>
-      <p className="muted">Boilerplate general terms. When attached to a proposal, they are printed after the specification pages.</p>
+    <div className="space-y-4 sm:space-y-5">
+      <PageHeader
+        title="Contract Templates"
+        subtitle="Boilerplate terms printed after specification pages"
+      >
+        <Button
+          type="button"
+          variant="accent"
+          className="gap-2"
+          onClick={() => setForm({ name: '', body: '', is_default: false })}
+        >
+          <Plus className="h-4 w-4" />
+          New Template
+        </Button>
+      </PageHeader>
 
       {form && (
-        <form className="card" onSubmit={save}>
-          <h3 style={{ marginTop: 0 }}>{form.id ? 'Edit Template' : 'New Template'}</h3>
-          <div className="field"><label>Template name *</label><input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
-          <div className="field"><label>Body (sections / clauses)</label><textarea rows="16" value={form.body} onChange={(e) => setForm({ ...form, body: e.target.value })} style={{ fontFamily: 'monospace', fontSize: 13 }} /></div>
-          <label className="row" style={{ gap: 8 }}>
-            <input type="checkbox" style={{ width: 'auto' }} checked={!!form.is_default} onChange={(e) => setForm({ ...form, is_default: e.target.checked })} />
-            Default template
-          </label>
-          <div className="row" style={{ marginTop: 12 }}>
-            <button type="submit">Save</button>
-            <button type="button" className="secondary" onClick={() => setForm(null)}>Cancel</button>
-          </div>
-        </form>
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle>{form.id ? 'Edit Template' : 'New Template'}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={save} className="space-y-4">
+              <div className="space-y-1.5">
+                <Label>Template name *</Label>
+                <Input
+                  required
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Body (sections / clauses)</Label>
+                <textarea
+                  rows={12}
+                  value={form.body}
+                  onChange={(e) => setForm({ ...form, body: e.target.value })}
+                  className="w-full rounded-xl border border-input bg-transparent px-3 py-2 font-mono text-xs leading-relaxed shadow-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/20 sm:text-sm"
+                />
+              </div>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={!!form.is_default}
+                  onChange={(e) => setForm({ ...form, is_default: e.target.checked })}
+                />
+                Default template
+              </label>
+              <div className="flex flex-col-reverse gap-2 sm:flex-row">
+                <Button type="button" variant="outline" onClick={() => setForm(null)}>
+                  Cancel
+                </Button>
+                <Button type="submit" variant="accent">
+                  Save
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
       )}
 
-      <div className="card">
-        <table>
-          <thead><tr><th>Template</th><th>Default</th><th></th></tr></thead>
-          <tbody>
-            {rows.map((t) => (
-              <tr key={t.id}>
-                <td>{t.name}</td>
-                <td>{t.is_default ? <span className="badge kabul">Default</span> : ''}</td>
-                <td className="right"><button className="ghost" onClick={() => setForm(t)}>Edit</button></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="grid gap-3">
+        {rows.map((t) => (
+          <Card key={t.id}>
+            <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="font-semibold">{t.name}</div>
+                  {t.is_default && <Badge variant="kabul">Default</Badge>}
+                </div>
+                <div className="mt-1 line-clamp-2 text-xs text-muted-foreground sm:text-sm">
+                  {(t.body || '').slice(0, 160) || 'No body text'}
+                  {(t.body || '').length > 160 ? '…' : ''}
+                </div>
+              </div>
+              <Button type="button" variant="outline" size="sm" onClick={() => setForm(t)}>
+                Edit
+              </Button>
+            </CardContent>
+          </Card>
+        ))}
       </div>
     </div>
   );

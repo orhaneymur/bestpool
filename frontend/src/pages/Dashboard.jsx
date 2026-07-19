@@ -85,15 +85,15 @@ export default function Dashboard() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <PageHeader
         title="Overview"
         subtitle="Operations summary, pipeline, and recent proposal activity"
       >
-        <Button asChild variant="outline" className="gap-2">
+        <Button asChild variant="outline" className="flex-1 gap-2 sm:flex-none">
           <Link to="/quotes">All proposals</Link>
         </Button>
-        <Button asChild variant="accent" className="gap-2">
+        <Button asChild variant="accent" className="flex-1 gap-2 sm:flex-none">
           <Link to="/quotes/new">
             <Plus className="h-4 w-4" />
             New Proposal
@@ -102,25 +102,25 @@ export default function Dashboard() {
       </PageHeader>
 
       <Card className="overflow-hidden border-accent/20 bg-gradient-to-r from-slate-900 via-slate-900 to-sky-950 text-white shadow-pop">
-        <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
+        <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
           <div className="flex items-start gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent/20 text-accent ring-1 ring-inset ring-accent/30">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent/20 text-accent ring-1 ring-inset ring-accent/30">
               <Sparkles className="h-5 w-5" />
             </div>
-            <div>
+            <div className="min-w-0">
               <div className="text-sm font-semibold tracking-tight">Contract wizard ready</div>
-              <p className="mt-0.5 max-w-xl text-sm text-slate-300">
-                Fill in facility, season hours, staffing, and payment schedule — then export a corporate PDF.
+              <p className="mt-0.5 text-sm text-slate-300">
+                Facility, season hours, staffing, payment — then export PDF.
               </p>
             </div>
           </div>
-          <Button asChild variant="accent" className="shrink-0">
+          <Button asChild variant="accent" className="w-full shrink-0 sm:w-auto">
             <Link to="/quotes/new">Create proposal</Link>
           </Button>
         </CardContent>
       </Card>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         {metrics.map((m, i) => (
           <StatCard key={m.label} index={i} {...m} />
         ))}

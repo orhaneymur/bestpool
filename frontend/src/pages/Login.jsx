@@ -50,26 +50,27 @@ export default function Login() {
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.45, ease: 'easeOut' }}
-        className="relative z-10 grid w-full max-w-5xl gap-8 lg:grid-cols-[1.1fr_0.9fr] lg:items-center"
+        className="relative z-10 grid w-full max-w-5xl gap-6 lg:grid-cols-[1.1fr_0.9fr] lg:items-center lg:gap-8"
       >
-        <div className="hidden px-4 text-white lg:block">
-          <div className="mb-8 flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-400/15 text-sky-300 ring-1 ring-inset ring-sky-300/30">
-              <Waves className="h-6 w-6" />
+        <div className="px-1 text-white lg:px-4">
+          <div className="mb-5 flex items-center gap-3 lg:mb-8">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-sky-400/15 text-sky-300 ring-1 ring-inset ring-sky-300/30 lg:h-12 lg:w-12">
+              <Waves className="h-5 w-5 lg:h-6 lg:w-6" />
             </div>
-            <div>
-              <div className="text-lg font-semibold tracking-tight">Four Seasons Pool Management</div>
+            <div className="min-w-0">
+              <div className="truncate text-base font-semibold tracking-tight lg:text-lg">
+                Four Seasons Pool Management
+              </div>
               <div className="text-sm text-slate-400">Contract Studio</div>
             </div>
           </div>
-          <h1 className="max-w-md text-4xl font-semibold tracking-tight text-white">
+          <h1 className="max-w-md text-2xl font-semibold tracking-tight text-white sm:text-3xl lg:text-4xl">
             Produce commercial pool contracts in minutes.
           </h1>
-          <p className="mt-4 max-w-md text-base leading-relaxed text-slate-400">
-            Manage facility details, season schedules, staffing, and payment calendars in one wizard —
-            with a live PDF preview for your customer.
+          <p className="mt-3 max-w-md text-sm leading-relaxed text-slate-400 sm:text-base lg:mt-4">
+            Manage facility details, season hours, staffing, and payment calendars — with a live PDF preview.
           </p>
-          <div className="mt-8 flex items-center gap-2 text-sm text-slate-400">
+          <div className="mt-5 hidden items-center gap-2 text-sm text-slate-400 lg:mt-8 lg:flex">
             <ShieldCheck className="h-4 w-4 text-sky-400" />
             Role-based access · JWT security
           </div>
@@ -77,12 +78,6 @@ export default function Login() {
 
         <Card className="border-white/10 bg-white/95 shadow-paper backdrop-blur">
           <CardHeader className="space-y-1 pb-2">
-            <div className="mb-2 flex items-center gap-2 lg:hidden">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-                <Waves className="h-4 w-4" />
-              </div>
-              <span className="text-sm font-semibold">Four Seasons</span>
-            </div>
             <CardTitle className="text-xl">Sign in to your account</CardTitle>
             <CardDescription>Authenticate to continue to proposals and customers.</CardDescription>
           </CardHeader>

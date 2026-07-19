@@ -170,7 +170,7 @@ export default function ProposalWizard({ id, initialCustomerId }) {
             <ArrowLeft className="h-3.5 w-3.5" />
             Back to proposals
           </Link>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+          <h1 className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
             {editing || savedId ? `Proposal ${quoteNo || ''}` : 'New contract proposal'}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
