@@ -38,8 +38,8 @@ data:
   DB_USER: "havuz"
   DB_SYNC: "true"
   JWT_EXPIRES_IN: "12h"
-  # Frontend /api'yi aynı origin'den çağırdığı için CORS kritik değil; yine de domaine sınırlanabilir.
-  CORS_ORIGIN: "*"
+  # HTTPS yayın sonrası origin ile sınırlı tutun.
+  CORS_ORIGIN: "https://pool.derneklab.com"
   ADMIN_EMAIL: "admin@havuz.local"
   ADMIN_NAME: "Sistem Yoneticisi"
 ---
@@ -209,11 +209,18 @@ spec:
       targetPort: 80
 ---
 # ----------------------------- Ingress (Traefik) ----------------------------
+# HTTPS (önerilen — Cloudflare, diğer siteleri etkilemez):
+#   1) DNS: pool.derneklab.com → Proxied (turuncu bulut)
+#   2) SSL/TLS → Overview → encryption mode: Flexible
+#   3) SSL/TLS → Edge Certificates → Always Use HTTPS: ON
+# Ziyaretçi https://pool.derneklab.com görür; Cloudflare → origin HTTP:80.
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: havuz-ingress
   namespace: havuz
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web
 spec:
   ingressClassName: traefik
   rules:

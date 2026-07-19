@@ -136,4 +136,10 @@
 .legacy .topbar h1 { font-size: 22px; margin: 0; }
 @media (max-width: 820px) {
   .legacy .grid-2, .legacy .grid-3, .legacy .grid-4 { grid-template-columns: 1fr; }
+  .legacy .card { padding: 14px; }
+  .legacy .topbar h1 { font-size: 18px; }
+  .legacy table { display: block; width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .legacy th, .legacy td { white-space: nowrap; }
+  .legacy .toolbar { flex-direction: column; align-items: stretch; }
+  .legacy .row { flex-wrap: wrap; }
 }

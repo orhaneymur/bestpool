@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ArrowLeft, ArrowRight, Save, Loader2 } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Save, Loader2, Eye, X } from 'lucide-react';
 import api, { downloadFile } from '@/api/client.js';
 import { Button } from '@/components/ui/button.jsx';
 import WizardStepper from './WizardStepper.jsx';
@@ -37,6 +37,7 @@ export default function ProposalWizard({ id, initialCustomerId }) {
   const [savedId, setSavedId] = useState(id || null);
   const [quoteNo, setQuoteNo] = useState('');
   const [err, setErr] = useState('');
+  const [previewOpen, setPreviewOpen] = useState(false);
 
   const [q, setQ] = useState({
     customer_id: initialCustomerId || '',
@@ -177,6 +178,15 @@ export default function ProposalWizard({ id, initialCustomerId }) {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setPreviewOpen(true)}
+            className="gap-2 xl:hidden"
+          >
+            <Eye className="h-4 w-4" />
+            Preview
+          </Button>
           <Button type="button" variant="outline" onClick={() => save()} disabled={saving} className="gap-2">
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
             Save
@@ -276,7 +286,7 @@ export default function ProposalWizard({ id, initialCustomerId }) {
         </div>
 
         {/* Live preview — sticky on desktop */}
-        <div className="xl:sticky xl:top-20 xl:self-start">
+        <div className="hidden xl:sticky xl:top-20 xl:block xl:self-start">
           <LivePaperPreview
             q={q}
             quoteNo={quoteNo}
@@ -292,6 +302,34 @@ export default function ProposalWizard({ id, initialCustomerId }) {
           />
         </div>
       </div>
+
+      {/* Mobile / tablet full-screen preview sheet */}
+      {previewOpen && (
+        <div className="fixed inset-0 z-[60] flex flex-col bg-background xl:hidden">
+          <div className="flex items-center justify-between border-b border-border px-3 py-3">
+            <div className="text-sm font-semibold">Contract preview</div>
+            <Button type="button" variant="ghost" size="sm" onClick={() => setPreviewOpen(false)} className="gap-1.5">
+              <X className="h-4 w-4" />
+              Close
+            </Button>
+          </div>
+          <div className="flex-1 overflow-y-auto px-3 py-4 pb-24">
+            <LivePaperPreview
+              q={q}
+              quoteNo={quoteNo}
+              customer={selectedCustomer}
+              schedules={schedules}
+              specialNotes={specialNotes}
+              installments={installments}
+              totals={totals}
+              contractAmount={contractAmount}
+              canExport={!!(savedId || id)}
+              onPdf={() => exportFile('pdf')}
+              onExcel={() => exportFile('excel')}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

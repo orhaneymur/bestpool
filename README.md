@@ -91,6 +91,30 @@ npm run dev               # http://localhost:5173 (API'yi otomatik proxy'ler)
 
 ---
 
+## 🔒 Üretim HTTPS (`pool.derneklab.com`)
+
+Canlı ortam k3s + Traefik + Cloudflare kullanır. HTTPS için en güvenli ve diğer siteleri etkilemeyen yol:
+
+1. Cloudflare DNS’te `pool.derneklab.com` kaydını **Proxied (turuncu bulut)** yapın.
+2. **SSL/TLS → Overview** → encryption mode: **Flexible**.
+3. **SSL/TLS → Edge Certificates** → **Always Use HTTPS: ON**.
+4. Manifest’i uygulayıp pod’ları yenileyin:
+   ```bash
+   cd ~/bestpool
+   git pull
+   bash k8s/deploy-production.sh
+   ```
+5. Tarayıcıdan test: **https://pool.derneklab.com**
+
+> `CORS_ORIGIN` ConfigMap’te `https://pool.derneklab.com` olarak ayarlıdır.
+
+## 📱 Mobil Uyumluluk
+
+- Telefonda alt gezinme çubuğu (Home / Proposals / Customers / More)
+- Masaüstünde yan menü (sidebar)
+- Teklif sihirbazında canlı PDF önizleme mobilde **Preview** ile açılır
+- Legacy listeler (müşteri/hizmet tabloları) yatay kaydırılabilir
+
 ## ☸️ Kubernetes ile Yayınlama
 
 ### Yöntem A — Ham manifest'ler

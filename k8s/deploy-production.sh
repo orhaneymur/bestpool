@@ -56,4 +56,4 @@ echo "==> Güncel durum"
 $KUBECTL -n "$NS" get pods -o wide
 $KUBECTL -n "$NS" get ingress
 
-echo "==> Tamamlandı. Adres: http://pool.derneklab.com"
+echo "==> Tamamlandı. Adres: https://pool.derneklab.com"
