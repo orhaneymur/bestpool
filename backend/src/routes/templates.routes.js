@@ -13,7 +13,7 @@ router.get('/', async (_req, res) => {
 
 router.get('/:id', async (req, res) => {
   const t = await ContractTemplate.findByPk(req.params.id);
-  if (!t) return res.status(404).json({ error: 'Şablon bulunamadı.' });
+  if (!t) return res.status(404).json({ error: 'Template not found.' });
   res.json(t);
 });
 
@@ -25,14 +25,14 @@ router.post('/', auth(['admin', 'sales']), async (req, res) => {
 
 router.put('/:id', auth(['admin', 'sales']), async (req, res) => {
   const t = await ContractTemplate.findByPk(req.params.id);
-  if (!t) return res.status(404).json({ error: 'Şablon bulunamadı.' });
+  if (!t) return res.status(404).json({ error: 'Template not found.' });
   await t.update(req.body || {});
   res.json(t);
 });
 
 router.delete('/:id', auth(['admin']), async (req, res) => {
   const t = await ContractTemplate.findByPk(req.params.id);
-  if (!t) return res.status(404).json({ error: 'Şablon bulunamadı.' });
+  if (!t) return res.status(404).json({ error: 'Template not found.' });
   await t.destroy();
   res.json({ ok: true });
 });

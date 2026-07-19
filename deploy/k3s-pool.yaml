@@ -25,6 +25,8 @@ stringData:
   MYSQL_ROOT_PASSWORD: "DEGISTIR-guclu-root-parolasi"
   JWT_SECRET: "DEGISTIR-cok-uzun-rastgele-gizli-anahtar"
   ADMIN_PASSWORD: "DEGISTIR-guclu-admin-parolasi"
+  # Gmail App Password for orhaneymur@gmail.com (NOT the normal Gmail password)
+  SMTP_PASS: "DEGISTIR-gmail-app-password"
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -41,7 +43,11 @@ data:
   # HTTPS yayın sonrası origin ile sınırlı tutun.
   CORS_ORIGIN: "https://pool.derneklab.com"
   ADMIN_EMAIL: "admin@havuz.local"
-  ADMIN_NAME: "Sistem Yoneticisi"
+  ADMIN_NAME: "System Administrator"
+  SMTP_HOST: "smtp.gmail.com"
+  SMTP_PORT: "587"
+  SMTP_USER: "orhaneymur@gmail.com"
+  MAIL_FROM: "orhaneymur@gmail.com"
 ---
 # ----------------------------- MySQL ----------------------------------------
 apiVersion: v1
@@ -145,6 +151,8 @@ spec:
               valueFrom: { secretKeyRef: { name: havuz-secrets, key: JWT_SECRET } }
             - name: ADMIN_PASSWORD
               valueFrom: { secretKeyRef: { name: havuz-secrets, key: ADMIN_PASSWORD } }
+            - name: SMTP_PASS
+              valueFrom: { secretKeyRef: { name: havuz-secrets, key: SMTP_PASS } }
           readinessProbe:
             httpGet: { path: /health, port: 4000 }
             initialDelaySeconds: 10

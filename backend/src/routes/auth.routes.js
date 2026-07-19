@@ -7,11 +7,11 @@ const router = Router();
 
 router.post('/login', async (req, res) => {
   const { email, password } = req.body || {};
-  if (!email || !password) return res.status(400).json({ error: 'E-posta ve şifre gerekli.' });
+  if (!email || !password) return res.status(400).json({ error: 'Email and password are required.' });
   const user = await User.findOne({ where: { email, is_active: true } });
-  if (!user) return res.status(401).json({ error: 'Hatalı e-posta veya şifre.' });
+  if (!user) return res.status(401).json({ error: 'Invalid email or password.' });
   const ok = await bcrypt.compare(password, user.password_hash);
-  if (!ok) return res.status(401).json({ error: 'Hatalı e-posta veya şifre.' });
+  if (!ok) return res.status(401).json({ error: 'Invalid email or password.' });
   res.json({ token: signToken(user), user: { id: user.id, name: user.name, email: user.email, role: user.role } });
 });
 
@@ -27,9 +27,9 @@ router.get('/users', auth(['admin']), async (_req, res) => {
 
 router.post('/users', auth(['admin']), async (req, res) => {
   const { name, email, password, role } = req.body || {};
-  if (!name || !email || !password) return res.status(400).json({ error: 'Ad, e-posta ve şifre gerekli.' });
+  if (!name || !email || !password) return res.status(400).json({ error: 'Name, email and password are required.' });
   const exists = await User.findOne({ where: { email } });
-  if (exists) return res.status(409).json({ error: 'Bu e-posta zaten kayıtlı.' });
+  if (exists) return res.status(409).json({ error: 'This email is already registered.' });
   const password_hash = await bcrypt.hash(password, 10);
   const user = await User.create({ name, email, password_hash, role: role || 'sales' });
   res.status(201).json({ id: user.id, name: user.name, email: user.email, role: user.role });

@@ -26,13 +26,13 @@ router.get('/:id', async (req, res) => {
   const customer = await Customer.findByPk(req.params.id, {
     include: [{ model: Quote, separate: true, order: [['created_at', 'DESC']] }],
   });
-  if (!customer) return res.status(404).json({ error: 'Müşteri bulunamadı.' });
+  if (!customer) return res.status(404).json({ error: 'Customer not found.' });
   res.json(customer);
 });
 
 router.post('/', async (req, res) => {
   const body = req.body || {};
-  if (!body.name) return res.status(400).json({ error: 'Müşteri adı gerekli.' });
+  if (!body.name) return res.status(400).json({ error: 'Customer name is required.' });
   if (!body.code) body.code = 'C' + Date.now().toString().slice(-8);
   const c = await Customer.create(body);
   res.status(201).json(c);
@@ -40,14 +40,14 @@ router.post('/', async (req, res) => {
 
 router.put('/:id', async (req, res) => {
   const c = await Customer.findByPk(req.params.id);
-  if (!c) return res.status(404).json({ error: 'Müşteri bulunamadı.' });
+  if (!c) return res.status(404).json({ error: 'Customer not found.' });
   await c.update(req.body || {});
   res.json(c);
 });
 
 router.delete('/:id', auth(['admin', 'sales']), async (req, res) => {
   const c = await Customer.findByPk(req.params.id);
-  if (!c) return res.status(404).json({ error: 'Müşteri bulunamadı.' });
+  if (!c) return res.status(404).json({ error: 'Customer not found.' });
   await c.destroy();
   res.json({ ok: true });
 });

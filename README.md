@@ -14,8 +14,9 @@ Havuz işletme, bakım, cankurtaran ve kimyasal hizmetleri için **fiyat teklifi
 - **Ödeme Planı / Taksitler** — eşit taksitlere bölme veya elle satır ekleme.
 - **Sözleşme Şablonları** — sabit yasal metin (varsayılan Türkçe şablon dahil), teklife eklenip PDF'e basılır.
 - **PDF ve Excel Çıktısı** — Premier tarzı çok sayfalı sözleşme PDF’i (Kapak + Section I–V + genel hükümler); service line items, additional comments, taksit planı ve early bird notu basılır.
-- **Teklif Takibi** — sezon yılı filtresi, durum kartları, arama, **Duplicate** ile geçen yıl teklifini yeni sezona kopyalama.
-- **Standart Maddeler** — Section III için hazır clause seti (permit, overtime, opening/closing vb.); tek tıkla yüklenir.
+- **Proposal tracking** — season year filter, status cards, search, **Duplicate** for next season.
+- **Standard clauses** — Section III presets (permit, overtime, opening/closing); one-click load.
+- **Email to customer** — after reviewing the PDF, send an English auto-draft email with the PDF attached from `orhaneymur@gmail.com`.
 - **Çok Kullanıcılı + Roller** — `admin`, `sales`, `viewer`. JWT tabanlı kimlik doğrulama.
 - **Panel (Dashboard)** — teklif/müşteri sayıları, durum dağılımı, son teklifler.
 

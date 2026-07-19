@@ -35,7 +35,7 @@ app.use('/api/stats', statsRoutes);
 
 app.use((err, _req, res, _next) => {
   console.error(err);
-  res.status(500).json({ error: err.message || 'Sunucu hatası' });
+  res.status(500).json({ error: err.message || 'Server error' });
 });
 
 const PORT = Number(process.env.PORT || 4000);

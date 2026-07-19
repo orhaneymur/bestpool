@@ -56,7 +56,7 @@ export default function StepPersonnel({
   }
 
   function addLifeguardLine() {
-    const lg = services.find((s) => s.category === 'cankurtaran');
+    const lg = services.find((s) => s.category === 'lifeguard' || s.category === 'cankurtaran');
     const rate = lg ? Number(lg.default_unit_price) : 35;
     const hours = Number(q.lifeguard_count || 0) * Number(q.hours_per_week || 0) * weeks;
     setItems((arr) => [

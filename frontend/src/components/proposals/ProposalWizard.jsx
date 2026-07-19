@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ArrowLeft, ArrowRight, Save, Loader2, Eye, X, Copy } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Save, Loader2, Eye, X, Copy, Mail } from 'lucide-react';
 import api, { downloadFile } from '@/api/client.js';
 import { Button } from '@/components/ui/button.jsx';
 import WizardStepper from './WizardStepper.jsx';
 import LivePaperPreview from './LivePaperPreview.jsx';
+import SendEmailDialog from './SendEmailDialog.jsx';
 import StepCustomer from './steps/StepCustomer.jsx';
 import StepSchedule from './steps/StepSchedule.jsx';
 import StepPersonnel from './steps/StepPersonnel.jsx';
@@ -39,6 +40,7 @@ export default function ProposalWizard({ id, initialCustomerId }) {
   const [quoteNo, setQuoteNo] = useState('');
   const [err, setErr] = useState('');
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [emailOpen, setEmailOpen] = useState(false);
 
   const [q, setQ] = useState({
     customer_id: initialCustomerId || '',
@@ -207,6 +209,22 @@ export default function ProposalWizard({ id, initialCustomerId }) {
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
             Save
           </Button>
+          <Button
+            type="button"
+            variant="accent"
+            className="gap-2"
+            onClick={async () => {
+              let sid = savedId || id;
+              if (!sid) {
+                const created = await save();
+                sid = created?.id;
+              }
+              if (sid) setEmailOpen(true);
+            }}
+          >
+            <Mail className="h-4 w-4" />
+            Email customer
+          </Button>
         </div>
       </div>
 
@@ -321,6 +339,15 @@ export default function ProposalWizard({ id, initialCustomerId }) {
       </div>
 
       {/* Mobile / tablet full-screen preview sheet */}
+      <SendEmailDialog
+        quoteId={savedId || id}
+        open={emailOpen}
+        onClose={() => setEmailOpen(false)}
+        onSent={(data) => {
+          if (data?.status) setQ((prev) => ({ ...prev, status: data.status }));
+        }}
+      />
+
       {previewOpen && (
         <div className="fixed inset-0 z-[60] flex flex-col bg-background xl:hidden">
           <div className="flex items-center justify-between border-b border-border px-3 py-3">

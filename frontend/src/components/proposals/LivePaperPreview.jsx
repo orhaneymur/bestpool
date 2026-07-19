@@ -49,7 +49,7 @@ export default function LivePaperPreview({
           </Button>
           <Button type="button" variant="accent" size="sm" className="gap-1.5" disabled={!canExport} onClick={onPdf}>
             <FileDown className="h-3.5 w-3.5" />
-            PDF
+            Review PDF
           </Button>
         </div>
       </div>

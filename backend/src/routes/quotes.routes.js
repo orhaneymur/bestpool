@@ -5,6 +5,7 @@ import { auth } from '../middleware/auth.js';
 import { computeTotals } from '../services/pricing.js';
 import { buildQuotePdf } from '../services/pdf.js';
 import { buildQuoteExcel } from '../services/excel.js';
+import { buildProposalEmail, sendProposalEmail } from '../services/mail.js';
 
 const router = Router();
 router.use(auth());
@@ -105,7 +106,7 @@ router.get('/', async (req, res) => {
 
 router.get('/:id', async (req, res) => {
   const q = await Quote.findByPk(req.params.id, { include: fullQuoteInclude() });
-  if (!q) return res.status(404).json({ error: 'Teklif bulunamadı.' });
+  if (!q) return res.status(404).json({ error: 'Proposal not found.' });
   res.json(q);
 });
 
@@ -114,7 +115,7 @@ router.post('/', async (req, res) => {
   const t = await sequelize.transaction();
   try {
     const body = req.body || {};
-    if (!body.customer_id) return res.status(400).json({ error: 'Müşteri seçilmeli.' });
+    if (!body.customer_id) return res.status(400).json({ error: 'Customer is required.' });
     const items = Array.isArray(body.items) ? body.items : [];
     const totals = computeTotals(items, { discount_rate: body.discount_rate, discount_amount: body.discount_amount });
 
@@ -135,7 +136,7 @@ router.post('/', async (req, res) => {
       early_bird_discount: body.early_bird_discount || 0,
       vat_amount: totals.vat_amount,
       total: totals.total,
-      currency: body.currency || 'TRY',
+      currency: body.currency || 'USD',
       status: body.status || 'taslak',
       valid_until: body.valid_until || null,
       notes: body.notes,
@@ -173,7 +174,7 @@ router.post('/', async (req, res) => {
   } catch (err) {
     await t.rollback();
     console.error(err);
-    res.status(500).json({ error: 'Teklif oluşturulamadı: ' + err.message });
+    res.status(500).json({ error: 'Failed to create proposal: ' + err.message });
   }
 });
 
@@ -182,7 +183,7 @@ router.put('/:id', async (req, res) => {
   const t = await sequelize.transaction();
   try {
     const quote = await Quote.findByPk(req.params.id);
-    if (!quote) { await t.rollback(); return res.status(404).json({ error: 'Teklif bulunamadı.' }); }
+    if (!quote) { await t.rollback(); return res.status(404).json({ error: 'Proposal not found.' }); }
     const body = req.body || {};
     const items = Array.isArray(body.items) ? body.items : [];
     const totals = computeTotals(items, { discount_rate: body.discount_rate, discount_amount: body.discount_amount });
@@ -230,14 +231,14 @@ router.put('/:id', async (req, res) => {
     res.json(await Quote.findByPk(quote.id, { include: fullQuoteInclude() }));
   } catch (err) {
     await t.rollback();
-    res.status(500).json({ error: 'Teklif güncellenemedi: ' + err.message });
+    res.status(500).json({ error: 'Failed to update proposal: ' + err.message });
   }
 });
 
 // Sadece durum güncelle
 router.patch('/:id/status', async (req, res) => {
   const quote = await Quote.findByPk(req.params.id);
-  if (!quote) return res.status(404).json({ error: 'Teklif bulunamadı.' });
+  if (!quote) return res.status(404).json({ error: 'Proposal not found.' });
   await quote.update({ status: req.body.status });
   res.json(quote);
 });
@@ -249,7 +250,7 @@ router.post('/:id/duplicate', auth(['admin', 'sales']), async (req, res) => {
     const src = await Quote.findByPk(req.params.id, { include: fullQuoteInclude() });
     if (!src) {
       await t.rollback();
-      return res.status(404).json({ error: 'Teklif bulunamadı.' });
+      return res.status(404).json({ error: 'Proposal not found.' });
     }
     const copy = await Quote.create({
       quote_no: await nextQuoteNo(),
@@ -303,13 +304,13 @@ router.post('/:id/duplicate', auth(['admin', 'sales']), async (req, res) => {
   } catch (err) {
     await t.rollback();
     console.error(err);
-    res.status(500).json({ error: 'Teklif kopyalanamadı: ' + err.message });
+    res.status(500).json({ error: 'Failed to duplicate proposal: ' + err.message });
   }
 });
 
 router.delete('/:id', auth(['admin', 'sales']), async (req, res) => {
   const quote = await Quote.findByPk(req.params.id);
-  if (!quote) return res.status(404).json({ error: 'Teklif bulunamadı.' });
+  if (!quote) return res.status(404).json({ error: 'Proposal not found.' });
   await quote.destroy();
   res.json({ ok: true });
 });
@@ -317,7 +318,7 @@ router.delete('/:id', auth(['admin', 'sales']), async (req, res) => {
 // --- Çıktılar ---
 router.get('/:id/pdf', async (req, res) => {
   const quote = await Quote.findByPk(req.params.id, { include: fullQuoteInclude() });
-  if (!quote) return res.status(404).json({ error: 'Teklif bulunamadı.' });
+  if (!quote) return res.status(404).json({ error: 'Proposal not found.' });
   const setting = await Setting.findByPk(1);
   const buffer = await buildQuotePdf(quote.toJSON(), setting?.toJSON() || {});
   res.setHeader('Content-Type', 'application/pdf');
@@ -327,12 +328,51 @@ router.get('/:id/pdf', async (req, res) => {
 
 router.get('/:id/excel', async (req, res) => {
   const quote = await Quote.findByPk(req.params.id, { include: fullQuoteInclude() });
-  if (!quote) return res.status(404).json({ error: 'Teklif bulunamadı.' });
+  if (!quote) return res.status(404).json({ error: 'Proposal not found.' });
   const setting = await Setting.findByPk(1);
   const buffer = await buildQuoteExcel(quote.toJSON(), setting?.toJSON() || {});
   res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
   res.setHeader('Content-Disposition', `attachment; filename="${quote.quote_no}.xlsx"`);
   res.send(buffer);
+});
+
+// Email draft preview (auto-filled English body)
+router.get('/:id/email-preview', async (req, res) => {
+  const quote = await Quote.findByPk(req.params.id, { include: fullQuoteInclude() });
+  if (!quote) return res.status(404).json({ error: 'Proposal not found.' });
+  const setting = await Setting.findByPk(1);
+  const draft = buildProposalEmail(quote.toJSON(), setting?.toJSON() || {});
+  res.json({
+    ...draft,
+    customer_name: quote.Customer?.name || '',
+    customer_email: quote.Customer?.email || '',
+    configured: !!(process.env.SMTP_PASS || process.env.SMTP_PASSWORD),
+  });
+});
+
+// Send proposal PDF to customer (after user reviews PDF)
+router.post('/:id/email', auth(['admin', 'sales']), async (req, res) => {
+  try {
+    const quote = await Quote.findByPk(req.params.id, { include: fullQuoteInclude() });
+    if (!quote) return res.status(404).json({ error: 'Proposal not found.' });
+    const setting = await Setting.findByPk(1);
+    const result = await sendProposalEmail(quote.toJSON(), setting?.toJSON() || {}, {
+      to: req.body?.to,
+      subject: req.body?.subject,
+      text: req.body?.text,
+    });
+    if (quote.status === 'taslak') {
+      await quote.update({ status: 'gonderildi' });
+    }
+    res.json({
+      ok: true,
+      ...result,
+      status: quote.status === 'taslak' ? 'gonderildi' : quote.status,
+    });
+  } catch (err) {
+    const status = err.code === 'SMTP_NOT_CONFIGURED' || err.code === 'NO_RECIPIENT' ? 400 : 500;
+    res.status(status).json({ error: err.message || 'Failed to send email.' });
+  }
 });
 
 export default router;
