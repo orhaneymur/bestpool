@@ -22,9 +22,15 @@ app.use(express.json({ limit: '2mb' }));
 const origins = (process.env.CORS_ORIGIN || '*').split(',').map((s) => s.trim());
 app.use(cors({ origin: origins.includes('*') ? true : origins }));
 
-// Sağlık kontrolü (Kubernetes probe'ları için)
-app.get('/health', (_req, res) => res.json({ status: 'ok', time: new Date().toISOString() }));
-app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));
+let dbReady = false;
+
+// Sağlık kontrolü (Kubernetes probe'ları için) — DB beklenmeden 200 dönmeli
+app.get('/health', (_req, res) =>
+  res.json({ status: 'ok', db: dbReady ? 'up' : 'starting', time: new Date().toISOString() })
+);
+app.get('/api/health', (_req, res) =>
+  res.json({ status: 'ok', db: dbReady ? 'up' : 'starting' })
+);
 
 app.use('/api/auth', authRoutes);
 app.use('/api/customers', customerRoutes);
@@ -41,26 +47,35 @@ app.use((err, _req, res, _next) => {
 
 const PORT = Number(process.env.PORT || 4000);
 
-async function start() {
-  await connectWithRetry();
-
-  // Listen first so k8s readiness/liveness probes succeed during DB sync/seed.
-  app.listen(PORT, () => console.log(`[server] API http://0.0.0.0:${PORT} üzerinde çalışıyor`));
-
-  try {
-    if (String(process.env.DB_SYNC).toLowerCase() === 'true') {
-      await sequelize.sync({ alter: true });
-      console.log('[db] Tablolar senkronize edildi.');
+async function bootstrapDb() {
+  // Never exit the process on DB errors — keep retrying so pods stay Running.
+  for (;;) {
+    try {
+      await connectWithRetry(30, 2000);
+      if (String(process.env.DB_SYNC).toLowerCase() === 'true') {
+        await sequelize.sync({ alter: true });
+        console.log('[db] Tablolar senkronize edildi.');
+      }
+      await ensureSchemaPatches();
+      await ensureSeed();
+      dbReady = true;
+      console.log('[server] Startup migrations/seed complete.');
+      return;
+    } catch (err) {
+      dbReady = false;
+      console.error('[server] DB bootstrap failed, retrying in 5s:', err.message);
+      await new Promise((r) => setTimeout(r, 5000));
     }
-    await ensureSchemaPatches();
-    await ensureSeed();
-    console.log('[server] Startup migrations/seed complete.');
-  } catch (err) {
-    console.error('[server] Post-listen bootstrap error (API is up, DB work failed):', err);
   }
 }
 
+async function start() {
+  // Bind HTTP immediately so k8s readiness never blocks on MySQL.
+  app.listen(PORT, () => console.log(`[server] API http://0.0.0.0:${PORT} üzerinde çalışıyor`));
+  bootstrapDb();
+}
+
 start().catch((err) => {
-  console.error('[server] Başlatma hatası:', err);
+  console.error('[server] Fatal listen error:', err);
   process.exit(1);
 });
