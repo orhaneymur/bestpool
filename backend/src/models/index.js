@@ -86,7 +86,7 @@ export const QuoteItem = sequelize.define('QuoteItem', {
   id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
   quote_id: { type: DataTypes.INTEGER, allowNull: false },
   service_item_id: { type: DataTypes.INTEGER },
-  description: { type: DataTypes.STRING(300), allowNull: false },
+  description: { type: DataTypes.STRING(500), allowNull: false },
   quantity: { type: DataTypes.DECIMAL(12, 2), defaultValue: 1 },
   unit: { type: DataTypes.STRING(30), defaultValue: 'adet' },
   unit_price: { type: DataTypes.DECIMAL(12, 2), defaultValue: 0 },

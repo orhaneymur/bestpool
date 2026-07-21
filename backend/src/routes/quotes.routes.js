@@ -49,6 +49,55 @@ async function saveNotes(quoteId, notes, t) {
   }
 }
 
+function nullIfEmpty(v) {
+  if (v === undefined || v === null || v === '') return null;
+  return v;
+}
+
+function toInt(v, fallback = 0) {
+  const n = Number(v);
+  return Number.isFinite(n) ? Math.trunc(n) : fallback;
+}
+
+function toNum(v, fallback = 0) {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function normalizeItems(items = []) {
+  return (Array.isArray(items) ? items : [])
+    .filter((it) => (it?.description || '').trim())
+    .map((it) => ({
+      ...it,
+      description: String(it.description).trim().slice(0, 500),
+      quantity: toNum(it.quantity, 0),
+      unit_price: toNum(it.unit_price, 0),
+      vat_rate: toNum(it.vat_rate, 0),
+      unit: it.unit || 'unit',
+      service_item_id: nullIfEmpty(it.service_item_id),
+    }));
+}
+
+function quoteFieldsFromBody(body, existing = {}) {
+  return {
+    customer_id: body.customer_id ?? existing.customer_id,
+    contract_template_id: nullIfEmpty(body.contract_template_id ?? existing.contract_template_id),
+    facility_name: body.facility_name ?? existing.facility_name ?? null,
+    facility_address: body.facility_address ?? existing.facility_address ?? null,
+    season_start: nullIfEmpty(body.season_start),
+    season_end: nullIfEmpty(body.season_end),
+    lifeguard_count: toInt(body.lifeguard_count, 0),
+    hours_per_week: toInt(body.hours_per_week, 0),
+    county: nullIfEmpty(body.county),
+    peak_weeks: toInt(body.peak_weeks, 0),
+    early_bird_discount: toNum(body.early_bird_discount, 0),
+    currency: body.currency || existing.currency || 'USD',
+    status: body.status || existing.status || 'taslak',
+    valid_until: nullIfEmpty(body.valid_until),
+    notes: body.notes ?? existing.notes ?? null,
+  };
+}
+
 function fullQuoteInclude() {
   return [
     { model: Customer },
@@ -115,33 +164,23 @@ router.post('/', async (req, res) => {
   const t = await sequelize.transaction();
   try {
     const body = req.body || {};
-    if (!body.customer_id) return res.status(400).json({ error: 'Customer is required.' });
-    const items = Array.isArray(body.items) ? body.items : [];
+    if (!body.customer_id) {
+      await t.rollback();
+      return res.status(400).json({ error: 'Customer is required.' });
+    }
+    const items = normalizeItems(body.items);
     const totals = computeTotals(items, { discount_rate: body.discount_rate, discount_amount: body.discount_amount });
+    const fields = quoteFieldsFromBody(body);
 
     const quote = await Quote.create({
       quote_no: await nextQuoteNo(),
-      customer_id: body.customer_id,
-      contract_template_id: body.contract_template_id || null,
+      ...fields,
       created_by: req.user.id,
-      facility_name: body.facility_name,
-      facility_address: body.facility_address,
-      season_start: body.season_start || null,
-      season_end: body.season_end || null,
-      lifeguard_count: body.lifeguard_count || 0,
-      hours_per_week: body.hours_per_week || 0,
-      county: body.county || null,
-      peak_weeks: body.peak_weeks || 0,
       subtotal: totals.subtotal,
       discount_rate: totals.discount_rate,
       discount_amount: totals.discount_amount,
-      early_bird_discount: body.early_bird_discount || 0,
       vat_amount: totals.vat_amount,
       total: totals.total,
-      currency: body.currency || 'USD',
-      status: body.status || 'taslak',
-      valid_until: body.valid_until || null,
-      notes: body.notes,
     }, { transaction: t });
 
     for (const [i, it] of totals.lines.entries()) {
@@ -162,8 +201,8 @@ router.post('/', async (req, res) => {
       await QuoteInstallment.create({
         quote_id: quote.id,
         label: inst.label,
-        due_date: inst.due_date || null,
-        amount: inst.amount || 0,
+        due_date: nullIfEmpty(inst.due_date),
+        amount: toNum(inst.amount, 0),
       }, { transaction: t });
     }
 
@@ -187,30 +226,17 @@ router.put('/:id', async (req, res) => {
     const quote = await Quote.findByPk(req.params.id);
     if (!quote) { await t.rollback(); return res.status(404).json({ error: 'Proposal not found.' }); }
     const body = req.body || {};
-    const items = Array.isArray(body.items) ? body.items : [];
+    const items = normalizeItems(body.items);
     const totals = computeTotals(items, { discount_rate: body.discount_rate, discount_amount: body.discount_amount });
+    const fields = quoteFieldsFromBody(body, quote.toJSON());
 
     await quote.update({
-      customer_id: body.customer_id ?? quote.customer_id,
-      contract_template_id: body.contract_template_id ?? quote.contract_template_id,
-      facility_name: body.facility_name,
-      facility_address: body.facility_address,
-      season_start: body.season_start || null,
-      season_end: body.season_end || null,
-      lifeguard_count: body.lifeguard_count || 0,
-      hours_per_week: body.hours_per_week || 0,
-      county: body.county ?? quote.county,
-      peak_weeks: body.peak_weeks ?? quote.peak_weeks ?? 0,
+      ...fields,
       subtotal: totals.subtotal,
       discount_rate: totals.discount_rate,
       discount_amount: totals.discount_amount,
-      early_bird_discount: body.early_bird_discount || 0,
       vat_amount: totals.vat_amount,
       total: totals.total,
-      currency: body.currency || quote.currency,
-      status: body.status || quote.status,
-      valid_until: body.valid_until || null,
-      notes: body.notes,
     }, { transaction: t });
 
     await QuoteItem.destroy({ where: { quote_id: quote.id }, transaction: t });
@@ -223,7 +249,12 @@ router.put('/:id', async (req, res) => {
     }
     await QuoteInstallment.destroy({ where: { quote_id: quote.id }, transaction: t });
     for (const inst of (body.installments || [])) {
-      await QuoteInstallment.create({ quote_id: quote.id, label: inst.label, due_date: inst.due_date || null, amount: inst.amount || 0 }, { transaction: t });
+      await QuoteInstallment.create({
+        quote_id: quote.id,
+        label: inst.label,
+        due_date: nullIfEmpty(inst.due_date),
+        amount: toNum(inst.amount, 0),
+      }, { transaction: t });
     }
 
     await QuoteSchedule.destroy({ where: { quote_id: quote.id }, transaction: t });
@@ -235,6 +266,7 @@ router.put('/:id', async (req, res) => {
     res.json(await Quote.findByPk(quote.id, { include: fullQuoteInclude() }));
   } catch (err) {
     await t.rollback();
+    console.error(err);
     res.status(500).json({ error: 'Failed to update proposal: ' + err.message });
   }
 });

@@ -3,6 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { sequelize, connectWithRetry } from './config/db.js';
 import './models/index.js';
+import { ensureSchemaPatches } from './config/ensureSchema.js';
 
 import authRoutes from './routes/auth.routes.js';
 import customerRoutes from './routes/customers.routes.js';
@@ -46,6 +47,7 @@ async function start() {
     await sequelize.sync({ alter: true });
     console.log('[db] Tablolar senkronize edildi.');
   }
+  await ensureSchemaPatches();
   await ensureSeed();
   app.listen(PORT, () => console.log(`[server] API http://0.0.0.0:${PORT} üzerinde çalışıyor`));
 }

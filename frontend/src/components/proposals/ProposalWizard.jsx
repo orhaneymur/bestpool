@@ -160,6 +160,15 @@ export default function ProposalWizard({ id, initialCustomerId }) {
     setSaving(true);
     const payload = {
       ...q,
+      customer_id: Number(q.customer_id) || q.customer_id,
+      contract_template_id: q.contract_template_id || null,
+      lifeguard_count: Number(q.lifeguard_count) || 0,
+      hours_per_week: Number(q.hours_per_week) || 0,
+      peak_weeks: Number(q.peak_weeks) || 0,
+      county: q.county || null,
+      season_start: q.season_start || null,
+      season_end: q.season_end || null,
+      valid_until: q.valid_until || null,
       items: items.filter((it) => it.description),
       installments,
       schedules,
@@ -178,7 +187,11 @@ export default function ProposalWizard({ id, initialCustomerId }) {
       if (!editing && !id) nav(`/quotes/${res.data.id}`, { replace: true });
       return res.data;
     } catch (e) {
-      setErr(e.response?.data?.error || 'Failed to save.');
+      const msg =
+        e.response?.data?.error ||
+        e.message ||
+        'Failed to save.';
+      setErr(msg);
       return null;
     } finally {
       setSaving(false);
