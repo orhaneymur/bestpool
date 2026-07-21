@@ -125,7 +125,12 @@ metadata:
   name: havuz-backend
   namespace: havuz
 spec:
-  replicas: 2
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
   selector:
     matchLabels: { app: havuz-backend }
   template:
@@ -155,12 +160,16 @@ spec:
               valueFrom: { secretKeyRef: { name: havuz-secrets, key: SMTP_PASS } }
           readinessProbe:
             httpGet: { path: /health, port: 4000 }
-            initialDelaySeconds: 10
+            initialDelaySeconds: 25
             periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 12
           livenessProbe:
             httpGet: { path: /health, port: 4000 }
-            initialDelaySeconds: 20
-            periodSeconds: 15
+            initialDelaySeconds: 45
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 6
           resources:
             requests: { cpu: "50m", memory: "128Mi" }
             limits: { cpu: "500m", memory: "512Mi" }
@@ -184,7 +193,7 @@ metadata:
   name: havuz-frontend
   namespace: havuz
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels: { app: havuz-frontend }
   template:

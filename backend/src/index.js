@@ -43,13 +43,21 @@ const PORT = Number(process.env.PORT || 4000);
 
 async function start() {
   await connectWithRetry();
-  if (String(process.env.DB_SYNC).toLowerCase() === 'true') {
-    await sequelize.sync({ alter: true });
-    console.log('[db] Tablolar senkronize edildi.');
-  }
-  await ensureSchemaPatches();
-  await ensureSeed();
+
+  // Listen first so k8s readiness/liveness probes succeed during DB sync/seed.
   app.listen(PORT, () => console.log(`[server] API http://0.0.0.0:${PORT} üzerinde çalışıyor`));
+
+  try {
+    if (String(process.env.DB_SYNC).toLowerCase() === 'true') {
+      await sequelize.sync({ alter: true });
+      console.log('[db] Tablolar senkronize edildi.');
+    }
+    await ensureSchemaPatches();
+    await ensureSeed();
+    console.log('[server] Startup migrations/seed complete.');
+  } catch (err) {
+    console.error('[server] Post-listen bootstrap error (API is up, DB work failed):', err);
+  }
 }
 
 start().catch((err) => {
