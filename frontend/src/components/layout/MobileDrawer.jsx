@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext.jsx';
 import { cn } from '@/lib/utils.js';
+import { APP_VERSION, APP_BUILD, APP_LABEL } from '@/version.js';
 
 const links = [
   { to: '/', label: 'Overview', icon: LayoutDashboard, end: true },
@@ -93,6 +94,16 @@ export default function MobileDrawer({ open, onClose }) {
             </nav>
 
             <div className="border-t border-white/10 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+              <div className="mb-2 rounded-lg border border-white/5 bg-white/[0.03] px-3 py-2">
+                <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-sidebar-muted/70">
+                  Version
+                </div>
+                <div className="mt-0.5 text-xs font-semibold text-white">
+                  v{APP_VERSION}
+                  <span className="ml-1.5 font-mono text-[10px] font-normal text-sidebar-muted">{APP_BUILD}</span>
+                </div>
+                <div className="truncate text-[10px] text-sidebar-muted">{APP_LABEL}</div>
+              </div>
               <div className="mb-2 px-2 text-xs text-sidebar-muted">
                 {user?.name}
                 {user?.role ? ` · ${roleLabel[user.role] || user.role}` : ''}
