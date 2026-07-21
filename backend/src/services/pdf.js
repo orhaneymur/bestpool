@@ -5,7 +5,7 @@ import PdfPrinter from 'pdfmake';
  * Clean classic layout matching the Premier sample style:
  *   Page 1  : Cover — tagline, title, proposal #, facility, company footer
  *   Page 2  : Spec sheet Sections I–V (dense, no decorative bars)
- *   Page 3+ : General Terms from template
+ *   Page 3+ : Terms and Conditions from template
  */
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
@@ -570,7 +570,7 @@ export function buildQuotePdf(quote, setting) {
       sectionTitle('SECTION V. ACCEPTANCE OF PROPOSAL'),
       {
         text: generalTerms.length
-          ? 'This Contract consists of the Specification page (Sections I–V) and the General Terms (Sections VI–XIX).'
+          ? 'This Contract consists of the Specification page (Sections I–V) and the attached Terms and Conditions.'
           : 'This Contract consists of the Specification page (Sections I–V).',
         fontSize: 8,
         margin: [0, 0, 0, 6],

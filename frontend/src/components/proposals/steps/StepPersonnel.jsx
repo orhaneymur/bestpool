@@ -1,11 +1,17 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { Users, Clock3, Calculator, Zap, Plus, Trash2 } from 'lucide-react';
+import { Users, Clock3, Calculator, Zap, Plus, Trash2, MapPinned } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx';
 import { Input } from '@/components/ui/input.jsx';
 import { Label } from '@/components/ui/label.jsx';
 import { Button } from '@/components/ui/button.jsx';
 import { fmtMoney } from '@/api/utils.js';
 import { emptyItem, round2 } from '../utils/quoteMath.js';
+import {
+  COUNTY_WAGES,
+  computeBidSummary,
+  buildBidLineItems,
+  BID_RATES,
+} from '../utils/bidPricing.js';
 
 function SummaryTile({ icon: Icon, label, value, tone = 'accent' }) {
   const tones = {
@@ -37,7 +43,7 @@ function SummaryTile({ icon: Icon, label, value, tone = 'accent' }) {
 }
 
 export default function StepPersonnel({
-  q, setQ, items, setItems, services, totals, contractAmount, totalHours, weeks,
+  q, setQ, items, setItems, services, totals, contractAmount, totalHours, weeks, bid,
 }) {
   function updateItem(i, patch) {
     setItems((arr) => arr.map((it, idx) => (idx === i ? { ...it, ...patch } : it)));
@@ -55,40 +61,64 @@ export default function StepPersonnel({
     });
   }
 
-  function addLifeguardLine() {
-    const lg = services.find((s) => s.category === 'lifeguard' || s.category === 'cankurtaran');
-    const rate = lg ? Number(lg.default_unit_price) : 35;
-    const hours = Number(q.lifeguard_count || 0) * Number(q.hours_per_week || 0) * weeks;
-    setItems((arr) => [
-      ...arr.filter((it) => it.description),
-      {
-        description: `Lifeguard service (${q.lifeguard_count} lifeguard(s) × ${q.hours_per_week} hrs/week × ${weeks} weeks)`,
-        quantity: hours,
-        unit: 'hour',
-        unit_price: rate,
-        vat_rate: 0,
-        service_item_id: lg?.id || null,
-      },
-    ]);
+  function applyBidPricing() {
+    const peakWeeks = Number(q.peak_weeks || weeks || 0);
+    const summary = computeBidSummary({
+      county: q.county,
+      lifeguardCount: q.lifeguard_count,
+      hoursPerWeek: q.hours_per_week,
+      peakWeeks,
+    });
+    if (!summary.hourlyWage) return;
+    if (!q.peak_weeks && weeks) setQ((prev) => ({ ...prev, peak_weeks: weeks }));
+    setItems(buildBidLineItems(summary));
   }
+
+  const countyWage = COUNTY_WAGES.find((c) => c.id === q.county);
 
   return (
     <div className="space-y-4">
       <div className="grid gap-3 sm:grid-cols-3">
-        <SummaryTile icon={Users} label="Lifeguards" value={Number(q.lifeguard_count || 0)} tone="primary" />
-        <SummaryTile icon={Clock3} label="Hours / lifeguard / week" value={Number(q.hours_per_week || 0)} tone="accent" />
-        <SummaryTile icon={Calculator} label="Total staff hours / week" value={totalHours} tone="gold" />
+        <SummaryTile icon={Users} label="Peak-season lifeguards" value={Number(q.lifeguard_count || 0)} tone="primary" />
+        <SummaryTile icon={Clock3} label="Weekly peak staff hours" value={totalHours} tone="accent" />
+        <SummaryTile
+          icon={Calculator}
+          label="Seasonal peak hours"
+          value={round2(totalHours * Number(q.peak_weeks || weeks || 0))}
+          tone="gold"
+        />
       </div>
 
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle>Staffing & operations</CardTitle>
-          <CardDescription>Values update live — add a lifeguard line item in one click.</CardDescription>
+          <CardTitle>Bid Summary inputs</CardTitle>
+          <CardDescription>
+            County wage × hours, then fixed expenses, {BID_RATES.overheadPct}% overhead,{' '}
+            {BID_RATES.profitPct}% profit, and {BID_RATES.salesTaxPct}% sales tax — calculated automatically.
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2 sm:col-span-2">
+              <Label className="flex items-center gap-1.5">
+                <MapPinned className="h-3.5 w-3.5" />
+                County (lifeguard hourly wage)
+              </Label>
+              <select
+                className="flex h-10 w-full rounded-lg border border-input bg-card px-3 text-sm shadow-soft"
+                value={q.county || ''}
+                onChange={(e) => setQ({ ...q, county: e.target.value })}
+              >
+                <option value="">— Select county —</option>
+                {COUNTY_WAGES.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.label} — ${c.hourly}/hr
+                  </option>
+                ))}
+              </select>
+            </div>
             <div className="space-y-2">
-              <Label>Number of lifeguards</Label>
+              <Label>Number of peak-season lifeguards</Label>
               <Input
                 type="number"
                 min="0"
@@ -105,14 +135,63 @@ export default function StepPersonnel({
                 onChange={(e) => setQ({ ...q, hours_per_week: e.target.value })}
               />
             </div>
+            <div className="space-y-2">
+              <Label>Number of peak weeks</Label>
+              <Input
+                type="number"
+                min="0"
+                value={q.peak_weeks || ''}
+                placeholder={weeks ? String(weeks) : '0'}
+                onChange={(e) => setQ({ ...q, peak_weeks: Number(e.target.value) })}
+              />
+              <p className="text-xs text-muted-foreground">
+                Defaults from season dates ({weeks} weeks) if left empty when calculating.
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label>County wage</Label>
+              <div className="flex h-10 items-center rounded-lg border border-border bg-muted/40 px-3 text-sm font-medium">
+                {countyWage ? `$${countyWage.hourly}/hour` : '—'}
+              </div>
+            </div>
           </div>
+
+          {bid && bid.hourlyWage > 0 && (
+            <div className="grid gap-2 rounded-2xl border border-border bg-muted/30 p-4 text-sm sm:grid-cols-2">
+              <div className="flex justify-between gap-2">
+                <span className="text-muted-foreground">Total wages</span>
+                <span className="font-medium tabular-nums">{fmtMoney(bid.totalWages, q.currency)}</span>
+              </div>
+              <div className="flex justify-between gap-2">
+                <span className="text-muted-foreground">Other expenses</span>
+                <span className="font-medium tabular-nums">{fmtMoney(bid.expenses.total, q.currency)}</span>
+              </div>
+              <div className="flex justify-between gap-2">
+                <span className="text-muted-foreground">Overhead {BID_RATES.overheadPct}%</span>
+                <span className="font-medium tabular-nums">{fmtMoney(bid.overhead, q.currency)}</span>
+              </div>
+              <div className="flex justify-between gap-2">
+                <span className="text-muted-foreground">Profit {BID_RATES.profitPct}%</span>
+                <span className="font-medium tabular-nums">{fmtMoney(bid.profit, q.currency)}</span>
+              </div>
+              <div className="flex justify-between gap-2">
+                <span className="text-muted-foreground">Sales tax {BID_RATES.salesTaxPct}%</span>
+                <span className="font-medium tabular-nums">{fmtMoney(bid.salesTax, q.currency)}</span>
+              </div>
+              <div className="flex justify-between gap-2 font-semibold">
+                <span>Bid total</span>
+                <span className="tabular-nums">{fmtMoney(bid.contractTotal, q.currency)}</span>
+              </div>
+            </div>
+          )}
+
           <div className="flex flex-wrap items-center gap-2">
-            <Button type="button" variant="outline" className="gap-2" onClick={addLifeguardLine}>
-              <Zap className="h-4 w-4 text-accent" />
-              Add lifeguard line item
+            <Button type="button" variant="accent" className="gap-2" onClick={applyBidPricing} disabled={!q.county}>
+              <Zap className="h-4 w-4" />
+              Calculate bid & fill line items
             </Button>
             <span className="text-xs text-muted-foreground">
-              Season: {weeks} weeks · Season total ~{round2(totalHours * weeks)} hours
+              Chemicals / drain / winterization scale with guard count automatically.
             </span>
           </div>
         </CardContent>
@@ -122,7 +201,7 @@ export default function StepPersonnel({
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
           <div>
             <CardTitle>Service line items</CardTitle>
-            <CardDescription>Pick from catalog or enter manually.</CardDescription>
+            <CardDescription>Auto-filled from Bid Summary — editable if needed.</CardDescription>
           </div>
           <Button type="button" variant="secondary" size="sm" className="gap-1" onClick={() => setItems((a) => [...a, emptyItem()])}>
             <Plus className="h-4 w-4" />
@@ -200,10 +279,6 @@ export default function StepPersonnel({
                 />
               </span>
               <span className="font-medium">- {fmtMoney(totals.discount_amount, q.currency)}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Tax</span>
-              <span className="font-medium">{fmtMoney(totals.vat_amount, q.currency)}</span>
             </div>
             <div className="flex items-center justify-between gap-3 border-t border-border pt-2 text-sm">
               <span className="flex items-center gap-2 text-muted-foreground">

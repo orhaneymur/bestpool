@@ -1,12 +1,12 @@
-/** Standard Section III clauses (modeled on commercial pool management contracts). */
+/** Specification page — default Additional Comments (client Software Spec). */
 export const STANDARD_CLAUSES = [
   {
     label: 'A',
-    body: 'This contract includes Health Department required permit, test kit and reagents.',
+    body: 'Test kit restock included.',
   },
   {
     label: 'B',
-    body: 'This contract includes additional winterization services (blowing out skimmer lines, winterizing algaecide and pool pump motor storage).',
+    body: 'First aid kit restock included.',
   },
   {
     label: 'C',
@@ -14,7 +14,7 @@ export const STANDARD_CLAUSES = [
   },
   {
     label: 'D',
-    body: 'Cost for additional lifeguard hours (less than 48 hours notice): $50/hr.',
+    body: 'Cost for additional lifeguard hours (less than 48 hours notice): $55/hr.',
   },
   {
     label: 'E',
@@ -22,11 +22,11 @@ export const STANDARD_CLAUSES = [
   },
   {
     label: 'F',
-    body: 'The CONTRACTOR will schedule and attend all health department inspections.',
+    body: 'The CONTRACTOR will schedule and attend all Health Department inspections.',
   },
   {
     label: 'G',
-    body: 'The CONTRACTOR will conduct random safety checks and in-service training.',
+    body: 'The CONTRACTOR will conduct random safety inspections and in-service training.',
   },
   {
     label: 'H',
@@ -34,6 +34,14 @@ export const STANDARD_CLAUSES = [
   },
   {
     label: 'I',
+    body: 'Chemicals included for disinfectant and pH compliance.',
+  },
+  {
+    label: 'J',
+    body: 'The CONTRACTOR will conduct a minimum of three (3) inspections per week during the regular pool season.',
+  },
+  {
+    label: 'K',
     body: 'All lifeguards have current certifications in Lifeguarding, First Aid, CPR and AED issued by Ellis & Associates or American Red Cross.',
   },
 ];

@@ -2,23 +2,25 @@ import dotenv from 'dotenv';
 import bcrypt from 'bcryptjs';
 import { sequelize, User, ServiceItem, ContractTemplate, Setting, Customer } from '../models/index.js';
 import { DEFAULT_CONTRACT_BODY } from './contractTemplate.js';
-import { DEFAULT_CONTRACT_BODY_EN } from './contractTemplateEn.js';
+import { DEFAULT_CONTRACT_BODY_EN, EN_TEMPLATE_NAME } from './contractTemplateEn.js';
 
-const EN_TEMPLATE_NAME = 'Commercial Swimming Pool Management Agreement — General Terms (EN)';
 const COMPANY_NAME = 'Four Seasons Pool Management';
 const COMPANY_EMAIL = 'orhaneymur@gmail.com';
 
 dotenv.config();
 
 const SERVICES = [
-  { code: 'MNT-001', name: 'Periodic pool maintenance', category: 'maintenance', unit: 'month', default_unit_price: 15000, vat_rate: 0 },
-  { code: 'MNT-002', name: 'Season opening preparation', category: 'maintenance', unit: 'season', default_unit_price: 25000, vat_rate: 0 },
-  { code: 'LG-001', name: 'Lifeguard service', category: 'lifeguard', unit: 'hour', default_unit_price: 35, vat_rate: 0 },
-  { code: 'LG-002', name: 'Additional / special event lifeguard', category: 'lifeguard', unit: 'hour', default_unit_price: 50, vat_rate: 0 },
-  { code: 'CHM-001', name: 'Chemical supply (chlorine, pH balancer)', category: 'chemical', unit: 'month', default_unit_price: 6000, vat_rate: 0 },
-  { code: 'PMT-001', name: 'Health department permit processing', category: 'permit', unit: 'unit', default_unit_price: 5000, vat_rate: 0 },
-  { code: 'WIN-001', name: 'Winterization service', category: 'winterization', unit: 'season', default_unit_price: 18000, vat_rate: 0 },
-  { code: 'EQP-001', name: 'Equipment / repair (project-based)', category: 'equipment', unit: 'unit', default_unit_price: 0, vat_rate: 0 },
+  { code: 'LG-WAGE', name: 'Lifeguard wages (county hourly)', category: 'lifeguard', unit: 'hour', default_unit_price: 20, vat_rate: 0 },
+  { code: 'LG-ADD-48', name: 'Additional lifeguard (48+ hrs notice)', category: 'lifeguard', unit: 'hour', default_unit_price: 35, vat_rate: 0 },
+  { code: 'LG-ADD-LT48', name: 'Additional lifeguard (<48 hrs notice)', category: 'lifeguard', unit: 'hour', default_unit_price: 55, vat_rate: 0 },
+  { code: 'MGT-001', name: 'Management', category: 'management', unit: 'season', default_unit_price: 3000, vat_rate: 0 },
+  { code: 'DRN-001', name: 'Drain and cleaning', category: 'maintenance', unit: 'season', default_unit_price: 2000, vat_rate: 0 },
+  { code: 'CHM-1G', name: 'Chemicals (1-guard pool)', category: 'chemical', unit: 'season', default_unit_price: 5000, vat_rate: 0 },
+  { code: 'CHM-23G', name: 'Chemicals (2–3 guard pool)', category: 'chemical', unit: 'season', default_unit_price: 7500, vat_rate: 0 },
+  { code: 'CHM-4G', name: 'Chemicals (4+ guard pool)', category: 'chemical', unit: 'season', default_unit_price: 10500, vat_rate: 0 },
+  { code: 'COM-001', name: 'Commission', category: 'other', unit: 'season', default_unit_price: 1000, vat_rate: 0 },
+  { code: 'INS-001', name: 'Insurance', category: 'other', unit: 'season', default_unit_price: 2500, vat_rate: 0 },
+  { code: 'WIN-001', name: 'Winterization', category: 'winterization', unit: 'season', default_unit_price: 2000, vat_rate: 0 },
 ];
 
 export async function ensureSeed() {
@@ -44,7 +46,7 @@ export async function ensureSeed() {
       company_phone: '',
       company_email: COMPANY_EMAIL,
       quote_prefix: 'PROP',
-      rev_label: 'Rev 06/2025',
+      rev_label: 'Rev 07/2026',
       default_vat_rate: 0,
     });
     console.log('[seed] Company settings created.');
@@ -56,7 +58,7 @@ export async function ensureSeed() {
       if (!s.company_tagline) {
         patch.company_tagline = 'Where Customer Service is a Policy, Not a Department';
       }
-      if (!s.rev_label) patch.rev_label = 'Rev 06/2025';
+      if (!s.rev_label) patch.rev_label = 'Rev 07/2026';
       if (s.company_email !== COMPANY_EMAIL) patch.company_email = COMPANY_EMAIL;
       if (Object.keys(patch).length) {
         await s.update(patch);
@@ -65,10 +67,21 @@ export async function ensureSeed() {
     }
   }
 
-  const svcCount = await ServiceItem.count();
-  if (svcCount === 0) {
-    await ServiceItem.bulkCreate(SERVICES);
-    console.log('[seed] Service catalog loaded.');
+  for (const svc of SERVICES) {
+    const existing = await ServiceItem.findOne({ where: { code: svc.code } });
+    if (!existing) {
+      await ServiceItem.create(svc);
+      console.log('[seed] Service created:', svc.code);
+    } else {
+      await existing.update({
+        name: svc.name,
+        category: svc.category,
+        unit: svc.unit,
+        default_unit_price: svc.default_unit_price,
+        vat_rate: svc.vat_rate,
+        is_active: true,
+      });
+    }
   }
 
   const tplCount = await ContractTemplate.count();
@@ -83,13 +96,32 @@ export async function ensureSeed() {
 
   let enTpl = await ContractTemplate.findOne({ where: { name: EN_TEMPLATE_NAME } });
   if (!enTpl) {
-    await ContractTemplate.update({ is_default: false }, { where: {} });
-    enTpl = await ContractTemplate.create({
-      name: EN_TEMPLATE_NAME,
-      body: DEFAULT_CONTRACT_BODY_EN,
-      is_default: true,
+    // Migrate old English template name if present
+    const old = await ContractTemplate.findOne({
+      where: { name: 'Commercial Swimming Pool Management Agreement — General Terms (EN)' },
     });
-    console.log('[seed] English contract template created and set as default.');
+    if (old) {
+      await ContractTemplate.update({ is_default: false }, { where: {} });
+      await old.update({
+        name: EN_TEMPLATE_NAME,
+        body: DEFAULT_CONTRACT_BODY_EN,
+        is_default: true,
+      });
+      enTpl = old;
+      console.log('[seed] Migrated English template to Terms and Conditions.');
+    } else {
+      await ContractTemplate.update({ is_default: false }, { where: {} });
+      enTpl = await ContractTemplate.create({
+        name: EN_TEMPLATE_NAME,
+        body: DEFAULT_CONTRACT_BODY_EN,
+        is_default: true,
+      });
+      console.log('[seed] Terms and Conditions template created.');
+    }
+  } else {
+    await ContractTemplate.update({ is_default: false }, { where: {} });
+    await enTpl.update({ body: DEFAULT_CONTRACT_BODY_EN, is_default: true });
+    console.log('[seed] Terms and Conditions template refreshed from source document.');
   }
 
   const custCount = await Customer.count();

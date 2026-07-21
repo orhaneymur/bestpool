@@ -9,16 +9,20 @@ Havuz işletme, bakım, cankurtaran ve kimyasal hizmetleri için **fiyat teklifi
 ## ✨ Özellikler
 
 - **Müşteri (Cari) Yönetimi** — müşteri kartları, arama, vergi bilgileri; her müşterinin **teklif geçmişi**.
-- **Teklif Oluşturma** — tesis/sezon bilgileri, cankurtaran sayısı & saatleri gibi **değişkenler**.
-- **Otomatik Fiyatlandırma + Manuel Düzeltme** — hizmet kataloğundan birim fiyat gelir; miktar × birim fiyat otomatik hesaplanır; indirim ve KDV canlı hesaplanır. Cankurtaran kalemi (kişi × saat × hafta) tek tıkla eklenir.
-- **Ödeme Planı / Taksitler** — eşit taksitlere bölme veya elle satır ekleme.
-- **Sözleşme Şablonları** — sabit yasal metin (varsayılan Türkçe şablon dahil), teklife eklenip PDF'e basılır.
-- **PDF ve Excel Çıktısı** — Premier tarzı çok sayfalı sözleşme PDF’i (Kapak + Section I–V + genel hükümler); service line items, additional comments, taksit planı ve early bird notu basılır.
-- **Proposal tracking** — season year filter, status cards, search, **Duplicate** for next season.
-- **Standard clauses** — Section III presets (permit, overtime, opening/closing); one-click load.
-- **Email to customer** — after reviewing the PDF, send an English auto-draft email with the PDF attached from `orhaneymur@gmail.com`.
-- **Çok Kullanıcılı + Roller** — `admin`, `sales`, `viewer`. JWT tabanlı kimlik doğrulama.
-- **Panel (Dashboard)** — teklif/müşteri sayıları, durum dağılımı, son teklifler.
+- **Teklif Oluşturma** — tesis/sezon bilgileri, cankurtaran sayısı & saatleri, county seçimi.
+- **2026 Bid Summary otomatik fiyatlandırma** (dokümandaki kurallarla):
+  - **County saat ücreti:** Montgomery $20, Frederick $25, Prince George's $20, Howard $20, Anne Arundel $20, Baltimore County $20, Annapolis $25, Queen Anne's $27
+  - **İşçilik:** toplam cankurtaran saati × county ücreti
+  - **Sabit giderler:** Management $3.000 · Commission $1.000 · Insurance $2.500 · Drain/Cleaning ($2.000 veya $1.000/guard) · Winterization ($2.000 veya $1.000/guard) · Chemicals (1 guard $5.000 · 2–3 $7.500 · 4+ $10.500)
+  - **Overhead %5 + Profit %5 + Sales tax %6** otomatik eklenir; kalemler tek tıkla satırlara yazılır
+- **Specification Additional Comments (A–K)** — test kit / first aid restock, ek saat $35/$55, off-season visits, HD inspections, opening/closing, chemicals, 3 haftalık inspection, sertifikalar; serbest düzenlenebilir
+- **Ödeme planı** — varsayılan **Mart–Ağustos 6 eşit taksit**; sezon ayları veya N eşit taksit de mümkün
+- **Terms & Conditions** — müşteri belgesindeki metin birebir varsayılan şablon olarak PDF’e basılır (Section I–XVI)
+- **PDF / Excel** — Kapak + Specification (I–V) + Terms & Conditions; kalemler, comments, taksit, early bird
+- **Teklif takibi** — sezon yılı filtresi, durum kartları, arama, **Duplicate**
+- **Müşteriye e-posta** — PDF ekli İngilizce taslak; `orhaneymur@gmail.com`
+- **Çok kullanıcılı + roller** — `admin`, `sales`, `viewer` · JWT
+- **Dashboard** — teklif/müşteri sayıları, durum dağılımı, son teklifler
 
 ## 🧱 Teknoloji
 

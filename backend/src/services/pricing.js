@@ -1,10 +1,8 @@
 /**
- * Fiyat hesaplama motoru.
- * Kalemlerden (quote_items) ara toplam, indirim, KDV ve genel toplamı hesaplar.
- * Otomatik hesaplama + manuel düzeltmeye izin verir:
- *  - Kalem satırları otomatik çarpılır (miktar × birim fiyat)
- *  - İndirim oranı veya sabit indirim tutarı uygulanabilir
+ * Shared bid / totals helpers (backend).
+ * Mirrors frontend bidPricing.js for server-side validation when needed.
  */
+
 export function round2(n) {
   return Math.round((Number(n) + Number.EPSILON) * 100) / 100;
 }
@@ -18,7 +16,7 @@ export function computeTotals(items = [], opts = {}) {
     const qty = Number(it.quantity || 0);
     const price = Number(it.unit_price || 0);
     const line_total = round2(qty * price);
-    return { ...it, line_total, vat_rate: Number(it.vat_rate ?? 20) };
+    return { ...it, line_total, vat_rate: Number(it.vat_rate ?? 0) };
   });
 
   const subtotal = round2(lines.reduce((s, l) => s + l.line_total, 0));
@@ -30,7 +28,6 @@ export function computeTotals(items = [], opts = {}) {
   }
   const netAfterDiscount = round2(subtotal - discount_amount);
 
-  // KDV, indirim oranı kadar orantılı düşülerek her kalem için hesaplanır
   const discountFactor = subtotal > 0 ? netAfterDiscount / subtotal : 1;
   const vat_amount = round2(
     lines.reduce((s, l) => s + (l.line_total * discountFactor * (l.vat_rate / 100)), 0)
@@ -41,20 +38,22 @@ export function computeTotals(items = [], opts = {}) {
   return { lines, subtotal, discount_rate, discount_amount, vat_amount, total };
 }
 
-/**
- * Cankurtaran hizmeti için otomatik kalem üreticisi (yardımcı).
- * Toplam saat = cankurtaran sayısı × haftalık saat × hafta sayısı
- */
-export function buildLifeguardLine({ lifeguardCount, hoursPerWeek, weeks, hourlyRate, vat_rate = 20 }) {
-  const totalHours = Number(lifeguardCount || 0) * Number(hoursPerWeek || 0) * Number(weeks || 0);
-  return {
-    description: `Cankurtaran hizmeti (${lifeguardCount} kişi × ${hoursPerWeek} sa/hafta × ${weeks} hafta)`,
-    quantity: totalHours,
-    unit: 'saat',
-    unit_price: Number(hourlyRate || 0),
-    vat_rate,
-    line_total: round2(totalHours * Number(hourlyRate || 0)),
-  };
+export const COUNTY_WAGES = {
+  montgomery: 20,
+  frederick: 25,
+  prince_georges: 20,
+  howard: 20,
+  anne_arundel: 20,
+  baltimore: 20,
+  annapolis: 25,
+  queen_annes: 27,
+};
+
+export function chemicalsForGuards(n) {
+  const g = Number(n || 0);
+  if (g <= 1) return 5000;
+  if (g <= 3) return 7500;
+  return 10500;
 }
 
 export function weeksBetween(start, end) {

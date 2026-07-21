@@ -63,9 +63,11 @@ export const Quote = sequelize.define('Quote', {
   facility_address: { type: DataTypes.TEXT },
   season_start: { type: DataTypes.DATEONLY },
   season_end: { type: DataTypes.DATEONLY },
-  // Personel değişkenleri
+  // Personel / Bid Summary değişkenleri
   lifeguard_count: { type: DataTypes.INTEGER, defaultValue: 0 },
   hours_per_week: { type: DataTypes.INTEGER, defaultValue: 0 },
+  county: { type: DataTypes.STRING(80) }, // montgomery, frederick, ...
+  peak_weeks: { type: DataTypes.INTEGER, defaultValue: 0 },
   // Tutarlar
   subtotal: { type: DataTypes.DECIMAL(12, 2), defaultValue: 0 },
   discount_rate: { type: DataTypes.DECIMAL(5, 2), defaultValue: 0 }, // %
@@ -73,7 +75,7 @@ export const Quote = sequelize.define('Quote', {
   early_bird_discount: { type: DataTypes.DECIMAL(12, 2), defaultValue: 0 }, // Erken rezervasyon indirimi (sabit tutar)
   vat_amount: { type: DataTypes.DECIMAL(12, 2), defaultValue: 0 },
   total: { type: DataTypes.DECIMAL(12, 2), defaultValue: 0 },
-  currency: { type: DataTypes.STRING(8), defaultValue: 'TRY' },
+  currency: { type: DataTypes.STRING(8), defaultValue: 'USD' },
   status: { type: DataTypes.ENUM('taslak', 'gonderildi', 'kabul', 'red'), defaultValue: 'taslak' },
   valid_until: { type: DataTypes.DATEONLY }, // teklif geçerlilik tarihi
   notes: { type: DataTypes.TEXT },

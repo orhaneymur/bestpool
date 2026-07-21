@@ -19,6 +19,7 @@ import {
   weeksBetween,
 } from './utils/quoteMath.js';
 import { cloneStandardClauses } from './utils/defaultClauses.js';
+import { computeBidSummary } from './utils/bidPricing.js';
 
 const STEPS = [
   { id: 'customer', label: 'Customer' },
@@ -51,6 +52,8 @@ export default function ProposalWizard({ id, initialCustomerId }) {
     season_end: '',
     lifeguard_count: 0,
     hours_per_week: 0,
+    county: '',
+    peak_weeks: 0,
     discount_rate: 0,
     discount_amount: 0,
     early_bird_discount: 0,
@@ -90,6 +93,8 @@ export default function ProposalWizard({ id, initialCustomerId }) {
         season_end: d.season_end || '',
         lifeguard_count: d.lifeguard_count || 0,
         hours_per_week: d.hours_per_week || 0,
+        county: d.county || '',
+        peak_weeks: d.peak_weeks || 0,
         discount_rate: d.discount_rate || 0,
         discount_amount: d.discount_amount || 0,
         early_bird_discount: d.early_bird_discount || 0,
@@ -113,7 +118,18 @@ export default function ProposalWizard({ id, initialCustomerId }) {
   const installmentsSum = round2(installments.reduce((s, x) => s + Number(x.amount || 0), 0));
   const totalHours = Number(q.lifeguard_count || 0) * Number(q.hours_per_week || 0);
   const weeks = weeksBetween(q.season_start, q.season_end);
+  const peakWeeks = Number(q.peak_weeks || weeks || 0);
   const selectedCustomer = customers.find((c) => String(c.id) === String(q.customer_id));
+  const bid = useMemo(
+    () =>
+      computeBidSummary({
+        county: q.county,
+        lifeguardCount: q.lifeguard_count,
+        hoursPerWeek: q.hours_per_week,
+        peakWeeks,
+      }),
+    [q.county, q.lifeguard_count, q.hours_per_week, peakWeeks]
+  );
 
   async function save() {
     setErr('');
@@ -269,6 +285,7 @@ export default function ProposalWizard({ id, initialCustomerId }) {
                   contractAmount={contractAmount}
                   totalHours={totalHours}
                   weeks={weeks}
+                  bid={bid}
                 />
               )}
               {step === 3 && (

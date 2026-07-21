@@ -130,6 +130,8 @@ router.post('/', async (req, res) => {
       season_end: body.season_end || null,
       lifeguard_count: body.lifeguard_count || 0,
       hours_per_week: body.hours_per_week || 0,
+      county: body.county || null,
+      peak_weeks: body.peak_weeks || 0,
       subtotal: totals.subtotal,
       discount_rate: totals.discount_rate,
       discount_amount: totals.discount_amount,
@@ -148,7 +150,7 @@ router.post('/', async (req, res) => {
         service_item_id: it.service_item_id || null,
         description: it.description,
         quantity: it.quantity,
-        unit: it.unit || 'adet',
+        unit: it.unit || 'unit',
         unit_price: it.unit_price,
         vat_rate: it.vat_rate,
         line_total: it.line_total,
@@ -197,6 +199,8 @@ router.put('/:id', async (req, res) => {
       season_end: body.season_end || null,
       lifeguard_count: body.lifeguard_count || 0,
       hours_per_week: body.hours_per_week || 0,
+      county: body.county ?? quote.county,
+      peak_weeks: body.peak_weeks ?? quote.peak_weeks ?? 0,
       subtotal: totals.subtotal,
       discount_rate: totals.discount_rate,
       discount_amount: totals.discount_amount,
@@ -213,7 +217,7 @@ router.put('/:id', async (req, res) => {
     for (const [i, it] of totals.lines.entries()) {
       await QuoteItem.create({
         quote_id: quote.id, service_item_id: it.service_item_id || null, description: it.description,
-        quantity: it.quantity, unit: it.unit || 'adet', unit_price: it.unit_price,
+        quantity: it.quantity, unit: it.unit || 'unit', unit_price: it.unit_price,
         vat_rate: it.vat_rate, line_total: it.line_total, sort_order: i,
       }, { transaction: t });
     }
@@ -263,6 +267,8 @@ router.post('/:id/duplicate', auth(['admin', 'sales']), async (req, res) => {
       season_end: src.season_end,
       lifeguard_count: src.lifeguard_count,
       hours_per_week: src.hours_per_week,
+      county: src.county,
+      peak_weeks: src.peak_weeks,
       subtotal: src.subtotal,
       discount_rate: src.discount_rate,
       discount_amount: src.discount_amount,

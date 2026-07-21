@@ -1,85 +1,189 @@
 /**
- * Yüklenen örnek (Premier Pool Management) sözleşmesinin
- * SECTION VI–XIX genel hükümler metni (İngilizce, birebir).
- * PDF'in 3–6. sayfalarına otomatik basılır. Arayüzden düzenlenebilir.
- *
- * Not: Metin ABD/Maryland'e özgü ifadeler içerir; kendi hükümlerinizle güncelleyebilirsiniz.
+ * Four Seasons Pool Management LLC — Terms and Conditions
+ * Source: client-provided "terms and condition" document (verbatim).
+ * Printed on PDF pages after the Specification / Bid Summary.
  */
-export const DEFAULT_CONTRACT_BODY_EN = `SECTION VI. GENERAL TERMS AND SPECIFICATIONS
-A. The CONTRACTOR will provide swimming pool management service, as described in this agreement in return for compensation as outlined in the Specification page of this contract. Throughout this agreement the Specification page will refer to page 2 of the contract, which includes Section I through Section V. The information contained on the Specification page takes precedence over the standard language in the contract body (Section VI through Section XIX).
-B. Throughout this contract "WE", "US", "OURS", and "CONTRACTOR" will refer to the CONTRACTOR. "YOU", "YOUR", and "OWNER" will refer to the FACILITY OWNER/REPRESENTATIVE as listed in the Specification page of this contract.
+export const DEFAULT_CONTRACT_BODY_EN = `TERMS AND CONDITIONS
 
-SECTION VII. PRE-SEASON POOL OPENING – OUTDOOR POOLS ONLY
-A. The CONTRACTOR will render the swimming pool operational by completing the following services:
-1. Conduct and submit to the OWNER a written inspection report consisting of repairs, equipment or services deemed necessary to render the pool and filter system operational. This report will include a price quotation by the CONTRACTOR for these additional services, repairs or equipment. This report, if approved in part or in total must be returned to the CONTRACTOR within seven calendar days from its date of submission.
-2. The CONTRACTOR will, subject to the conditions stated in the preceding paragraph, prepare the swimming pool for opening by completing services including: removing and storing pool covers; draining the pool if needed; removing debris; power/acid washing where necessary; reassembling the fresh water system; filling the pool; starting the filtration and chlorination systems; obtaining and utilizing necessary chemicals; installing ladders, handrails, lifeguard chairs, skimmer lids, safety rope and diving boards; cleaning restrooms and pool area; arranging furniture; obtaining Health Department operating permits when required; and vacuuming the pool prior to opening.
-B. The OWNER will be responsible for preparing restrooms and pool facilities, completing necessary repairs, providing utilities (water, electricity, gas), providing adequate parking, ensuring compliance with building codes and local Health Regulations, maintaining required safety equipment, providing written pool rules, and furnishing anything else necessary for a timely opening.
+These Terms and Conditions ("Agreement") are incorporated into every Proposal, Estimate, or Service Agreement issued by Four Seasons Pool Management LLC ("Contractor"). Upon execution of the accompanying Proposal by the Client, these Terms become a binding agreement between the Contractor and the property owner, homeowners association, condominium association, management company, or authorized representative ("Client").
 
-SECTION VIII. STAFFING
-A. The OWNER may establish reasonable minimum criteria and qualifications for the CONTRACTOR'S staff assigned to the facility.
-B. Except as otherwise noted, all personnel employed by the CONTRACTOR for work under this agreement will be employees of the CONTRACTOR, who is responsible for their pay and all related taxes and insurance.
-C. All of the CONTRACTOR'S staff will be required to wear uniforms readily identifying them as the CONTRACTOR'S employees.
-D. The CONTRACTOR will provide a training program for each lifeguard covering pool rules, equipment operation, local requirements, standards of behavior, professional conduct, blood borne pathogen training, and chemical handling safety.
-E. All lifeguards will hold current certifications in Lifeguarding, First Aid, CPR and AED. All certifications will remain on site.
-F. Training sessions will be conducted prior to opening and periodically during the season.
-G. The OWNER agrees not to hire or contract the CONTRACTOR'S current or past employees for a period of two years. Violation entitles the CONTRACTOR to a placement charge equal to 50% of the total price of this contract.
-H. If the pool schedule dictates the pool is closed on a certain day and a holiday falls on that day, the pool will be open on the holiday and closed on the next day.
-I. Where only one lifeguard is contracted, a 10 minute break will occur each hour to accommodate water testing and facility checks; no swimming is allowed at that time.
-J. Additional temporary lifeguard services can be provided and will be billed to the OWNER for an additional fee.
+Should any conflict exist between these Terms and the executed Proposal, the Proposal shall control only with respect to pricing, contract dates, operating hours, staffing levels, and property-specific services. All remaining provisions contained herein shall remain fully enforceable.
 
-SECTION IX. DAY TO DAY POOL OPERATION AND MAINTENANCE
-Throughout the pool season, the CONTRACTOR will: ensure compliance with local health department regulations; backwash and clean the filtration system; test chlorine and pH and maintain chemical feeders; maintain required records; check and clean restrooms and the pool office; clean and straighten equipment; vacuum the pool bottom and clean tiles and skimmer baskets; sweep or rinse the deck; arrange furniture; perform closing duties; and provide reasonable enforcement of the OWNER'S written pool rules.
+SECTION I
+GENERAL CONDITIONS
 
-SECTION X. WEEKLY INSPECTIONS
-A. The CONTRACTOR agrees to conduct a minimum of three (3) inspections per week during the regular pool season and two (2) inspections per week during the pre-season period.
-B. At least once per week, the CONTRACTOR will meet with a representative of the OWNER to discuss pool operation and any related problems.
-C. The CONTRACTOR'S Lifeguard Instructors and Risk Management team will perform periodic safety audits.
+A. Scope of Agreement
+The Contractor agrees to provide professional commercial swimming pool management services as specifically described within the executed Proposal. Services not expressly identified in the Proposal are excluded from this Agreement unless approved in writing by both parties.
+Nothing contained herein shall be interpreted as requiring the Contractor to perform construction, engineering, architectural, structural, plumbing, electrical, masonry, or major mechanical repairs unless separately contracted.
 
-SECTION XI. SUPPLIES AND CHEMICALS
-A. The CONTRACTOR will supply the appropriate chemicals to maintain chlorine/bromine and pH levels as required. Test kits and reagents, balancing chemicals, algaecide, anti-stain, and specialty chemicals are not included in the Contract.
-B. The OWNER is advised that standard pool chemicals may discolor or negatively affect surfaces; the CONTRACTOR disclaims responsibility for such damage during storage, use and delivery.
-C. At the OWNER'S request, the CONTRACTOR may provide additional supplies, payable within thirty (30) days of billing.
-D. If the pool loses water due to structural or mechanical problems and the OWNER does not approve necessary repairs, the OWNER will be charged for the cost of additional chemicals needed to balance the pool.
+B. Independent Contractor
+The Contractor shall perform all services as an independent contractor. All lifeguards, supervisors, technicians, pool operators, inspectors, and other personnel assigned to the Facility shall remain employees or authorized representatives of Four Seasons Pool Management LLC.
+The Client shall have no authority to supervise, direct, discipline, compensate, or otherwise control Contractor personnel except through the Contractor's designated management representative.
 
-SECTION XII. SUPPLEMENTAL SERVICES
-A. If requested, the CONTRACTOR will obtain required health permits; the OWNER is responsible for all permit and processing fees.
-B. The OWNER is solely responsible for any discharge permit and related regulatory duties.
-C. The OWNER is responsible for securing electrical inspections and fire permits unless the CONTRACTOR is authorized in writing.
-D. Repairs or equipment authorized in writing by the OWNER are in addition to the contract amount and payable within thirty (30) days.
-E. The CONTRACTOR will obtain authorization before providing supplies or repairs unless required by the Health Department or necessary to keep the pool open and safe.
-F. With two (2) weeks' notice, the CONTRACTOR may operate the pool beyond contract dates at prorated hourly rates.
-G. With 48 hours' notice, the CONTRACTOR, if available, will provide additional personnel for special functions; fees quoted individually.
-H. The CONTRACTOR will document any accidents and provide records to the OWNER and insurers on request.
-I. When personnel are available, the CONTRACTOR may conduct swimming lessons with prior approval; lesson fees are retained by the CONTRACTOR.
-J. The OWNER will provide adequate free parking.
+C. Compliance
+The Contractor shall perform all contracted services in accordance with applicable federal, state, county, and local regulations governing commercial swimming pool operations, including applicable Health Department requirements and recognized industry standards.
+Whenever a conflict exists between the Client's instructions and applicable safety regulations, Health Department requirements, or generally accepted aquatic safety practices, the Contractor shall follow the applicable legal or safety requirement.
 
-SECTION XIII. EMERGENCY CLOSING OF THE POOL
-A. The OWNER and the CONTRACTOR reserve the right to close the pool for inclement weather, equipment breakdown, contamination, health code violations, inadequate security, or any condition endangering health or safety. Closures outside the CONTRACTOR'S control result in no change to compensation.
-B. If the pool is closed for more than ten (10) consecutive days due to mechanical failure or regulatory order outside the CONTRACTOR'S control, the CONTRACTOR will refund the OWNER fifty percent (50%) of the hourly operating cost for each scheduled hour.
-C. The OWNER may terminate this agreement with thirty (30) days' written notice, in which case the OWNER is responsible for fifty percent (50%) of the hourly operating cost for each scheduled hour.
+SECTION II
+PRE-SEASON INSPECTION AND POOL OPENING
 
-SECTION XIV. POST-SEASON POOL CLOSING – OUTDOOR POOLS ONLY
-Upon termination of the season, the CONTRACTOR will winterize the facility by: storing furniture; shutting off and draining the fresh water supply; adding anti-freeze to fixtures; removing and storing equipment; draining the pool to below the tile line; setting valves for winter storage; backwashing and draining the filter; cleaning and storing chemical feeders and testing equipment; securing the pool cover where applicable; and submitting an inspection report with recommended repairs for the following season.
+Prior to the commencement of the operating season, the Contractor shall conduct a visual inspection of the swimming pool facility to determine whether the Facility appears reasonably capable of being placed into operation.
+Following completion of the inspection, the Contractor may provide the Client with a written report identifying observed deficiencies, recommended repairs, equipment requiring replacement, safety concerns, and operational recommendations.
 
-SECTION XV. NECESSARY UTILITIES
-If applicable, the OWNER will provide and cover the cost of telephone service, water, electricity and gas for pool operation. The CONTRACTOR will not be responsible for any phone charges.
+Unless otherwise stated within the Proposal, Pool Opening Services may include:
+Removal and storage of winter covers; Removal of leaves and debris; Cleaning of the pool interior; Vacuuming the pool; Starting filtration systems; Starting circulation systems; Starting chlorination systems; Installing ladders, handrails, diving boards and safety equipment; Cleaning restrooms; Cleaning pool deck areas; Organizing furniture; Initial water chemistry adjustment; Preparation for required governmental inspections.
 
-SECTION XVI. INSURANCE, LIABILITY AND EXCLUSIONS
-A. The CONTRACTOR will maintain General Liability Insurance and Excess/Umbrella Liability Insurance covering bodily injury and/or property damage directly due to the CONTRACTOR'S negligence. Except for the CONTRACTOR'S negligence, the CONTRACTOR will not be held liable for loss arising from faulty construction, defective workmanship, or circumstances beyond its control.
-B. The CONTRACTOR will provide Workers' Compensation insurance in accordance with state requirements.
-C. The CONTRACTOR will provide the OWNER with a certificate of insurance prior to the start of the contract period.
-D. If the OWNER authorizes alcoholic beverages at the pool area, the OWNER indemnifies and holds the CONTRACTOR harmless from any resulting claims.
+The Contractor shall make commercially reasonable efforts to prepare the pool for opening on the scheduled operating date.
+However, the Contractor shall not be responsible for delays resulting from:
+Weather conditions; Utility interruptions; Delayed owner approvals; Incomplete owner repairs; Government inspection scheduling; Material shortages; Equipment failures beyond the Contractor's control; Acts of God.
 
-SECTION XVII. CONTRACT RATIFICATION AND EFFECTIVE DATE
-A. If the OWNER delivers this fully executed Contract to the CONTRACTOR within thirty (30) days from the date next to the CONTRACTOR'S signature, this Contract will be fully effective and binding. Late acceptance may be voided at the CONTRACTOR'S option by written notice within ten (10) days.
-B. This Contract will be effective when executed by both parties as stipulated above.
+The Client acknowledges that additional repairs may become apparent only after equipment is energized and operating. Such repairs are outside the original scope of work unless specifically included within the Proposal.
 
-SECTION XVIII. PAYMENT TO CONTRACTOR
-A. If additional personnel are required by the health department or the CONTRACTOR'S insurer, the OWNER agrees to pay the additional costs and the compensation and payment schedule will be amended accordingly.
-B. Invoices not paid within thirty (30) days will incur interest at the rate of 5% per month. Collection attorney's fees and costs are payable by the OWNER.
-C. The CONTRACTOR may terminate this Contract upon five (5) days' written notice if the OWNER fails to make any payment due.
-D. The OWNER will pay any increases in payroll taxes or minimum wage costs incurred after signing.
-E. If the CONTRACTOR'S liability insurance rate increases after this Contract becomes effective, the OWNER will pay the additional cost.
+SECTION III
+CLIENT RESPONSIBILITIES
 
-SECTION XIX. ADDITIONAL CONDITIONS
-This Contract embodies the entire understanding between the parties, and there are no additional verbal agreements, representations or warranties made in connection herewith.`;
+Successful operation of the Facility depends upon timely cooperation by the Client.
+Accordingly, the Client agrees to perform the following obligations before and throughout the operating season.
+
+A. Utilities
+The Client shall provide uninterrupted water, electricity, natural gas (if applicable), sewer service, internet (when required), and telephone service necessary for normal pool operations.
+The Contractor shall not be responsible for delays or interruptions resulting from utility failures.
+
+B. Facility Access
+The Client shall provide unrestricted access to:
+Equipment rooms; Chemical storage areas; Mechanical systems; Restrooms; Pool deck; Gates; Storage rooms.
+The Client shall provide all necessary keys, access cards, gate codes, and security credentials before scheduled opening.
+Failure to provide timely access may result in additional service charges.
+
+C. Building Maintenance
+The Client shall maintain the Facility in a safe condition, including but not limited to:
+Buildings; Fencing; Gates; Lighting; Electrical systems; Bathrooms; Shower facilities.
+The Contractor assumes no responsibility for structural deficiencies, building code violations, or deterioration of existing improvements.
+
+D. Safety Equipment
+Unless otherwise provided within the Proposal, the Client shall maintain all safety equipment required by applicable law, including:
+Emergency telephone; Rescue tubes; Backboards; Head immobilizers; AED units (where required); Pool rules signage; Depth markers; Occupancy signs.
+The Contractor reserves the right to prohibit pool operation whenever required safety equipment is missing, damaged, or otherwise unavailable.
+
+E. Owner Repairs
+Whenever the Contractor recommends repairs affecting safety, equipment reliability, or Health Department compliance, the Client shall promptly approve or reject such recommendations.
+The Contractor shall not be responsible for equipment failures, delayed openings, Health Department violations, pool closures, or property damage resulting from the Client's refusal or delay in authorizing recommended repairs.
+
+F. Parking and Storage
+The Client shall provide adequate parking and reasonable storage space necessary for Contractor personnel, equipment, chemicals, and operational supplies.
+
+SECTION IV
+CONTRACTOR RESPONSIBILITIES
+
+Throughout the operating season, the Contractor shall use commercially reasonable efforts to operate and maintain the swimming pool in a safe, professional, and efficient manner.
+Unless otherwise excluded within the Proposal, the Contractor's services may include:
+Water chemistry testing; Sanitizer adjustment; pH balancing; Equipment inspections; Filter maintenance; Pool vacuuming; Skimmer cleaning; Pump basket cleaning; Restroom inspections; Deck cleaning; Daily operational records; Health Department documentation; Safety inspections; Opening procedures; Closing procedures.
+The Contractor shall maintain electronic or written records documenting services performed. Such records, including photographs, videos, inspection reports, chemical logs, and digital timestamps, shall constitute prima facie evidence of the work performed and the observed condition of the Facility on the date recorded.
+
+SECTION V
+STAFFING, PERSONNEL, AND OPERATIONAL STANDARDS
+
+The Contractor shall recruit, hire, train, schedule, supervise, and compensate all personnel assigned to the Facility. All employees shall remain solely under the direction and control of the Contractor and shall not be deemed employees, agents, or representatives of the Client for any purpose.
+All lifeguards assigned to the Facility shall possess valid certifications required by applicable state or local regulations, including Lifeguarding, CPR, First Aid, and AED certifications issued by a nationally recognized certifying organization. Copies of certifications shall be maintained by the Contractor and made available for inspection upon reasonable request.
+The Contractor shall conduct orientation and ongoing training programs designed to promote safe operations, emergency preparedness, customer service, proper chemical handling, and compliance with applicable governmental regulations.
+The Client agrees not to directly employ, solicit, or contract with any employee of the Contractor during the term of this Agreement or for a period of twelve (12) months following its termination without the Contractor's prior written consent. If the Client hires or contracts with a current employee of the Contractor in violation of this provision, the Client agrees to pay a placement fee equal to twenty-five percent (25%) of the employee's anticipated annual compensation or $5,000.00, whichever is greater.
+When the Proposal provides for a single-lifeguard operation, the Client acknowledges that temporary swimming interruptions may be necessary to allow the lifeguard to perform mandatory water testing, equipment inspections, restroom inspections, and other operational duties required by applicable regulations.
+Additional staffing requested by the Client, including extra lifeguards, attendants, technicians, supervisors, or personnel for special events, shall be billed at the Contractor's then-current hourly rates unless otherwise agreed in writing.
+
+SECTION VI
+DAILY OPERATIONS, WATER QUALITY, AND MAINTENANCE
+
+Throughout the operating season, the Contractor shall use commercially reasonable efforts to maintain the Facility in a safe, sanitary, and operational condition.
+Routine services may include, as applicable:
+Water chemistry testing and adjustment; Inspection of circulation, filtration, and chemical feed systems; Cleaning skimmer baskets, pump baskets, strainers, and waterline tiles; Vacuuming and brushing pool surfaces as needed; Inspection and cleaning of restrooms and pool deck; Verification of required safety equipment; Completion of required operational logs; Enforcement of the Client's written pool rules in a fair and consistent manner.
+The Contractor shall maintain sanitizer, pH, and other water quality parameters within applicable Health Department standards using commercially accepted treatment methods.
+The Contractor shall not be responsible for water quality issues resulting from excessive bather loads, vandalism, weather conditions, contamination, structural leaks, defective equipment, utility interruptions, unauthorized chemical additions by others, or circumstances beyond the Contractor's reasonable control.
+Routine maintenance performed under this Agreement shall not constitute a warranty that existing equipment, plumbing, electrical systems, underground piping, or structural components are free from defects.
+
+SECTION VII
+CHEMICALS, SUPPLIES, AND EQUIPMENT
+
+Unless specifically excluded within the Proposal, the Contractor shall furnish standard sanitizing chemicals necessary for normal operation of the swimming pool.
+Specialty chemicals, including but not limited to phosphate removers, stain prevention products, metal treatments, calcium hardness increasers, cyanuric acid, salt, specialty shock treatments, and other non-routine products may be billed separately when required for proper water balance or regulatory compliance.
+The Client acknowledges that swimming pool chemicals are inherently corrosive and may discolor certain building materials, flooring, finishes, or landscaping despite reasonable care during storage, transportation, or application. The Contractor shall not be responsible for incidental damage resulting from the ordinary handling and use of pool chemicals.
+If excessive chemical consumption results from leaks, defective equipment, structural deficiencies, or circumstances outside the Contractor's control, the Contractor reserves the right to invoice the Client for the additional chemicals and labor reasonably required to maintain safe water conditions.
+Consumable supplies requested by the Client, including paper products, cleaning materials, restroom supplies, safety equipment, or operational materials not included within the Proposal, shall be invoiced separately.
+
+SECTION VIII
+REPAIRS, ADDITIONAL SERVICES, AND CHANGE ORDERS
+
+The Contractor shall promptly notify the Client upon discovering equipment failures, unsafe conditions, code violations, or repairs believed necessary for continued operation of the Facility.
+Except as otherwise provided herein, repairs outside the scope of the Proposal shall require written authorization before work begins.
+Notwithstanding the foregoing, the Client expressly authorizes the Contractor to perform emergency work without prior approval whenever the Contractor reasonably determines that immediate action is necessary to:
+Protect life or public safety; Prevent substantial property damage; Restore legally required safety equipment; Maintain compliance with governmental regulations; Prevent additional damage to equipment or the Facility.
+Emergency work performed pursuant to this Section shall be billed at the Contractor's standard labor and material rates.
+Additional services requested after execution of the Proposal, including extended operating seasons, additional staffing, special events, equipment replacement, consulting, or project management, shall constitute Change Orders and shall be billed separately.
+The Contractor shall not be responsible for delays resulting from unavailable replacement parts, manufacturer backorders, utility failures, governmental inspections, or circumstances beyond its reasonable control.
+
+SECTION IX
+INSPECTIONS, COMPLIANCE, AND REPORTING
+
+The Contractor shall periodically inspect the Facility throughout the operating season to monitor operational performance, regulatory compliance, safety conditions, and equipment operation.
+Inspection reports may include recommendations concerning maintenance, repairs, operational improvements, staffing, water quality, or safety issues.
+The Client acknowledges that inspection reports are advisory in nature and do not constitute engineering evaluations or guarantees regarding the structural integrity of the Facility.
+Electronic reports, inspection forms, photographs, videos, emails, text messages, GPS records, chemical logs, and digital documentation generated by the Contractor during performance of the Services shall constitute business records maintained in the ordinary course of business and may be relied upon to verify services performed and the condition of the Facility.
+
+SECTION X
+EMERGENCY CLOSURES
+
+The Contractor shall have the sole authority to suspend or temporarily close the swimming pool, in whole or in part, whenever the Contractor reasonably determines that continued operation may present a risk to the health, safety, or welfare of patrons, employees, or the public, or when continued operation would violate applicable federal, state, county, or local laws or regulations.
+Circumstances warranting temporary closure include, but are not limited to:
+Lightning, severe weather, or hazardous environmental conditions; Mechanical or electrical equipment failure; Loss of water circulation or filtration; Inadequate disinfectant residual or unsafe water chemistry; Fecal, vomit, blood, glass, or other contamination events; Health Department orders or code violations; Unsafe facility conditions, including damaged fencing, gates, drains, decking, or safety equipment; Utility interruptions affecting safe operation; Acts of vandalism, criminal activity, or any condition that, in the Contractor's professional judgment, presents an unreasonable safety risk.
+Temporary closures made in good faith shall not constitute a breach of this Agreement, nor shall the Client be entitled to any reduction in contract price, refund, credit, or damages arising solely from such closure.
+
+SECTION XI
+INSURANCE, LIABILITY, AND RISK ALLOCATION
+
+The Contractor shall maintain commercially reasonable insurance coverage during the term of this Agreement, including General Liability Insurance and Workers' Compensation Insurance as required by applicable law. Certificates of Insurance shall be provided upon written request.
+The Contractor shall only be responsible for damages directly caused by the negligent acts or omissions of its employees while acting within the scope of their employment.
+The Contractor shall not be responsible for any loss, injury, damage, delay, interruption of service, or expense arising from circumstances beyond its reasonable control, including but not limited to:
+Pre-existing equipment defects; Structural deficiencies; Hidden plumbing or electrical failures; Underground piping failures; Improper construction; Manufacturer defects; Utility interruptions; Water leaks; Vandalism or theft; Unauthorized access or use of the Facility; Acts of God, severe weather, flooding, or natural disasters; Governmental actions or Health Department orders; Failure of the Client to approve or complete recommended repairs.
+Nothing contained herein shall be interpreted as a guarantee that the Facility will remain continuously operational or free from equipment failure throughout the contract term.
+
+SECTION XII
+INDEMNIFICATION
+
+To the fullest extent permitted by law, the Client agrees to defend, indemnify, and hold harmless Four Seasons Pool Management LLC, together with its members, managers, officers, employees, agents, and representatives, from and against any and all claims, demands, damages, losses, liabilities, judgments, fines, penalties, costs, and reasonable attorney's fees arising out of or relating to:
+The condition of the Facility; Structural defects; Owner negligence; Failure to complete recommended repairs; Violation of applicable laws or regulations by the Client; Unauthorized use of the Facility; Alcohol consumption authorized by the Client; Acts or omissions of residents, guests, invitees, contractors, or third parties; Any matter beyond the Contractor's reasonable control.
+This obligation shall survive termination of this Agreement.
+
+SECTION XIII
+PAYMENT TERMS
+
+Unless otherwise provided in the Proposal, invoices shall be due within thirty (30) days of the invoice date.
+Any invoice not paid when due shall accrue interest at the rate of 1.5% per month (18% annually) or the maximum rate permitted by applicable law, whichever is less.
+The Client shall reimburse the Contractor for all reasonable costs incurred in collecting overdue amounts, including attorney's fees, court costs, collection agency fees, and related expenses to the extent permitted by law.
+If payment remains outstanding after written notice, the Contractor may suspend services or terminate this Agreement without further liability until all outstanding amounts have been paid.
+Additional work requested by the Client or required due to unforeseen conditions shall be billed separately unless expressly included within the Proposal.
+
+SECTION XIV
+TERM, TERMINATION, AND DEFAULT
+
+This Agreement shall remain in effect for the period specified in the executed Proposal unless earlier terminated in accordance with this Section.
+Either party may terminate this Agreement upon thirty (30) days' written notice.
+The Contractor may immediately suspend or terminate services if:
+Required payments are not received; Continued operation presents an unreasonable safety risk; The Client materially breaches this Agreement; The Contractor is denied reasonable access to the Facility; Applicable governmental authorities prohibit continued operation.
+Termination shall not relieve the Client of its obligation to pay for all services performed, authorized work completed, materials supplied, or expenses incurred prior to the effective date of termination.
+
+SECTION XV
+FORCE MAJEURE
+
+Neither party shall be liable for delays or failure to perform caused by circumstances beyond its reasonable control, including but not limited to severe weather, hurricanes, flooding, earthquakes, fire, acts of terrorism, pandemics, epidemics, labor disputes, utility failures, governmental actions, shortages of labor or materials, transportation delays, or other events that could not reasonably have been anticipated or avoided.
+Performance shall resume as soon as reasonably practicable after the affected condition has ceased.
+
+SECTION XVI
+GOVERNING LAW; ENTIRE AGREEMENT
+
+This Agreement shall be governed by and construed in accordance with the laws of the State of Maryland, without regard to its conflict of law principles.
+Any legal action arising out of this Agreement shall be brought exclusively in a court of competent jurisdiction located within the State of Maryland.
+This Agreement, together with the executed Proposal, constitutes the entire understanding between the parties and supersedes all prior negotiations, discussions, representations, and agreements relating to the subject matter hereof.
+No amendment or modification shall be effective unless made in writing and signed by both parties.
+Electronic signatures, scanned signatures, and signatures executed through recognized electronic signature platforms shall be deemed originals and shall have the same legal force and effect as handwritten signatures.
+If any provision of this Agreement is determined to be invalid or unenforceable, the remaining provisions shall remain in full force and effect.`;
+
+export const EN_TEMPLATE_NAME = 'Four Seasons Terms and Conditions';

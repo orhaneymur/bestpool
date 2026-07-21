@@ -8,6 +8,7 @@ import { Progress } from '@/components/ui/progress.jsx';
 import { fmtMoney } from '@/api/utils.js';
 import { AYLAR, round2 } from '../utils/quoteMath.js';
 import { STANDARD_CLAUSES, cloneStandardClauses } from '../utils/defaultClauses.js';
+import { buildMarchAugustInstallments } from '../utils/bidPricing.js';
 import { cn } from '@/lib/utils.js';
 
 export default function StepPayment({
@@ -32,6 +33,13 @@ export default function StepPayment({
     setInstallments(rows);
   }
 
+  function marchAugustSplit() {
+    const y = q.season_start
+      ? new Date(q.season_start).getFullYear()
+      : new Date().getFullYear();
+    setInstallments(buildMarchAugustInstallments(contractAmount, y));
+  }
+
   function monthlyInstallments() {
     if (!q.season_start || !q.season_end) {
       setErr?.('Enter contract start and end dates to build a monthly schedule.');
@@ -52,7 +60,6 @@ export default function StepPayment({
       });
       cur.setMonth(cur.getMonth() + 1);
     }
-    // Equal-split across months with payment slots (skip $0 later if user wants)
     const each = rows.length ? round2(contractAmount / rows.length) : 0;
     let acc = 0;
     const filled = rows.map((r, i) => {
@@ -86,7 +93,7 @@ export default function StepPayment({
         <CardHeader className="pb-3">
           <CardTitle>Compensation schedule</CardTitle>
           <CardDescription>
-            Total contract price from staffing/services. Distribute into installments for Section IV.
+            Default: six equal monthly payments March–August (per Specification). Total comes from Bid Summary.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -133,9 +140,13 @@ export default function StepPayment({
           </div>
 
           <div className="flex flex-wrap gap-2">
+            <Button type="button" variant="accent" size="sm" className="gap-1" onClick={marchAugustSplit}>
+              <Equal className="h-3.5 w-3.5" />
+              March–August (6 equal)
+            </Button>
             <Button type="button" variant="outline" size="sm" className="gap-1" onClick={monthlyInstallments}>
               <CalendarPlus className="h-3.5 w-3.5" />
-              Monthly + equal split
+              Season months
             </Button>
             {[2, 3, 4, 6, 12].map((n) => (
               <Button key={n} type="button" variant="secondary" size="sm" className="gap-1" onClick={() => splitInstallments(n)}>
@@ -192,7 +203,7 @@ export default function StepPayment({
               </motion.div>
             ))}
             {installments.length === 0 && (
-              <p className="text-sm text-muted-foreground">No installments yet. Build a monthly or equal schedule.</p>
+              <p className="text-sm text-muted-foreground">No installments yet. Use March–August for the standard schedule.</p>
             )}
           </div>
         </CardContent>
@@ -202,7 +213,7 @@ export default function StepPayment({
         <CardHeader className="flex flex-col gap-3 space-y-0 pb-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <CardTitle>Additional comments</CardTitle>
-            <CardDescription>Printed verbatim in PDF Section III (A, B, C…).</CardDescription>
+            <CardDescription>Printed verbatim in PDF Section III (A, B, C…). Defaults match the Specification.</CardDescription>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button type="button" variant="outline" size="sm" className="gap-1" onClick={loadStandardClauses}>
@@ -257,7 +268,7 @@ export default function StepPayment({
           ))}
           {specialNotes.length === 0 && (
             <p className="text-sm text-muted-foreground">
-              Tip: click <strong>Load standard clauses</strong> for the usual permit / overtime / opening set, then edit.
+              Tip: click <strong>Load standard clauses</strong> for the Specification default set, then edit freely.
             </p>
           )}
         </CardContent>
@@ -270,7 +281,7 @@ export default function StepPayment({
         <CardContent>
           <div className="grid gap-4 sm:grid-cols-3">
             <div className="space-y-2 sm:col-span-2">
-              <Label>Contract template (general terms VI–XIX)</Label>
+              <Label>Contract template (Terms & Conditions)</Label>
               <select
                 className="flex h-10 w-full rounded-lg border border-input bg-card px-3 text-sm shadow-soft"
                 value={q.contract_template_id || ''}
