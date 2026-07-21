@@ -10,6 +10,7 @@ Havuz işletme, bakım, cankurtaran ve kimyasal hizmetleri için **fiyat teklifi
 
 - **Müşteri (Cari) Yönetimi** — müşteri kartları, arama, vergi bilgileri; her müşterinin **teklif geçmişi**.
 - **Teklif Oluşturma** — tesis/sezon bilgileri, cankurtaran sayısı & saatleri, county seçimi.
+- **Specification v1.0 sözleşme akışı** — Dashboard menüleri (New / Drafts / Completed / Customers / Profile); PDF kapak “Commercial Pool Management Agreement”, müşteri + property + initials; Owner sol / Contractor sağ imza; günlük–haftalık–sezonluk personel saatleri; toplam fiyat → Mart–Ağustos 6 eşit taksit + aylık tutar / bakiye / %
 - **2026 Bid Summary otomatik fiyatlandırma** (dokümandaki kurallarla):
   - **County saat ücreti:** Montgomery $20, Frederick $25, Prince George's $20, Howard $20, Anne Arundel $20, Baltimore County $20, Annapolis $25, Queen Anne's $27
   - **İşçilik:** toplam cankurtaran saati × county ücreti

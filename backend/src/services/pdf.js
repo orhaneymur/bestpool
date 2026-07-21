@@ -118,7 +118,17 @@ function scheduleColumn(schedules, seasonType, title, subtitle) {
   };
 }
 
-function personnelRows(lifeguards, hoursPer, totalStaffHours) {
+function weeksBetween(start, end) {
+  if (!start || !end) return 0;
+  const ms = new Date(end).getTime() - new Date(start).getTime();
+  return Math.max(0, Math.round(ms / (7 * 24 * 3600 * 1000)));
+}
+
+/** Spec: daily, weekly, and seasonal staffing hours */
+function personnelRows(lifeguards, hoursPer, totalStaffHours, peakWeeks) {
+  const daily = Math.round((Number(hoursPer) / 7) * 10) / 10;
+  const weekly = Number(totalStaffHours) || 0;
+  const seasonal = Math.round(weekly * Number(peakWeeks || 0) * 10) / 10;
   return {
     width: '*',
     table: {
@@ -129,12 +139,16 @@ function personnelRows(lifeguards, hoursPer, totalStaffHours) {
           { text: `${lifeguards} Lifeguard(s)`, fontSize: 8, alignment: 'right' },
         ],
         [
-          { text: 'Hours per Lifeguard:', bold: true, fontSize: 8 },
-          { text: `${hoursPer} Hrs/week`, fontSize: 8, alignment: 'right' },
+          { text: 'Daily Staffing Hours (per guard):', bold: true, fontSize: 8 },
+          { text: `${daily} Hrs/day`, fontSize: 8, alignment: 'right' },
         ],
         [
-          { text: 'Total Staff Hours:', bold: true, fontSize: 8 },
-          { text: `${totalStaffHours} Hrs/week`, fontSize: 8, alignment: 'right' },
+          { text: 'Weekly Staffing Hours:', bold: true, fontSize: 8 },
+          { text: `${weekly} Hrs/week`, fontSize: 8, alignment: 'right' },
+        ],
+        [
+          { text: 'Seasonal Staffing Hours:', bold: true, fontSize: 8 },
+          { text: `${seasonal} Hrs/season`, fontSize: 8, alignment: 'right' },
         ],
       ],
     },
@@ -155,6 +169,9 @@ export function buildQuotePdf(quote, setting) {
   const lifeguards = Number(quote.lifeguard_count || 0);
   const hoursPer = Number(quote.hours_per_week || 0);
   const totalStaffHours = lifeguards * hoursPer;
+  const seasonWeeks = weeksBetween(quote.season_start, quote.season_end);
+  const peakWeeks = Number(quote.peak_weeks || seasonWeeks || 0);
+  const customerName = quote.Customer?.name || '';
 
   const facilityAddr = [quote.facility_name, quote.facility_address].filter(Boolean).join('\n');
   const ownerAddr = [
@@ -302,14 +319,14 @@ export function buildQuotePdf(quote, setting) {
         margin: [0, 36, 0, 22],
       },
       {
-        text: 'COMMERCIAL SWIMMING POOL',
+        text: 'COMMERCIAL POOL MANAGEMENT',
         bold: true,
         alignment: 'center',
         fontSize: 20,
         color: BLUE,
       },
       {
-        text: 'MANAGEMENT AGREEMENT',
+        text: 'AGREEMENT',
         bold: true,
         alignment: 'center',
         fontSize: 20,
@@ -317,17 +334,24 @@ export function buildQuotePdf(quote, setting) {
         margin: [0, 0, 0, 18],
       },
       {
-        text: `PROPOSAL #${proposalNo}`,
+        text: `CONTRACT #${proposalNo}`,
         bold: true,
         alignment: 'center',
         fontSize: 13,
         margin: [0, 0, 0, 16],
       },
       {
+        text: customerName || 'Customer',
+        bold: true,
+        alignment: 'center',
+        fontSize: 12,
+      },
+      {
         text: quote.facility_name || '',
         bold: true,
         alignment: 'center',
         fontSize: 13,
+        margin: [0, 6, 0, 0],
       },
       {
         text: quote.facility_address || '',
@@ -338,7 +362,7 @@ export function buildQuotePdf(quote, setting) {
       },
 
       // Modest gap — not a huge empty band
-      { text: ' ', margin: [0, 48, 0, 0] },
+      { text: ' ', margin: [0, 40, 0, 0] },
 
       {
         text: company.toUpperCase(),
@@ -368,7 +392,33 @@ export function buildQuotePdf(quote, setting) {
         fontSize: 8,
         color: BLUE,
         characterSpacing: 1,
-        margin: [0, 2, 0, 0],
+        margin: [0, 2, 0, 12],
+      },
+      // Spec: page number, contract #, customer, property, initials at bottom of cover
+      {
+        columns: [
+          {
+            width: '*',
+            stack: [
+              { text: `Contract #: ${proposalNo}`, fontSize: 8, color: GRAY },
+              { text: `Customer: ${customerName || '—'}`, fontSize: 8, color: GRAY, margin: [0, 2, 0, 0] },
+              { text: `Property: ${quote.facility_name || '—'}`, fontSize: 8, color: GRAY, margin: [0, 2, 0, 0] },
+            ],
+          },
+          {
+            width: 'auto',
+            stack: [
+              { text: 'Owner’s Initial(s)', fontSize: 8, bold: true, alignment: 'right' },
+              {
+                text: '____________________',
+                fontSize: 10,
+                alignment: 'right',
+                margin: [0, 6, 0, 0],
+              },
+            ],
+          },
+        ],
+        margin: [0, 24, 0, 0],
       },
 
       // ========== SPEC SHEET ==========
@@ -456,8 +506,8 @@ export function buildQuotePdf(quote, setting) {
       },
       {
         columns: [
-          personnelRows(lifeguards, hoursPer, totalStaffHours),
-          personnelRows(lifeguards, hoursPer, totalStaffHours),
+          personnelRows(lifeguards, hoursPer, totalStaffHours, peakWeeks),
+          personnelRows(lifeguards, hoursPer, totalStaffHours, peakWeeks),
         ],
         columnGap: 14,
         margin: [0, 0, 0, 2],
@@ -580,18 +630,20 @@ export function buildQuotePdf(quote, setting) {
           {
             width: '*',
             stack: [
-              { text: 'CONTRACTOR', bold: true, fontSize: 8 },
+              { text: 'OWNER / CLIENT', bold: true, fontSize: 8 },
               { text: 'Signature: _______________________________', fontSize: 8, margin: [0, 8, 0, 3] },
-              { text: `By: ${company}`, fontSize: 8 },
+              { text: 'Title: _______________________', fontSize: 8 },
+              { text: 'Company: _______________________', fontSize: 8, margin: [0, 3, 0, 0] },
               { text: 'Date: ______________', fontSize: 8, margin: [0, 3, 0, 0] },
             ],
           },
           {
             width: '*',
             stack: [
-              { text: 'OWNER', bold: true, fontSize: 8 },
+              { text: 'CONTRACTOR', bold: true, fontSize: 8 },
               { text: 'Signature: _______________________________', fontSize: 8, margin: [0, 8, 0, 3] },
-              { text: 'By: _______________________', fontSize: 8 },
+              { text: `By: ${company}`, fontSize: 8 },
+              { text: 'Title: _______________________', fontSize: 8, margin: [0, 3, 0, 0] },
               { text: 'Date: ______________', fontSize: 8, margin: [0, 3, 0, 0] },
             ],
           },
@@ -599,11 +651,18 @@ export function buildQuotePdf(quote, setting) {
         columnGap: 20,
       },
       {
+        text: 'Electronic, touch, mouse, and uploaded signatures are accepted and have the same force as handwritten signatures.',
+        fontSize: 7,
+        italics: true,
+        color: GRAY,
+        margin: [0, 8, 0, 0],
+      },
+      {
         text: 'Please initial page(s) 2, 3, 4 and 5 of this contract where indicated.',
         fontSize: 7,
         italics: true,
         color: GRAY,
-        margin: [0, 6, 0, 0],
+        margin: [0, 4, 0, 0],
       },
 
       ...(generalTerms.length ? [{ text: '', pageBreak: 'before' }, ...generalTerms] : []),

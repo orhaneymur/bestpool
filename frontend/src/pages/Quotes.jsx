@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Copy, FileDown, Plus, Search, Sheet } from 'lucide-react';
 import api, { downloadFile } from '@/api/client.js';
 import { fmtMoney, fmtDate, statusLabel } from '@/api/utils.js';
@@ -11,19 +11,32 @@ import { Input } from '@/components/ui/input.jsx';
 
 const STATUSES = [
   { key: '', label: 'All' },
-  { key: 'taslak', label: 'Draft' },
+  { key: 'taslak', label: 'Saved Drafts' },
   { key: 'gonderildi', label: 'Sent' },
-  { key: 'kabul', label: 'Accepted' },
+  { key: 'kabul', label: 'Completed' },
   { key: 'red', label: 'Rejected' },
 ];
 
 export default function Quotes() {
   const nav = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [rows, setRows] = useState([]);
-  const [status, setStatus] = useState('');
+  const [status, setStatus] = useState(() => searchParams.get('status') || '');
   const [year, setYear] = useState(String(new Date().getFullYear()));
   const [q, setQ] = useState('');
   const [busyId, setBusyId] = useState(null);
+
+  useEffect(() => {
+    const s = searchParams.get('status') || '';
+    setStatus(s);
+  }, [searchParams]);
+
+  function selectStatus(key) {
+    const next = status === key ? '' : key;
+    setStatus(next);
+    if (next) setSearchParams({ status: next });
+    else setSearchParams({});
+  }
 
   const years = useMemo(() => {
     const y = new Date().getFullYear();
@@ -72,13 +85,13 @@ export default function Quotes() {
   return (
     <div className="space-y-4 sm:space-y-5">
       <PageHeader
-        title="Proposals"
-        subtitle="Build seasonal contracts, track status, and duplicate last year’s bids"
+        title="Existing Contracts"
+        subtitle="All proposals — drafts, sent, and completed contracts"
       >
         <Button asChild variant="accent" className="gap-2">
           <Link to="/quotes/new">
             <Plus className="h-4 w-4" />
-            New Proposal
+            New Contract
           </Link>
         </Button>
       </PageHeader>
@@ -88,7 +101,7 @@ export default function Quotes() {
           <button
             key={s.key}
             type="button"
-            onClick={() => setStatus((cur) => (cur === s.key ? '' : s.key))}
+            onClick={() => selectStatus(s.key)}
             className={`rounded-2xl border px-3 py-3 text-left transition-colors ${
               status === s.key
                 ? 'border-accent/40 bg-accent/10'

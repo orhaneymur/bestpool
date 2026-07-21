@@ -88,6 +88,21 @@ export default function StepPersonnel({
           tone="gold"
         />
       </div>
+      <div className="grid gap-3 sm:grid-cols-3">
+        <SummaryTile
+          icon={Clock3}
+          label="Daily hrs / guard (approx)"
+          value={round2(Number(q.hours_per_week || 0) / 7)}
+          tone="accent"
+        />
+        <SummaryTile icon={Clock3} label="Weekly hrs / guard" value={Number(q.hours_per_week || 0)} tone="primary" />
+        <SummaryTile
+          icon={Calculator}
+          label="Contract duration (weeks)"
+          value={Number(q.peak_weeks || weeks || 0)}
+          tone="gold"
+        />
+      </div>
 
       <Card>
         <CardHeader className="pb-3">

@@ -87,16 +87,16 @@ export default function Dashboard() {
   return (
     <div className="space-y-4 sm:space-y-6">
       <PageHeader
-        title="Overview"
-        subtitle="Operations summary, pipeline, and recent proposal activity"
+        title="Dashboard"
+        subtitle="Four Seasons commercial contract studio — new contracts, drafts, and pipeline"
       >
         <Button asChild variant="outline" className="flex-1 gap-2 sm:flex-none">
-          <Link to="/quotes">All proposals</Link>
+          <Link to="/quotes">Existing Contracts</Link>
         </Button>
         <Button asChild variant="accent" className="flex-1 gap-2 sm:flex-none">
           <Link to="/quotes/new">
             <Plus className="h-4 w-4" />
-            New Proposal
+            New Contract
           </Link>
         </Button>
       </PageHeader>
@@ -108,17 +108,34 @@ export default function Dashboard() {
               <Sparkles className="h-5 w-5" />
             </div>
             <div className="min-w-0">
-              <div className="text-sm font-semibold tracking-tight">Contract wizard ready</div>
+              <div className="text-sm font-semibold tracking-tight">Commercial Pool Management Agreement</div>
               <p className="mt-0.5 text-sm text-slate-300">
-                Facility, season hours, staffing, payment — then export PDF.
+                Cover · property · schedule · staffing · comments · March–August payments · PDF
               </p>
             </div>
           </div>
           <Button asChild variant="accent" className="w-full shrink-0 sm:w-auto">
-            <Link to="/quotes/new">Create proposal</Link>
+            <Link to="/quotes/new">Create contract</Link>
           </Button>
         </CardContent>
       </Card>
+
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        {[
+          { to: '/quotes/new', label: 'New Contract' },
+          { to: '/quotes?status=taslak', label: 'Saved Drafts' },
+          { to: '/quotes?status=kabul', label: 'Completed' },
+          { to: '/customers', label: 'Customers' },
+        ].map((x) => (
+          <Link
+            key={x.to}
+            to={x.to}
+            className="rounded-2xl border border-border bg-card px-3 py-3 text-center text-sm font-semibold transition-colors hover:border-accent/40 hover:bg-accent/5"
+          >
+            {x.label}
+          </Link>
+        ))}
+      </div>
 
       <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         {metrics.map((m, i) => (

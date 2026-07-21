@@ -10,6 +10,7 @@ import Templates from './pages/Templates.jsx';
 import Settings from './pages/Settings.jsx';
 import Quotes from './pages/Quotes.jsx';
 import QuoteForm from './pages/QuoteForm.jsx';
+import Profile from './pages/Profile.jsx';
 
 function Private({ children }) {
   const { user } = useAuth();
@@ -30,6 +31,7 @@ export default function App() {
       <Route path="/services" element={<Private><Services /></Private>} />
       <Route path="/templates" element={<Private><Templates /></Private>} />
       <Route path="/settings" element={<Private><Settings /></Private>} />
+      <Route path="/profile" element={<Private><Profile /></Private>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

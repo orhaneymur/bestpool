@@ -209,12 +209,14 @@ export default function LivePaperPreview({
           </div>
           <div className="grid grid-cols-2 gap-6 pt-2">
             <div>
-              <div className="font-semibold">CONTRACTOR</div>
+              <div className="font-semibold">OWNER / CLIENT</div>
               <div className="mt-3 border-b border-slate-300 pb-1 text-slate-400">Signature</div>
+              <div className="mt-2 text-[9px] text-slate-400">Title · Company · Date</div>
             </div>
             <div>
-              <div className="font-semibold">OWNER</div>
+              <div className="font-semibold">CONTRACTOR</div>
               <div className="mt-3 border-b border-slate-300 pb-1 text-slate-400">Signature</div>
+              <div className="mt-2 text-[9px] text-slate-400">Title · Date</div>
             </div>
           </div>
 

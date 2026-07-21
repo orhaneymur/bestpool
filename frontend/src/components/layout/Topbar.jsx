@@ -47,7 +47,7 @@ export default function Topbar({ onMenuClick }) {
           className="shrink-0 gap-1.5 shadow-soft sm:h-10 sm:px-4"
         >
           <Plus className="h-4 w-4" />
-          <span className="hidden sm:inline">New Proposal</span>
+          <span className="hidden sm:inline">New Contract</span>
         </Button>
       </div>
     </header>

@@ -13,11 +13,34 @@ import { cn } from '@/lib/utils.js';
 
 export default function StepPayment({
   q, setQ, installments, setInstallments, specialNotes, setSpecialNotes,
-  contractAmount, installmentsSum, templates, setErr,
+  contractAmount, installmentsSum, templates, setErr, setItems,
 }) {
   const remaining = round2(contractAmount - installmentsSum);
   const progress = contractAmount > 0 ? Math.min(100, (installmentsSum / contractAmount) * 100) : 0;
   const matched = Math.abs(remaining) < 0.01;
+  const monthlyEach = installments.length
+    ? round2(installments.reduce((s, x) => s + Number(x.amount || 0), 0) / installments.length)
+    : 0;
+  const paidPct = progress;
+
+  function applyTotalPrice(total) {
+    const amount = round2(Number(total) || 0);
+    setItems?.([
+      {
+        description: 'Commercial Pool Management Agreement',
+        quantity: 1,
+        unit: 'season',
+        unit_price: amount,
+        vat_rate: 0,
+        service_item_id: null,
+      },
+    ]);
+    setQ((prev) => ({ ...prev, early_bird_discount: 0, discount_rate: 0, discount_amount: 0 }));
+    const y = q.season_start
+      ? new Date(q.season_start).getFullYear()
+      : new Date().getFullYear();
+    setInstallments(buildMarchAugustInstallments(amount, y));
+  }
 
   function splitInstallments(n) {
     if (!n || n < 1) return;
@@ -93,11 +116,35 @@ export default function StepPayment({
         <CardHeader className="pb-3">
           <CardTitle>Compensation schedule</CardTitle>
           <CardDescription>
-            Default: six equal monthly payments March–August (per Specification). Total comes from Bid Summary.
+            Enter the total contract price — the system splits it into six equal payments (March–August) per Specification.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label>Total contract price ($)</Label>
+              <div className="flex flex-wrap gap-2">
+                <Input
+                  type="number"
+                  step="0.01"
+                  className="max-w-xs"
+                  defaultValue={contractAmount || ''}
+                  key={`total-${contractAmount}`}
+                  onBlur={(e) => {
+                    const v = Number(e.target.value);
+                    if (!Number.isNaN(v) && v >= 0 && Math.abs(v - contractAmount) > 0.009) {
+                      applyTotalPrice(v);
+                    }
+                  }}
+                />
+                <Button type="button" variant="accent" size="sm" onClick={marchAugustSplit}>
+                  Apply March–August split
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Type a total and leave the field to replace pricing and auto-split March–August, or keep Bid Summary lines.
+              </p>
+            </div>
             <div className="space-y-1.5">
               <Label>Early bird discount ($ off total)</Label>
               <Input
@@ -114,6 +161,21 @@ export default function StepPayment({
                 value={q.valid_until || ''}
                 onChange={(e) => setQ({ ...q, valid_until: e.target.value })}
               />
+            </div>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div className="rounded-2xl border border-border bg-muted/30 p-3">
+              <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Monthly payment</div>
+              <div className="mt-1 text-lg font-semibold tabular-nums">{fmtMoney(monthlyEach, q.currency)}</div>
+            </div>
+            <div className="rounded-2xl border border-border bg-muted/30 p-3">
+              <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Balance remaining</div>
+              <div className="mt-1 text-lg font-semibold tabular-nums">{fmtMoney(remaining, q.currency)}</div>
+            </div>
+            <div className="rounded-2xl border border-border bg-muted/30 p-3">
+              <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Allocated %</div>
+              <div className="mt-1 text-lg font-semibold tabular-nums">{paidPct.toFixed(0)}%</div>
             </div>
           </div>
 
@@ -203,7 +265,7 @@ export default function StepPayment({
               </motion.div>
             ))}
             {installments.length === 0 && (
-              <p className="text-sm text-muted-foreground">No installments yet. Use March–August for the standard schedule.</p>
+              <p className="text-sm text-muted-foreground">No installments yet. Enter a total or use March–August.</p>
             )}
           </div>
         </CardContent>
@@ -213,7 +275,7 @@ export default function StepPayment({
         <CardHeader className="flex flex-col gap-3 space-y-0 pb-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <CardTitle>Additional comments</CardTitle>
-            <CardDescription>Printed verbatim in PDF Section III (A, B, C…). Defaults match the Specification.</CardDescription>
+            <CardDescription>Unlimited editable custom comments (Specification defaults A–K).</CardDescription>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button type="button" variant="outline" size="sm" className="gap-1" onClick={loadStandardClauses}>

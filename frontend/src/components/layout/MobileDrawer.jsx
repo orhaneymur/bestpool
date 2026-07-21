@@ -2,11 +2,15 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   LayoutDashboard,
+  FilePlus2,
   FileText,
+  FileClock,
+  FileCheck2,
   Users,
   ClipboardList,
   FolderOpen,
   Settings,
+  UserRound,
   Waves,
   LogOut,
   X,
@@ -16,15 +20,19 @@ import { cn } from '@/lib/utils.js';
 import { APP_VERSION, APP_BUILD, APP_LABEL } from '@/version.js';
 
 const links = [
-  { to: '/', label: 'Overview', icon: LayoutDashboard, end: true },
-  { to: '/quotes', label: 'Proposals', icon: FileText },
-  { to: '/customers', label: 'Customers', icon: Users },
+  { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
+  { to: '/quotes/new', label: 'New Contract', icon: FilePlus2 },
+  { to: '/quotes', label: 'Existing Contracts', icon: FileText, end: true },
+  { to: '/quotes?status=taslak', label: 'Saved Drafts', icon: FileClock },
+  { to: '/quotes?status=kabul', label: 'Completed Contracts', icon: FileCheck2 },
+  { to: '/customers', label: 'Customer Database', icon: Users },
   { to: '/services', label: 'Services', icon: ClipboardList },
   { to: '/templates', label: 'Templates', icon: FolderOpen },
   { to: '/settings', label: 'Settings', icon: Settings },
+  { to: '/profile', label: 'User Profile', icon: UserRound },
 ];
 
-const roleLabel = { admin: 'Admin', sales: 'Sales', viewer: 'Viewer' };
+const roleLabel = { admin: 'Administrator', sales: 'Office Staff', viewer: 'Read Only' };
 
 export default function MobileDrawer({ open, onClose }) {
   const { user, logout } = useAuth();
@@ -78,14 +86,14 @@ export default function MobileDrawer({ open, onClose }) {
                     {({ isActive }) => (
                       <div
                         className={cn(
-                          'flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-colors',
+                          'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors',
                           isActive
                             ? 'bg-white/[0.1] text-white'
                             : 'text-sidebar-foreground hover:bg-white/[0.05] hover:text-white'
                         )}
                       >
-                        <Icon className={cn('h-5 w-5', isActive ? 'text-accent' : 'text-sidebar-muted')} />
-                        {l.label}
+                        <Icon className={cn('h-5 w-5 shrink-0', isActive ? 'text-accent' : 'text-sidebar-muted')} />
+                        <span className="truncate">{l.label}</span>
                       </div>
                     )}
                   </NavLink>

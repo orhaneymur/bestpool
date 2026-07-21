@@ -19,7 +19,7 @@ import {
   weeksBetween,
 } from './utils/quoteMath.js';
 import { cloneStandardClauses } from './utils/defaultClauses.js';
-import { computeBidSummary } from './utils/bidPricing.js';
+import { computeBidSummary, buildMarchAugustInstallments } from './utils/bidPricing.js';
 
 const STEPS = [
   { id: 'customer', label: 'Customer' },
@@ -130,6 +130,25 @@ export default function ProposalWizard({ id, initialCustomerId }) {
       }),
     [q.county, q.lifeguard_count, q.hours_per_week, peakWeeks]
   );
+
+  // Spec: when contract total changes, keep March–August schedule in sync if it was empty or already 6 months
+  useEffect(() => {
+    if (!(contractAmount > 0)) return;
+    const looksLikeMarchAug =
+      installments.length === 0 ||
+      (installments.length === 6 &&
+        installments.every((r) => /March|April|May|June|July|August/i.test(r.label || '')));
+    if (!looksLikeMarchAug) return;
+    const y = q.season_start
+      ? new Date(q.season_start).getFullYear()
+      : new Date().getFullYear();
+    const next = buildMarchAugustInstallments(contractAmount, y);
+    const same =
+      installments.length === 6 &&
+      next.every((n, i) => Math.abs(Number(installments[i]?.amount || 0) - n.amount) < 0.02);
+    if (!same) setInstallments(next);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only re-split when amount changes
+  }, [contractAmount]);
 
   async function save() {
     setErr('');
@@ -301,6 +320,7 @@ export default function ProposalWizard({ id, initialCustomerId }) {
                   templates={templates}
                   err={err}
                   setErr={setErr}
+                  setItems={setItems}
                 />
               )}
             </motion.div>

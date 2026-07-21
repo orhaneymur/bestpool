@@ -2,11 +2,15 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   LayoutDashboard,
+  FilePlus2,
   FileText,
+  FileClock,
+  FileCheck2,
   Users,
   ClipboardList,
   FolderOpen,
   Settings,
+  UserRound,
   Waves,
   LogOut,
 } from 'lucide-react';
@@ -14,16 +18,21 @@ import { useAuth } from '@/context/AuthContext.jsx';
 import { cn } from '@/lib/utils.js';
 import { APP_VERSION, APP_BUILD, APP_LABEL } from '@/version.js';
 
+/** Spec dashboard navigation */
 const links = [
-  { to: '/', label: 'Overview', icon: LayoutDashboard, end: true },
-  { to: '/quotes', label: 'Proposals', icon: FileText },
-  { to: '/customers', label: 'Customers', icon: Users },
+  { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
+  { to: '/quotes/new', label: 'New Contract', icon: FilePlus2 },
+  { to: '/quotes', label: 'Existing Contracts', icon: FileText, end: true },
+  { to: '/quotes?status=taslak', label: 'Saved Drafts', icon: FileClock },
+  { to: '/quotes?status=kabul', label: 'Completed Contracts', icon: FileCheck2 },
+  { to: '/customers', label: 'Customer Database', icon: Users },
   { to: '/services', label: 'Services', icon: ClipboardList },
   { to: '/templates', label: 'Templates', icon: FolderOpen },
   { to: '/settings', label: 'Settings', icon: Settings },
+  { to: '/profile', label: 'User Profile', icon: UserRound },
 ];
 
-const roleLabel = { admin: 'Admin', sales: 'Sales', viewer: 'Viewer' };
+const roleLabel = { admin: 'Administrator', sales: 'Office Staff', viewer: 'Read Only' };
 
 export default function Sidebar() {
   const { user, logout } = useAuth();
@@ -38,7 +47,7 @@ export default function Sidebar() {
 
   return (
     <aside className="sticky top-0 z-40 hidden h-screen w-[248px] shrink-0 flex-col border-r border-white/5 bg-sidebar text-sidebar-foreground lg:flex">
-      <div className="flex items-center gap-3 px-5 pb-6 pt-6">
+      <div className="flex items-center gap-3 px-5 pb-4 pt-6">
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-accent/25 to-accent/5 text-accent ring-1 ring-inset ring-accent/30">
           <Waves className="h-5 w-5" />
         </div>
@@ -48,7 +57,7 @@ export default function Sidebar() {
         </div>
       </div>
 
-      <nav className="flex-1 space-y-0.5 px-3">
+      <nav className="flex-1 space-y-0.5 overflow-y-auto px-3 pb-2">
         <div className="px-3 pb-2 pt-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-sidebar-muted/60">
           Menu
         </div>
@@ -59,7 +68,7 @@ export default function Sidebar() {
               {({ isActive }) => (
                 <div
                   className={cn(
-                    'group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200',
+                    'group relative flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-all duration-200',
                     isActive
                       ? 'bg-white/[0.08] text-white'
                       : 'text-sidebar-foreground hover:bg-white/[0.04] hover:text-white'
@@ -78,7 +87,7 @@ export default function Sidebar() {
                       isActive ? 'text-accent' : 'text-sidebar-muted group-hover:text-white'
                     )}
                   />
-                  <span>{l.label}</span>
+                  <span className="truncate">{l.label}</span>
                 </div>
               )}
             </NavLink>
