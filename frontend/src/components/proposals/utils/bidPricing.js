@@ -21,12 +21,12 @@ export const BID_RATES = {
   management: 3000,
   commission: 1000,
   insurance: 2500,
-  /** Drain/cleaning: $2,000 base, or $1,000 per guard */
-  drainPerGuard: 1000,
+  /** Drain/cleaning: flat $2,000, single-guard pool $1,000 */
   drainBase: 2000,
-  /** Winterization: $2,000 base, or $1,000 per guard */
-  winterPerGuard: 1000,
+  drainSingleGuard: 1000,
+  /** Winterization: flat $2,000, single-guard pool $1,000 */
   winterBase: 2000,
+  winterSingleGuard: 1000,
 };
 
 export function round2(n) {
@@ -44,14 +44,15 @@ export function chemicalsForGuards(lifeguardCount) {
   return 10500;
 }
 
+/** Bid Summary: "$2,000 (1guard1000)" — flat $2,000, single-guard pool $1,000. */
 export function drainCleaningForGuards(lifeguardCount) {
   const n = Math.max(1, Number(lifeguardCount || 0));
-  return Math.max(BID_RATES.drainBase, n * BID_RATES.drainPerGuard);
+  return n <= 1 ? BID_RATES.drainSingleGuard : BID_RATES.drainBase;
 }
 
 export function winterizationForGuards(lifeguardCount) {
   const n = Math.max(1, Number(lifeguardCount || 0));
-  return Math.max(BID_RATES.winterBase, n * BID_RATES.winterPerGuard);
+  return n <= 1 ? BID_RATES.winterSingleGuard : BID_RATES.winterBase;
 }
 
 /**

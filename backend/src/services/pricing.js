@@ -56,6 +56,15 @@ export function chemicalsForGuards(n) {
   return 10500;
 }
 
+/** Bid Summary: "$2,000 (1guard1000)" — flat $2,000, single-guard pool $1,000. */
+export function drainCleaningForGuards(n) {
+  return Math.max(1, Number(n || 0)) <= 1 ? 1000 : 2000;
+}
+
+export function winterizationForGuards(n) {
+  return Math.max(1, Number(n || 0)) <= 1 ? 1000 : 2000;
+}
+
 export function weeksBetween(start, end) {
   if (!start || !end) return 0;
   const ms = new Date(end).getTime() - new Date(start).getTime();
