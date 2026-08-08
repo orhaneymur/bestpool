@@ -8,6 +8,7 @@ import CustomerDetail from './pages/CustomerDetail.jsx';
 import Services from './pages/Services.jsx';
 import Templates from './pages/Templates.jsx';
 import Settings from './pages/Settings.jsx';
+import Definitions from './pages/Definitions.jsx';
 import Quotes from './pages/Quotes.jsx';
 import QuoteForm from './pages/QuoteForm.jsx';
 import Profile from './pages/Profile.jsx';
@@ -31,6 +32,7 @@ export default function App() {
       <Route path="/services" element={<Private><Services /></Private>} />
       <Route path="/templates" element={<Private><Templates /></Private>} />
       <Route path="/settings" element={<Private><Settings /></Private>} />
+      <Route path="/definitions" element={<Private><Definitions /></Private>} />
       <Route path="/profile" element={<Private><Profile /></Private>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

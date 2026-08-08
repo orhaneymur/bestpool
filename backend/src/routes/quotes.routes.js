@@ -4,19 +4,67 @@ import { sequelize, Quote, QuoteItem, QuoteInstallment, QuoteSchedule, QuoteNote
 import { auth } from '../middleware/auth.js';
 import { computeTotals } from '../services/pricing.js';
 import { buildQuotePdf } from '../services/pdf.js';
+import { mergeDefinitions, sanitizeHiddenFields } from '../config/pdfDefinitions.js';
 import { buildQuoteExcel } from '../services/excel.js';
 import { buildProposalEmail, sendProposalEmail } from '../services/mail.js';
 
 const router = Router();
 router.use(auth());
 
-async function nextQuoteNo() {
+/**
+ * Contract numbers read "FSPM-2026-001": prefix, calendar year, 3-digit sequence
+ * that restarts each year. The sequence continues from the highest number already
+ * issued this year rather than from the row count, so deleting a quote cannot make
+ * the next one collide with the unique quote_no index.
+ */
+async function nextQuoteNo(attempt = 0) {
   const setting = await Setting.findByPk(1);
-  const prefix = setting?.quote_prefix || 'TEK';
+  const def = mergeDefinitions(setting?.definitions);
+  const prefix = (setting?.quote_prefix || 'FSPM').trim().toUpperCase();
   const year = new Date().getFullYear();
-  const count = await Quote.count();
-  const seq = String(count + 1).padStart(4, '0');
-  return `${prefix}-${year}-${seq}`;
+  const stem = def.numbering.yearlyReset ? `${prefix}-${year}-` : `${prefix}-`;
+
+  const issued = await Quote.findAll({
+    attributes: ['quote_no'],
+    where: { quote_no: { [Op.like]: `${stem}%` } },
+    raw: true,
+  });
+
+  const highest = issued.reduce((max, row) => {
+    const n = Number.parseInt(String(row.quote_no).slice(stem.length), 10);
+    return Number.isFinite(n) && n > max ? n : max;
+  }, 0);
+
+  // `attempt` walks the sequence forward when a concurrent request grabbed the
+  // same number first — see createWithUniqueNo().
+  return `${stem}${String(highest + 1 + attempt).padStart(def.numbering.padding, '0')}`;
+}
+
+/**
+ * Two users saving a new contract at the same moment can compute the same
+ * quote_no. The unique index then rejects the second one with a 500 that looks
+ * random to the user, so retry with the next number instead.
+ */
+async function createWithUniqueNo(build, transaction) {
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    try {
+      return await Quote.create({ ...build, quote_no: await nextQuoteNo(attempt) }, { transaction });
+    } catch (err) {
+      const isDuplicate =
+        err?.name === 'SequelizeUniqueConstraintError' ||
+        /duplicate entry/i.test(err?.parent?.message || '');
+      if (!isDuplicate || attempt === 4) throw err;
+    }
+  }
+  throw new Error('Could not allocate a contract number.');
+}
+
+const QUOTE_STATUSES = ['taslak', 'gonderildi', 'kabul', 'red'];
+
+/** Company-wide default set of hidden PDF blocks, used to seed a new contract. */
+async function defaultHiddenFields() {
+  const setting = await Setting.findByPk(1);
+  return mergeDefinitions(setting?.definitions).hidden;
 }
 
 async function saveSchedules(quoteId, schedules, t) {
@@ -92,9 +140,12 @@ function quoteFieldsFromBody(body, existing = {}) {
     peak_weeks: toInt(body.peak_weeks, 0),
     early_bird_discount: toNum(body.early_bird_discount, 0),
     currency: body.currency || existing.currency || 'USD',
-    status: body.status || existing.status || 'taslak',
+    status: QUOTE_STATUSES.includes(body.status) ? body.status : existing.status || 'taslak',
     valid_until: nullIfEmpty(body.valid_until),
     notes: body.notes ?? existing.notes ?? null,
+    hidden_fields: Array.isArray(body.hidden_fields)
+      ? sanitizeHiddenFields(body.hidden_fields)
+      : sanitizeHiddenFields(existing.hidden_fields),
   };
 }
 
@@ -160,7 +211,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // Oluştur
-router.post('/', async (req, res) => {
+router.post('/', auth(['admin', 'sales']), async (req, res) => {
   const t = await sequelize.transaction();
   try {
     const body = req.body || {};
@@ -172,16 +223,20 @@ router.post('/', async (req, res) => {
     const totals = computeTotals(items, { discount_rate: body.discount_rate, discount_amount: body.discount_amount });
     const fields = quoteFieldsFromBody(body);
 
-    const quote = await Quote.create({
-      quote_no: await nextQuoteNo(),
+    const quote = await createWithUniqueNo({
       ...fields,
+      // A brand-new contract inherits the company-wide default visibility, then
+      // owns its own list — later changes to the default leave it untouched.
+      hidden_fields: Array.isArray(body.hidden_fields)
+        ? sanitizeHiddenFields(body.hidden_fields)
+        : await defaultHiddenFields(),
       created_by: req.user.id,
       subtotal: totals.subtotal,
       discount_rate: totals.discount_rate,
       discount_amount: totals.discount_amount,
       vat_amount: totals.vat_amount,
       total: totals.total,
-    }, { transaction: t });
+    }, t);
 
     for (const [i, it] of totals.lines.entries()) {
       await QuoteItem.create({
@@ -220,7 +275,7 @@ router.post('/', async (req, res) => {
 });
 
 // Güncelle (kalemler + taksitler tümüyle değiştirilir)
-router.put('/:id', async (req, res) => {
+router.put('/:id', auth(['admin', 'sales']), async (req, res) => {
   const t = await sequelize.transaction();
   try {
     const quote = await Quote.findByPk(req.params.id);
@@ -272,11 +327,24 @@ router.put('/:id', async (req, res) => {
 });
 
 // Sadece durum güncelle
-router.patch('/:id/status', async (req, res) => {
+router.patch('/:id/status', auth(['admin', 'sales']), async (req, res) => {
   const quote = await Quote.findByPk(req.params.id);
   if (!quote) return res.status(404).json({ error: 'Proposal not found.' });
+  // An unknown value used to reach the ENUM column and surface as a raw 500.
+  if (!QUOTE_STATUSES.includes(req.body?.status)) {
+    return res.status(400).json({ error: `Status must be one of: ${QUOTE_STATUSES.join(', ')}` });
+  }
   await quote.update({ status: req.body.status });
   res.json(quote);
+});
+
+/** Toggle which PDF blocks this contract prints, without re-saving the whole form. */
+router.patch('/:id/visibility', auth(['admin', 'sales']), async (req, res) => {
+  const quote = await Quote.findByPk(req.params.id);
+  if (!quote) return res.status(404).json({ error: 'Proposal not found.' });
+  const hidden_fields = sanitizeHiddenFields(req.body?.hidden_fields);
+  await quote.update({ hidden_fields });
+  res.json({ id: quote.id, hidden_fields });
 });
 
 // Mevcut teklifi kopyala (yeni sezon için hızlı başlangıç)
@@ -288,8 +356,7 @@ router.post('/:id/duplicate', auth(['admin', 'sales']), async (req, res) => {
       await t.rollback();
       return res.status(404).json({ error: 'Proposal not found.' });
     }
-    const copy = await Quote.create({
-      quote_no: await nextQuoteNo(),
+    const copy = await createWithUniqueNo({
       customer_id: src.customer_id,
       contract_template_id: src.contract_template_id,
       created_by: req.user.id,
@@ -311,7 +378,8 @@ router.post('/:id/duplicate', auth(['admin', 'sales']), async (req, res) => {
       status: 'taslak',
       valid_until: null,
       notes: src.notes,
-    }, { transaction: t });
+      hidden_fields: sanitizeHiddenFields(src.hidden_fields),
+    }, t);
 
     for (const [i, it] of (src.items || []).entries()) {
       await QuoteItem.create({

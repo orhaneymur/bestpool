@@ -10,6 +10,7 @@ import { AYLAR, round2 } from '../utils/quoteMath.js';
 import { STANDARD_CLAUSES, cloneStandardClauses } from '../utils/defaultClauses.js';
 import { buildMarchAugustInstallments } from '../utils/bidPricing.js';
 import { cn } from '@/lib/utils.js';
+import { HideToggle } from '../VisibilityContext.jsx';
 
 export default function StepPayment({
   q, setQ, installments, setInstallments, specialNotes, setSpecialNotes,
@@ -113,11 +114,18 @@ export default function StepPayment({
   return (
     <div className="space-y-4">
       <Card>
-        <CardHeader className="pb-3">
-          <CardTitle>Compensation schedule</CardTitle>
-          <CardDescription>
-            Enter the total contract price — the system splits it into six equal payments (March–August) per Specification.
-          </CardDescription>
+        <CardHeader className="flex flex-col gap-2 space-y-0 pb-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <CardTitle>Compensation schedule</CardTitle>
+            <CardDescription>
+              Enter the total contract price — the system splits it into six equal payments (March–August) per Specification.
+            </CardDescription>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            <HideToggle k="spec.totals" />
+            <HideToggle k="spec.earlyBird" />
+            <HideToggle k="spec.installments" />
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-3 sm:grid-cols-2">
@@ -277,7 +285,8 @@ export default function StepPayment({
             <CardTitle>Additional comments</CardTitle>
             <CardDescription>Unlimited editable custom comments (Specification defaults A–K).</CardDescription>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <HideToggle k="spec.comments" />
             <Button type="button" variant="outline" size="sm" className="gap-1" onClick={loadStandardClauses}>
               <Sparkles className="h-3.5 w-3.5" />
               Load standard clauses
@@ -343,7 +352,10 @@ export default function StepPayment({
         <CardContent>
           <div className="grid gap-4 sm:grid-cols-3">
             <div className="space-y-2 sm:col-span-2">
-              <Label>Contract template (Terms & Conditions)</Label>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <Label>Contract template (Terms &amp; Conditions)</Label>
+                <HideToggle k="terms" />
+              </div>
               <select
                 className="flex h-10 w-full rounded-lg border border-input bg-card px-3 text-sm shadow-soft"
                 value={q.contract_template_id || ''}

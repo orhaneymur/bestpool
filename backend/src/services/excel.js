@@ -28,7 +28,7 @@ export async function buildQuoteExcel(quote, setting) {
   ws.getCell('A4').value = 'COMMERCIAL POOL MANAGEMENT PROPOSAL';
   ws.getCell('A4').font = { bold: true, size: 13, color: { argb: BLUE } };
 
-  ws.getCell('A5').value = 'Proposal #:';
+  ws.getCell('A5').value = 'Contract :';
   ws.getCell('B5').value = quote.quote_no;
   ws.getCell('A6').value = 'Date:';
   ws.getCell('B6').value = D(quote.created_at || new Date());

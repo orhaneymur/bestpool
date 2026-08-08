@@ -10,11 +10,19 @@ import customerRoutes from './routes/customers.routes.js';
 import serviceRoutes from './routes/services.routes.js';
 import templateRoutes from './routes/templates.routes.js';
 import settingRoutes from './routes/settings.routes.js';
+import definitionRoutes from './routes/definitions.routes.js';
 import quoteRoutes from './routes/quotes.routes.js';
 import statsRoutes from './routes/stats.routes.js';
 import { ensureSeed } from './seed/seed.js';
 
 dotenv.config();
+
+// Fail loudly at boot instead of returning a confusing 500 on the first login:
+// jwt.sign() throws "secretOrPrivateKey must have a value" when this is unset.
+if (!process.env.JWT_SECRET) {
+  console.error('[server] JWT_SECRET is not set. Refusing to start — every login would fail.');
+  process.exit(1);
+}
 
 const app = express();
 app.use(express.json({ limit: '2mb' }));
@@ -37,6 +45,7 @@ app.use('/api/customers', customerRoutes);
 app.use('/api/services', serviceRoutes);
 app.use('/api/templates', templateRoutes);
 app.use('/api/settings', settingRoutes);
+app.use('/api/definitions', definitionRoutes);
 app.use('/api/quotes', quoteRoutes);
 app.use('/api/stats', statsRoutes);
 

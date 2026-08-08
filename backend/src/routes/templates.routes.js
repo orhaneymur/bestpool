@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { Op } from 'sequelize';
-import { ContractTemplate } from '../models/index.js';
+import { ContractTemplate, Quote } from '../models/index.js';
 import { auth } from '../middleware/auth.js';
 
 const router = Router();
@@ -33,6 +33,15 @@ router.put('/:id', auth(['admin', 'sales']), async (req, res) => {
 router.delete('/:id', auth(['admin']), async (req, res) => {
   const t = await ContractTemplate.findByPk(req.params.id);
   if (!t) return res.status(404).json({ error: 'Template not found.' });
+  // Contracts point at the template by foreign key; deleting one that is still
+  // referenced failed on the constraint and returned an unexplained 500.
+  const linked = await Quote.count({ where: { contract_template_id: t.id } });
+  if (linked > 0) {
+    return res.status(409).json({
+      error: `This template is used by ${linked} contract(s). Switch them to another template first.`,
+      contracts: linked,
+    });
+  }
   await t.destroy();
   res.json({ ok: true });
 });

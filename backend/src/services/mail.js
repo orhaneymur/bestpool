@@ -31,13 +31,13 @@ export function buildProposalEmail(quote, setting = {}) {
       : '\n';
 
   const subject =
-    `Proposal ${quote.quote_no || ''} — Commercial Pool Management Agreement for ${facility}`.replace(/\s+/g, ' ').trim();
+    `Contract ${quote.quote_no || ''} — Commercial Pool Management Agreement for ${facility}`.replace(/\s+/g, ' ').trim();
 
   const text = `Hello ${customerName},
 
 Following our discussion, please find attached the commercial swimming pool management proposal we have prepared specifically for you.
 
-Proposal #: ${quote.quote_no || 'DRAFT'}
+Contract : ${quote.quote_no || 'DRAFT'}
 Facility: ${facility}
 Season: ${season}
 Total Contract Price: ${total}${earlyLine}
@@ -55,7 +55,7 @@ ${setting.company_website ? `${setting.company_website}\n` : ''}`;
       <p>Hello <strong>${escapeHtml(customerName)}</strong>,</p>
       <p>Following our discussion, please find attached the commercial swimming pool management proposal we have prepared specifically for you.</p>
       <table style="border-collapse: collapse; margin: 16px 0; width: 100%; font-size: 14px;">
-        <tr><td style="padding: 6px 0; color: #64748b;">Proposal #</td><td style="padding: 6px 0;"><strong>${escapeHtml(quote.quote_no || 'DRAFT')}</strong></td></tr>
+        <tr><td style="padding: 6px 0; color: #64748b;">Contract</td><td style="padding: 6px 0;"><strong>${escapeHtml(quote.quote_no || 'DRAFT')}</strong></td></tr>
         <tr><td style="padding: 6px 0; color: #64748b;">Facility</td><td style="padding: 6px 0;">${escapeHtml(facility)}</td></tr>
         <tr><td style="padding: 6px 0; color: #64748b;">Season</td><td style="padding: 6px 0;">${escapeHtml(season)}</td></tr>
         <tr><td style="padding: 6px 0; color: #64748b;">Total Contract Price</td><td style="padding: 6px 0;"><strong>${escapeHtml(total)}</strong></td></tr>

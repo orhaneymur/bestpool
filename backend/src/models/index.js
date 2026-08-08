@@ -79,6 +79,13 @@ export const Quote = sequelize.define('Quote', {
   status: { type: DataTypes.ENUM('taslak', 'gonderildi', 'kabul', 'red'), defaultValue: 'taslak' },
   valid_until: { type: DataTypes.DATEONLY }, // teklif geçerlilik tarihi
   notes: { type: DataTypes.TEXT },
+  // PDF'te gizlenecek blokların anahtarları (bkz. config/pdfDefinitions.js).
+  // Yeni sözleşme oluşturulurken definitions.hidden'dan kopyalanır, sonra
+  // sözleşmenin kendi listesi olur — şirket varsayılanı değişse bile
+  // imzalanmış evrakın çıktısı değişmez.
+  // No defaultValue: a literal [] would be one array shared by every instance.
+  // Readers go through sanitizeHiddenFields(), which turns null into [].
+  hidden_fields: { type: DataTypes.JSON },
 }, { tableName: 'quotes' });
 
 // --- Teklif Kalemleri ---
@@ -145,6 +152,10 @@ export const Setting = sequelize.define('Setting', {
   logo_url: { type: DataTypes.STRING(300) },
   quote_prefix: { type: DataTypes.STRING(20), defaultValue: 'TEK' },
   default_vat_rate: { type: DataTypes.DECIMAL(5, 2), defaultValue: 20 },
+  // "Tanımlamalar" modülü: PDF biçimi, etiketler, renkler, varsayılan gizli
+  // bloklar. Şeması config/pdfDefinitions.js içinde. Tek satırlık ayar
+  // tablosunda JSON tutulur ki her yeni tercih için ALTER TABLE gerekmesin.
+  definitions: { type: DataTypes.JSON },
 }, { tableName: 'settings' });
 
 // --- İlişkiler ---

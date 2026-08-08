@@ -3,9 +3,15 @@ import bcrypt from 'bcryptjs';
 import { sequelize, User, ServiceItem, ContractTemplate, Setting, Customer } from '../models/index.js';
 import { DEFAULT_CONTRACT_BODY } from './contractTemplate.js';
 import { DEFAULT_CONTRACT_BODY_EN, EN_TEMPLATE_NAME } from './contractTemplateEn.js';
+import { DEFAULT_TAGLINE } from '../services/pdf.js';
 
 const COMPANY_NAME = 'Four Seasons Pool Management';
 const COMPANY_EMAIL = 'orhaneymur@gmail.com';
+const QUOTE_PREFIX = 'FSPM';
+
+/** Taglines/prefixes we shipped before and may safely overwrite on an existing DB. */
+const LEGACY_TAGLINES = ['Where Customer Service is a Policy, Not a Department'];
+const LEGACY_PREFIXES = ['PROP', 'TEK'];
 
 dotenv.config();
 
@@ -42,10 +48,10 @@ export async function ensureSeed() {
     await Setting.create({
       id: 1,
       company_name: COMPANY_NAME,
-      company_tagline: 'Where Customer Service is a Policy, Not a Department',
+      company_tagline: DEFAULT_TAGLINE,
       company_phone: '',
       company_email: COMPANY_EMAIL,
-      quote_prefix: 'PROP',
+      quote_prefix: QUOTE_PREFIX,
       rev_label: 'Rev 07/2026',
       default_vat_rate: 0,
     });
@@ -55,8 +61,12 @@ export async function ensureSeed() {
     if (s) {
       const patch = {};
       if (s.company_name !== COMPANY_NAME) patch.company_name = COMPANY_NAME;
-      if (!s.company_tagline) {
-        patch.company_tagline = 'Where Customer Service is a Policy, Not a Department';
+      // Replace only our own former defaults — never a tagline the user typed.
+      if (!s.company_tagline || LEGACY_TAGLINES.includes(s.company_tagline.trim())) {
+        patch.company_tagline = DEFAULT_TAGLINE;
+      }
+      if (!s.quote_prefix || LEGACY_PREFIXES.includes(s.quote_prefix.trim().toUpperCase())) {
+        patch.quote_prefix = QUOTE_PREFIX;
       }
       if (!s.rev_label) patch.rev_label = 'Rev 07/2026';
       if (s.company_email !== COMPANY_EMAIL) patch.company_email = COMPANY_EMAIL;

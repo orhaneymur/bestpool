@@ -48,6 +48,15 @@ router.put('/:id', async (req, res) => {
 router.delete('/:id', auth(['admin', 'sales']), async (req, res) => {
   const c = await Customer.findByPk(req.params.id);
   if (!c) return res.status(404).json({ error: 'Customer not found.' });
+  // quotes.customer_id has no cascade, so deleting a customer that still has
+  // contracts used to fail on the foreign key and surface as an opaque 500.
+  const linked = await Quote.count({ where: { customer_id: c.id } });
+  if (linked > 0) {
+    return res.status(409).json({
+      error: `This customer has ${linked} contract(s). Delete or reassign them first.`,
+      contracts: linked,
+    });
+  }
   await c.destroy();
   res.json({ ok: true });
 });

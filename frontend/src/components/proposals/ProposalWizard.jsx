@@ -11,6 +11,8 @@ import StepCustomer from './steps/StepCustomer.jsx';
 import StepSchedule from './steps/StepSchedule.jsx';
 import StepPersonnel from './steps/StepPersonnel.jsx';
 import StepPayment from './steps/StepPayment.jsx';
+import StepOutput from './steps/StepOutput.jsx';
+import { VisibilityProvider } from './VisibilityContext.jsx';
 import {
   buildDefaultSchedules,
   computeTotals,
@@ -26,6 +28,7 @@ const STEPS = [
   { id: 'schedule', label: 'Schedule' },
   { id: 'personnel', label: 'Staffing' },
   { id: 'payment', label: 'Payment' },
+  { id: 'output', label: 'PDF output' },
 ];
 
 export default function ProposalWizard({ id, initialCustomerId }) {
@@ -42,6 +45,9 @@ export default function ProposalWizard({ id, initialCustomerId }) {
   const [err, setErr] = useState('');
   const [previewOpen, setPreviewOpen] = useState(false);
   const [emailOpen, setEmailOpen] = useState(false);
+  const [pdfBlocks, setPdfBlocks] = useState([]);
+  const [companyHidden, setCompanyHidden] = useState([]);
+  const [hiddenFields, setHiddenFields] = useState([]);
 
   const [q, setQ] = useState({
     customer_id: initialCustomerId || '',
@@ -66,6 +72,27 @@ export default function ProposalWizard({ id, initialCustomerId }) {
   const [installments, setInstallments] = useState([]);
   const [schedules, setSchedules] = useState(buildDefaultSchedules());
   const [specialNotes, setSpecialNotes] = useState(() => (id ? [] : cloneStandardClauses()));
+
+  // The block registry and the company-wide default visibility. A new contract
+  // starts from the company default; an existing one loads its own saved list.
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all([api.get('/definitions/schema'), api.get('/definitions')])
+      .then(([schema, defs]) => {
+        if (cancelled) return;
+        setPdfBlocks(schema.data.blocks || []);
+        const companyDefault = defs.data.hidden || [];
+        setCompanyHidden(companyDefault);
+        if (!editing) setHiddenFields(companyDefault);
+      })
+      .catch(() => {
+        // Definitions are optional chrome — a failure here must not block the
+        // wizard, it just means no blocks can be toggled this session.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [editing]);
 
   useEffect(() => {
     Promise.all([api.get('/customers'), api.get('/services'), api.get('/templates')]).then(
@@ -107,6 +134,7 @@ export default function ProposalWizard({ id, initialCustomerId }) {
       setInstallments(d.installments || []);
       setSchedules(d.schedules?.length ? d.schedules.map((s) => ({ ...s })) : buildDefaultSchedules());
       setSpecialNotes(d.special_notes?.length ? d.special_notes.map((n) => ({ ...n })) : []);
+      setHiddenFields(Array.isArray(d.hidden_fields) ? d.hidden_fields : []);
     });
   }, [id, editing]);
 
@@ -173,6 +201,7 @@ export default function ProposalWizard({ id, initialCustomerId }) {
       installments,
       schedules,
       special_notes: specialNotes.filter((n) => (n.body || '').trim()),
+      hidden_fields: hiddenFields,
     };
     try {
       let res;
@@ -210,6 +239,7 @@ export default function ProposalWizard({ id, initialCustomerId }) {
   }
 
   return (
+    <VisibilityProvider hidden={hiddenFields} setHidden={setHiddenFields} blocks={pdfBlocks}>
     <div className="space-y-5">
       {/* Header */}
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -320,6 +350,7 @@ export default function ProposalWizard({ id, initialCustomerId }) {
                   bid={bid}
                 />
               )}
+              {step === 4 && <StepOutput companyDefault={companyHidden} />}
               {step === 3 && (
                 <StepPayment
                   q={q}
@@ -426,5 +457,6 @@ export default function ProposalWizard({ id, initialCustomerId }) {
         </div>
       )}
     </div>
+    </VisibilityProvider>
   );
 }

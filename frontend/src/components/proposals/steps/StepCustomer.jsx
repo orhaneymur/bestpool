@@ -4,14 +4,18 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input.jsx';
 import { Label } from '@/components/ui/label.jsx';
 import CustomerCombobox from '../CustomerCombobox.jsx';
+import { HideToggle } from '../VisibilityContext.jsx';
 
 export default function StepCustomer({ q, setQ, customers, selectedCustomer }) {
   return (
     <div className="space-y-4">
       <Card>
-        <CardHeader className="pb-3">
-          <CardTitle>Customer & Facility</CardTitle>
-          <CardDescription>Select an account and map facility details onto the contract.</CardDescription>
+        <CardHeader className="flex flex-col gap-2 space-y-0 pb-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <CardTitle>Customer &amp; Facility</CardTitle>
+            <CardDescription>Select an account and map facility details onto the contract.</CardDescription>
+          </div>
+          <HideToggle k="spec.property" />
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">

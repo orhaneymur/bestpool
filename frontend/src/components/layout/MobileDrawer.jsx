@@ -10,6 +10,7 @@ import {
   ClipboardList,
   FolderOpen,
   Settings,
+  SlidersHorizontal,
   UserRound,
   Waves,
   LogOut,
@@ -28,6 +29,7 @@ const links = [
   { to: '/customers', label: 'Customer Database', icon: Users },
   { to: '/services', label: 'Services', icon: ClipboardList },
   { to: '/templates', label: 'Templates', icon: FolderOpen },
+  { to: '/definitions', label: 'Definitions', icon: SlidersHorizontal },
   { to: '/settings', label: 'Settings', icon: Settings },
   { to: '/profile', label: 'User Profile', icon: UserRound },
 ];

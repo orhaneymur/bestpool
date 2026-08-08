@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input.jsx';
 import { Button } from '@/components/ui/button.jsx';
 import { DAYS, SEASONS } from '../utils/quoteMath.js';
 import { cn } from '@/lib/utils.js';
+import { HideToggle } from '../VisibilityContext.jsx';
 
 export default function StepSchedule({ schedules, setSchedules }) {
   function getRow(season, day) {
@@ -32,11 +33,17 @@ export default function StepSchedule({ schedules, setSchedules }) {
 
   return (
     <Card>
-      <CardHeader className="pb-3">
-        <CardTitle>Season & operating schedule</CardTitle>
+      <CardHeader className="flex flex-col gap-2 space-y-0 pb-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+        <CardTitle>Season &amp; operating schedule</CardTitle>
         <CardDescription>
           Define daily open / close hours for Normal Season and School / Off Season.
         </CardDescription>
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          <HideToggle k="spec.schedule" />
+          <HideToggle k="spec.scheduleSchool" />
+        </div>
       </CardHeader>
       <CardContent>
         <Tabs defaultValue="normal">

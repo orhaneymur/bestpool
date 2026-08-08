@@ -1,6 +1,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { Users, Clock3, Calculator, Zap, Plus, Trash2, MapPinned } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx';
+import { HideToggle } from '../VisibilityContext.jsx';
 import { Input } from '@/components/ui/input.jsx';
 import { Label } from '@/components/ui/label.jsx';
 import { Button } from '@/components/ui/button.jsx';
@@ -105,12 +106,15 @@ export default function StepPersonnel({
       </div>
 
       <Card>
-        <CardHeader className="pb-3">
+        <CardHeader className="flex flex-col gap-2 space-y-0 pb-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
           <CardTitle>Bid Summary inputs</CardTitle>
           <CardDescription>
             County wage × hours, then fixed expenses, {BID_RATES.overheadPct}% overhead,{' '}
             {BID_RATES.profitPct}% profit, and {BID_RATES.salesTaxPct}% sales tax — calculated automatically.
           </CardDescription>
+          </div>
+          <HideToggle k="spec.personnel" />
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
@@ -218,10 +222,13 @@ export default function StepPersonnel({
             <CardTitle>Service line items</CardTitle>
             <CardDescription>Auto-filled from Bid Summary — editable if needed.</CardDescription>
           </div>
-          <Button type="button" variant="secondary" size="sm" className="gap-1" onClick={() => setItems((a) => [...a, emptyItem()])}>
-            <Plus className="h-4 w-4" />
-            Line
-          </Button>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <HideToggle k="spec.items" />
+            <Button type="button" variant="secondary" size="sm" className="gap-1" onClick={() => setItems((a) => [...a, emptyItem()])}>
+              <Plus className="h-4 w-4" />
+              Line
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="space-y-3">
           {items.map((it, i) => (

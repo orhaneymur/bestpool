@@ -56,7 +56,7 @@ export default function Settings() {
                 <Label>Cover tagline</Label>
                 <Input
                   {...f('company_tagline')}
-                  placeholder="Where Customer Service is a Policy, Not a Department"
+                  placeholder="Safety Is Our Standard, Service Is Our Promise"
                 />
               </div>
               <div className="space-y-1.5">
@@ -88,8 +88,8 @@ export default function Settings() {
                 <Input {...f('company_address')} />
               </div>
               <div className="space-y-1.5">
-                <Label>Proposal # prefix</Label>
-                <Input {...f('quote_prefix')} />
+                <Label>Contract no prefix</Label>
+                <Input {...f('quote_prefix')} placeholder="FSPM" />
               </div>
               <div className="space-y-1.5">
                 <Label>Default tax %</Label>
