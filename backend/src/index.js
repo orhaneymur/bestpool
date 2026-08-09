@@ -8,6 +8,7 @@ import { ensureSchemaPatches } from './config/ensureSchema.js';
 import authRoutes from './routes/auth.routes.js';
 import customerRoutes from './routes/customers.routes.js';
 import serviceRoutes from './routes/services.routes.js';
+import serviceCategoryRoutes from './routes/serviceCategories.routes.js';
 import templateRoutes from './routes/templates.routes.js';
 import settingRoutes from './routes/settings.routes.js';
 import definitionRoutes from './routes/definitions.routes.js';
@@ -43,6 +44,7 @@ app.get('/api/health', (_req, res) =>
 app.use('/api/auth', authRoutes);
 app.use('/api/customers', customerRoutes);
 app.use('/api/services', serviceRoutes);
+app.use('/api/service-categories', serviceCategoryRoutes);
 app.use('/api/templates', templateRoutes);
 app.use('/api/settings', settingRoutes);
 app.use('/api/definitions', definitionRoutes);

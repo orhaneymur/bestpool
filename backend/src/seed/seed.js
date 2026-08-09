@@ -1,6 +1,6 @@
 import dotenv from 'dotenv';
 import bcrypt from 'bcryptjs';
-import { sequelize, User, ServiceItem, ContractTemplate, Setting, Customer } from '../models/index.js';
+import { sequelize, User, ServiceItem, ServiceCategory, ContractTemplate, Setting, Customer } from '../models/index.js';
 import { DEFAULT_CONTRACT_BODY } from './contractTemplate.js';
 import { DEFAULT_CONTRACT_BODY_EN, EN_TEMPLATE_NAME } from './contractTemplateEn.js';
 import { DEFAULT_TAGLINE } from '../services/pdf.js';
@@ -12,6 +12,18 @@ const QUOTE_PREFIX = 'FSPM';
 /** Taglines/prefixes we shipped before and may safely overwrite on an existing DB. */
 const LEGACY_TAGLINES = ['Where Customer Service is a Policy, Not a Department'];
 const LEGACY_PREFIXES = ['PROP', 'TEK'];
+
+/** Categories the catalogue ships with. Managed from the Services page afterwards. */
+const CATEGORIES = [
+  { code: 'lifeguard', name: 'Lifeguard' },
+  { code: 'management', name: 'Management' },
+  { code: 'maintenance', name: 'Maintenance' },
+  { code: 'chemical', name: 'Chemicals' },
+  { code: 'winterization', name: 'Winterization' },
+  { code: 'permit', name: 'Permits & Inspections' },
+  { code: 'equipment', name: 'Equipment' },
+  { code: 'other', name: 'Other' },
+];
 
 dotenv.config();
 
@@ -75,6 +87,45 @@ export async function ensureSeed() {
         console.log('[seed] Company settings updated:', patch);
       }
     }
+  }
+
+  // The table is created explicitly: production runs without DB_SYNC in some
+  // environments, and ensureSchemaPatches only adds columns, not tables.
+  try {
+    await ServiceCategory.sync();
+  } catch (err) {
+    console.warn('[seed] service_categories sync warning:', err.message);
+  }
+
+  for (const [i, cat] of CATEGORIES.entries()) {
+    const existing = await ServiceCategory.findOne({ where: { code: cat.code } });
+    if (!existing) {
+      await ServiceCategory.create({ ...cat, sort_order: i });
+      console.log('[seed] Service category created:', cat.code);
+    }
+  }
+
+  // Anything already sitting in service_items.category but missing from the list
+  // above gets a category row too, so no existing service is left pointing at a
+  // category the dropdown cannot show.
+  try {
+    const orphans = await ServiceItem.findAll({ attributes: ['category'], group: ['category'], raw: true });
+    for (const row of orphans) {
+      const code = (row.category || '').trim();
+      if (!code) continue;
+      const known = await ServiceCategory.findOne({ where: { code } });
+      if (!known) {
+        const last = await ServiceCategory.max('sort_order');
+        await ServiceCategory.create({
+          code,
+          name: code.charAt(0).toUpperCase() + code.slice(1).replace(/[-_]/g, ' '),
+          sort_order: Number.isFinite(last) ? last + 1 : 0,
+        });
+        console.log('[seed] Adopted existing service category:', code);
+      }
+    }
+  } catch (err) {
+    console.warn('[seed] Category adoption warning:', err.message);
   }
 
   for (const svc of SERVICES) {

@@ -31,6 +31,18 @@ export const Customer = sequelize.define('Customer', {
   notes: { type: DataTypes.TEXT },
 }, { tableName: 'customers' });
 
+// --- Hizmet Kategorileri (panelden yönetilir) ---
+// ServiceItem.category, buradaki `code` değerini metin olarak tutar. Yabancı
+// anahtar yerine kod tutulmasının sebebi: kategori adı değişince mevcut
+// hizmetlerin bağı kopmaz ve eski kayıtlar için veri taşıma gerekmez.
+export const ServiceCategory = sequelize.define('ServiceCategory', {
+  id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+  code: { type: DataTypes.STRING(60), allowNull: false, unique: true },
+  name: { type: DataTypes.STRING(120), allowNull: false },
+  sort_order: { type: DataTypes.INTEGER, defaultValue: 0 },
+  is_active: { type: DataTypes.BOOLEAN, defaultValue: true },
+}, { tableName: 'service_categories' });
+
 // --- Hizmet Kataloğu (değişken birim fiyatlar) ---
 export const ServiceItem = sequelize.define('ServiceItem', {
   id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
