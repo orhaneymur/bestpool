@@ -26,7 +26,7 @@ const links = [
   { to: '/quotes', label: 'Existing Contracts', icon: FileText, end: true },
   { to: '/quotes?status=taslak', label: 'Saved Drafts', icon: FileClock },
   { to: '/quotes?status=kabul', label: 'Completed Contracts', icon: FileCheck2 },
-  { to: '/customers', label: 'Customer Database', icon: Users },
+  { to: '/customers', label: 'Customers', icon: Users },
   { to: '/services', label: 'Services', icon: ClipboardList },
   { to: '/templates', label: 'Templates', icon: FolderOpen },
   { to: '/definitions', label: 'Definitions', icon: SlidersHorizontal },
