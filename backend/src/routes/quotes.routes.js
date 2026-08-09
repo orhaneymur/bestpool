@@ -428,13 +428,45 @@ router.delete('/:id', auth(['admin', 'sales']), async (req, res) => {
 });
 
 // --- Çıktılar ---
+/**
+ * Renderers run under a watchdog.
+ *
+ * pdfmake signals completion through stream events. If it ever finishes without
+ * emitting 'end' or 'error' the promise never settles, the request hangs, and
+ * the proxy in front eventually answers 502 — an outage symptom with nothing in
+ * the logs to explain it. Losing the race turns that into an ordinary 500 that
+ * names the contract.
+ */
+function withTimeout(promise, ms, label) {
+  let timer;
+  const guard = new Promise((_resolve, reject) => {
+    timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms / 1000}s`)), ms);
+  });
+  return Promise.race([promise, guard]).finally(() => clearTimeout(timer));
+}
+
+/** Quote numbers are generated, but never trust one straight into a header. */
+const safeFilename = (name) => String(name || 'contract').replace(/[^A-Za-z0-9._-]/g, '_').slice(0, 80);
+
 router.get('/:id/pdf', async (req, res) => {
   const quote = await Quote.findByPk(req.params.id, { include: fullQuoteInclude() });
   if (!quote) return res.status(404).json({ error: 'Proposal not found.' });
   const setting = await Setting.findByPk(1);
-  const buffer = await buildQuotePdf(quote.toJSON(), setting?.toJSON() || {});
+
+  let buffer;
+  try {
+    buffer = await withTimeout(
+      buildQuotePdf(quote.toJSON(), setting?.toJSON() || {}),
+      25000,
+      'PDF generation'
+    );
+  } catch (err) {
+    console.error(`[pdf] Contract ${quote.quote_no} (id ${quote.id}) failed:`, err?.stack || err);
+    return res.status(500).json({ error: `Could not build the PDF: ${err.message}` });
+  }
+
   res.setHeader('Content-Type', 'application/pdf');
-  res.setHeader('Content-Disposition', `attachment; filename="${quote.quote_no}.pdf"`);
+  res.setHeader('Content-Disposition', `attachment; filename="${safeFilename(quote.quote_no)}.pdf"`);
   res.send(buffer);
 });
 
@@ -442,9 +474,19 @@ router.get('/:id/excel', async (req, res) => {
   const quote = await Quote.findByPk(req.params.id, { include: fullQuoteInclude() });
   if (!quote) return res.status(404).json({ error: 'Proposal not found.' });
   const setting = await Setting.findByPk(1);
-  const buffer = await buildQuoteExcel(quote.toJSON(), setting?.toJSON() || {});
+  let buffer;
+  try {
+    buffer = await withTimeout(
+      buildQuoteExcel(quote.toJSON(), setting?.toJSON() || {}),
+      25000,
+      'Excel generation'
+    );
+  } catch (err) {
+    console.error(`[excel] Contract ${quote.quote_no} (id ${quote.id}) failed:`, err?.stack || err);
+    return res.status(500).json({ error: `Could not build the Excel file: ${err.message}` });
+  }
   res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-  res.setHeader('Content-Disposition', `attachment; filename="${quote.quote_no}.xlsx"`);
+  res.setHeader('Content-Disposition', `attachment; filename="${safeFilename(quote.quote_no)}.xlsx"`);
   res.send(buffer);
 });
 

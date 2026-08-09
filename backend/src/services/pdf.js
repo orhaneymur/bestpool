@@ -250,9 +250,10 @@ function scheduleColumn(T, schedules, seasonType, title, subtitle) {
  * Staffing figures, all derived from the season calendar rather than from a
  * hand-typed hours-per-week multiplied by a rounded week count.
  */
-function personnelRows(T, lifeguards, season) {
+function personnelRows(T, lifeguards, season, seasonType = 'normal') {
   const daily = season.avgDailyHoursPerGuard;
-  const weekly = season.avgWeeklyStaffHours;
+  // The configured week, not the season average — see scheduledWeekHours().
+  const weekly = seasonType === 'okul' ? season.weeklyStaffHoursSchool : season.weeklyStaffHours;
   const seasonal = season.staffHours;
   const row = (label, value) => [
     { text: label, fontSize: T.fs(7.5), color: T.muted },
@@ -266,7 +267,7 @@ function personnelRows(T, lifeguards, season) {
         row('Number of Lifeguards', `${lifeguards} Lifeguard(s)`),
         row('Operating Days', `${season.openDays} of ${season.days} days`),
         row('Daily Hours (per guard, open days)', `${daily} Hrs/day`),
-        row('Weekly Staffing Hours (average)', `${weekly} Hrs/week`),
+        row('Weekly Staffing Hours', `${weekly} Hrs/week`),
         row('Total Seasonal Staffing Hours', `${seasonal} Hrs/season`),
       ],
     },
@@ -541,8 +542,10 @@ export function buildQuotePdf(quote, setting = {}, options = {}) {
     show('spec.personnel')
       ? {
           columns: [
-            personnelRows(T, lifeguards, season),
-            show('spec.scheduleSchool') ? personnelRows(T, lifeguards, season) : { width: '*', text: '' },
+            personnelRows(T, lifeguards, season, 'normal'),
+            show('spec.scheduleSchool')
+              ? personnelRows(T, lifeguards, season, 'okul')
+              : { width: '*', text: '' },
           ],
           columnGap: 18,
           margin: [0, 0, 0, 2],

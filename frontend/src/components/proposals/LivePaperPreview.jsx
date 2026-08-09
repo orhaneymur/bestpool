@@ -147,7 +147,7 @@ export default function LivePaperPreview({
                 <strong>Operating days:</strong> {season ? `${season.openDays} / ${season.days}` : '\u2014'}
               </span>
               <span>
-                <strong>Staff hrs/wk:</strong> {season ? season.avgWeeklyStaffHours : '\u2014'}
+                <strong>Staff hrs/wk:</strong> {season ? season.weeklyStaffHours : '\u2014'}
               </span>
               <span>
                 <strong>Season hrs:</strong> {season ? season.staffHours : '\u2014'}

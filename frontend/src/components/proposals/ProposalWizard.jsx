@@ -205,7 +205,7 @@ export default function ProposalWizard({ id, initialCustomerId }) {
         county: q.county,
         lifeguardCount: q.lifeguard_count,
         totalLifeguardHours: season?.staffHours || 0,
-        weeklyStaffHours: season?.avgWeeklyStaffHours || 0,
+        weeklyStaffHours: season?.weeklyStaffHours || 0,
       }),
     [q.county, q.lifeguard_count, season]
   );

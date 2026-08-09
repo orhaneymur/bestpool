@@ -181,7 +181,7 @@ export default function StepPersonnel({
       county: q.county,
       lifeguardCount: q.lifeguard_count,
       totalLifeguardHours: season?.staffHours || 0,
-      weeklyStaffHours: season?.avgWeeklyStaffHours || 0,
+      weeklyStaffHours: season?.weeklyStaffHours || 0,
     });
     if (!summary.hourlyWage || !summary.totalLifeguardHours) return;
     // Keep the stored figures in step with the calendar so the saved contract,
@@ -189,7 +189,7 @@ export default function StepPersonnel({
     setQ((prev) => ({
       ...prev,
       peak_weeks: Math.round(season?.weeks || 0),
-      hours_per_week: Math.round(season?.avgWeeklyStaffHours || 0),
+      hours_per_week: Math.round(season?.weeklyStaffHours || 0),
     }));
     setItems(buildBidLineItems(summary));
   }
@@ -227,8 +227,8 @@ export default function StepPersonnel({
         />
         <SummaryTile
           icon={Clock3}
-          label="Weekly staff hrs (average)"
-          value={season ? season.avgWeeklyStaffHours : '—'}
+          label="Weekly staff hrs (schedule)"
+          value={season ? season.weeklyStaffHours : '—'}
           tone="gold"
         />
       </div>
@@ -280,10 +280,15 @@ export default function StepPersonnel({
                 from the operating schedule. They now report what the season
                 calendar counted. Change the dates or the schedule to move them. */}
             <div className="space-y-2">
-              <Label>Staffed hours / week (average)</Label>
+              <Label>Staffed hours / week</Label>
               <div className="flex h-10 items-center rounded-lg border border-border bg-muted/40 px-3 text-sm font-medium tabular-nums">
-                {season ? `${season.avgWeeklyStaffHours} hrs` : '\u2014'}
+                {season ? `${season.weeklyStaffHours} hrs` : '\u2014'}
               </div>
+              <p className="text-xs text-muted-foreground">
+                Straight from the operating schedule. The season itself averaged{' '}
+                {season ? season.avgWeeklyStaffHours : '—'} hrs/week, because it is not a whole
+                number of weeks.
+              </p>
             </div>
             <div className="space-y-2">
               <Label>Total staffed hours (season)</Label>

@@ -105,6 +105,19 @@ function findRow(schedules, seasonType, dayKey) {
 }
 
 /**
+ * The weekly total as configured: Monday..Sunday from the operating schedule.
+ *
+ * This is what the user typed and what belongs on the contract as "hours per
+ * week". It is deliberately NOT derived from the season total: a season is
+ * rarely a whole number of weeks, so `total / days * 7` on a 106-day season
+ * turns a configured 52 into 51.6 and reads like an arithmetic error. The
+ * average is still reported separately, clearly labelled.
+ */
+function scheduledWeekHours(schedules, seasonType) {
+  return DAY_KEYS.reduce((sum, day) => sum + rowHours(findRow(schedules, seasonType, day)), 0);
+}
+
+/**
  * Walks the season day by day.
  *
  * @param {object} input
@@ -132,6 +145,8 @@ export function computeSeason(input = {}) {
     openHours: 0,
     staffHours: 0,
     avgWeeklyStaffHours: 0,
+    weeklyStaffHours: 0,
+    weeklyStaffHoursSchool: 0,
     avgDailyHoursPerGuard: 0,
     normalDays: 0,
     schoolDays: 0,
@@ -245,6 +260,11 @@ export function computeSeason(input = {}) {
     closedDays: days - openDays,
     openHours: round2(openHours),
     staffHours,
+    // What the schedule says a full week is — the figure the contract quotes.
+    weeklyStaffHours: round2(scheduledWeekHours(schedules, 'normal') * guards),
+    weeklyStaffHoursSchool: round2(scheduledWeekHours(schedules, 'okul') * guards),
+    // What the season actually averaged out to, diluted by part weeks and by
+    // any day the pool was shut. Reference only; never the quoted figure.
     avgWeeklyStaffHours: days ? round1((staffHours / days) * 7) : 0,
     avgDailyHoursPerGuard: openDays ? round1(openHours / openDays) : 0,
     normalDays,
