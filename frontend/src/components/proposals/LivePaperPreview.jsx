@@ -23,6 +23,7 @@ function SectionHead({ no, children }) {
 
 export default function LivePaperPreview({
   q,
+  season,
   quoteNo,
   customer,
   schedules,
@@ -101,7 +102,8 @@ export default function LivePaperPreview({
         <>
           <p className="mb-3 text-slate-700">
             The pool will be maintained between <strong>{fmtDate(q.season_start)}</strong> and{' '}
-            <strong>{fmtDate(q.season_end)}</strong>.
+            <strong>{fmtDate(q.season_end)}</strong>
+            {season?.valid ? ` — ${season.weeksLabel}, ${season.openDays} operating days.` : '.'}
           </p>
 
           {show('spec.schedule') && (
@@ -142,10 +144,13 @@ export default function LivePaperPreview({
                 <strong>Lifeguards:</strong> {Number(q.lifeguard_count || 0)}
               </span>
               <span>
-                <strong>Hrs/guard:</strong> {Number(q.hours_per_week || 0)}
+                <strong>Operating days:</strong> {season ? `${season.openDays} / ${season.days}` : '\u2014'}
               </span>
               <span>
-                <strong>Total staff hrs/wk:</strong> {totalHours}
+                <strong>Staff hrs/wk:</strong> {season ? season.avgWeeklyStaffHours : '\u2014'}
+              </span>
+              <span>
+                <strong>Season hrs:</strong> {season ? season.staffHours : '\u2014'}
               </span>
             </div>
           )}

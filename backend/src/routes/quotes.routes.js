@@ -143,6 +143,12 @@ function quoteFieldsFromBody(body, existing = {}) {
     status: QUOTE_STATUSES.includes(body.status) ? body.status : existing.status || 'taslak',
     valid_until: nullIfEmpty(body.valid_until),
     notes: body.notes ?? existing.notes ?? null,
+    school_closes: nullIfEmpty(body.school_closes),
+    school_reopens: nullIfEmpty(body.school_reopens),
+    holiday_policy:
+      body.holiday_policy && typeof body.holiday_policy === 'object'
+        ? body.holiday_policy
+        : existing.holiday_policy ?? null,
     hidden_fields: Array.isArray(body.hidden_fields)
       ? sanitizeHiddenFields(body.hidden_fields)
       : sanitizeHiddenFields(existing.hidden_fields),

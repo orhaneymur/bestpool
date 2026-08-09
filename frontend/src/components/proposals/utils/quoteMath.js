@@ -25,12 +25,15 @@ export function buildDefaultSchedules() {
   const rows = [];
   for (const [season] of SEASONS) {
     DAYS.forEach(([day], i) => {
+      // The Holiday row starts OPEN with the same hours as any other day. It is
+      // what a public holiday falling on a closed weekday switches to, so
+      // defaulting it to closed made the whole holiday rule a no-op.
       rows.push({
         season_type: season,
         day_label: day,
-        open_time: day === 'tatil' ? '' : '09:00',
-        close_time: day === 'tatil' ? '' : '19:00',
-        is_closed: day === 'tatil',
+        open_time: '09:00',
+        close_time: '19:00',
+        is_closed: false,
         sort_order: i,
       });
     });

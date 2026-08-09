@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label.jsx';
 import CustomerCombobox from '../CustomerCombobox.jsx';
 import { HideToggle } from '../VisibilityContext.jsx';
 
-export default function StepCustomer({ q, setQ, customers, selectedCustomer }) {
+export default function StepCustomer({ q, setQ, customers, selectedCustomer, season }) {
   return (
     <div className="space-y-4">
       <Card>
@@ -131,6 +131,36 @@ export default function StepCustomer({ q, setQ, customers, selectedCustomer }) {
                 value={q.season_end || ''}
                 onChange={(e) => setQ({ ...q, season_end: e.target.value })}
               />
+            </div>
+            <div className="space-y-2">
+              <Label>Schools close (last day in session)</Label>
+              <Input
+                type="date"
+                value={q.school_closes || ''}
+                onChange={(e) => setQ({ ...q, school_closes: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Schools reopen</Label>
+              <Input
+                type="date"
+                value={q.school_reopens || ''}
+                onChange={(e) => setQ({ ...q, school_reopens: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2 sm:col-span-2">
+              <p className="text-xs text-muted-foreground">
+                While schools are in session the season calendar applies the{' '}
+                <strong>School / Off Season</strong> hours, and the normal hours for the rest. Leave both blank to
+                use the normal hours all season.
+                {season?.valid ? (
+                  <>
+                    {' '}
+                    Currently <strong>{season.normalDays}</strong> normal and{' '}
+                    <strong>{season.schoolDays}</strong> school days.
+                  </>
+                ) : null}
+              </p>
             </div>
             <div className="space-y-2">
               <Label>Proposal valid until</Label>

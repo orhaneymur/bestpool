@@ -12,6 +12,9 @@ const COLUMNS = [
   { table: 'quotes', column: 'county', ddl: 'VARCHAR(80) NULL', after: 'hours_per_week' },
   { table: 'quotes', column: 'peak_weeks', ddl: 'INT NOT NULL DEFAULT 0', after: 'county' },
   { table: 'quotes', column: 'hidden_fields', ddl: 'JSON NULL' },
+  { table: 'quotes', column: 'school_closes', ddl: 'DATE NULL' },
+  { table: 'quotes', column: 'school_reopens', ddl: 'DATE NULL' },
+  { table: 'quotes', column: 'holiday_policy', ddl: 'JSON NULL' },
   { table: 'settings', column: 'definitions', ddl: 'JSON NULL' },
 ];
 

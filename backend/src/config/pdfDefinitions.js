@@ -43,6 +43,7 @@ export const PDF_BLOCKS = [
   { key: 'spec.schedule', group: 'Specification', label: 'Operating hours tables' },
   { key: 'spec.scheduleSchool', group: 'Specification', label: 'School / off-season hours column' },
   { key: 'spec.personnel', group: 'Specification', label: 'Staffing hours' },
+  { key: 'spec.holidays', group: 'Specification', label: 'Public holidays covered', hint: 'Lists the staffed US holidays' },
   { key: 'spec.scheduleNote', group: 'Specification', label: 'School calendar note' },
   { key: 'spec.comments', group: 'Specification', label: 'Additional comments' },
   { key: 'spec.compensation', group: 'Specification', label: 'Compensation schedule' },

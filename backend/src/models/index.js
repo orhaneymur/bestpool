@@ -90,6 +90,14 @@ export const Quote = sequelize.define('Quote', {
   currency: { type: DataTypes.STRING(8), defaultValue: 'USD' },
   status: { type: DataTypes.ENUM('taslak', 'gonderildi', 'kabul', 'red'), defaultValue: 'taslak' },
   valid_until: { type: DataTypes.DATEONLY }, // teklif geçerlilik tarihi
+  // Okul döneminin bittiği/başladığı tarihler. Sezon takvimi bu tarihlere
+  // bakarak her güne "normal" mi yoksa "okul" programını mı uygulayacağına
+  // karar verir. Boş bırakılırsa tüm sezon normal program sayılır.
+  school_closes: { type: DataTypes.DATEONLY },
+  school_reopens: { type: DataTypes.DATEONLY },
+  // { holidayKey: false } — o resmi tatilde havuzun KAPALI kalacağı anlamına
+  // gelir. Varsayılan (kayıt yoksa) tatilde Holiday programıyla açık olmasıdır.
+  holiday_policy: { type: DataTypes.JSON },
   notes: { type: DataTypes.TEXT },
   // PDF'te gizlenecek blokların anahtarları (bkz. config/pdfDefinitions.js).
   // Yeni sözleşme oluşturulurken definitions.hidden'dan kopyalanır, sonra

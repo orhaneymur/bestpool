@@ -1,5 +1,6 @@
 import PdfPrinter from 'pdfmake';
 import { mergeDefinitions, sanitizeHiddenFields } from '../config/pdfDefinitions.js';
+import { computeSeason } from './seasonCalendar.js';
 
 /**
  * Commercial Swimming Pool Management Agreement PDF.
@@ -81,12 +82,6 @@ function romanToInt(s) {
     total += next && next > cur ? -cur : cur;
   }
   return total > 0 ? total : null;
-}
-
-function weeksBetween(start, end) {
-  if (!start || !end) return 0;
-  const ms = new Date(end).getTime() - new Date(start).getTime();
-  return Math.max(0, Math.round(ms / (7 * 24 * 3600 * 1000)));
 }
 
 /**
@@ -224,11 +219,14 @@ function scheduleColumn(T, schedules, seasonType, title, subtitle) {
   };
 }
 
-/** Spec: daily, weekly, and seasonal staffing hours */
-function personnelRows(T, lifeguards, hoursPer, totalStaffHours, peakWeeks) {
-  const daily = Math.round((Number(hoursPer) / 7) * 10) / 10;
-  const weekly = Number(totalStaffHours) || 0;
-  const seasonal = Math.round(weekly * Number(peakWeeks || 0) * 10) / 10;
+/**
+ * Staffing figures, all derived from the season calendar rather than from a
+ * hand-typed hours-per-week multiplied by a rounded week count.
+ */
+function personnelRows(T, lifeguards, season) {
+  const daily = season.avgDailyHoursPerGuard;
+  const weekly = season.avgWeeklyStaffHours;
+  const seasonal = season.staffHours;
   const row = (label, value) => [
     { text: label, fontSize: T.fs(7.5), color: T.muted },
     { text: value, fontSize: T.fs(7.5), bold: true, color: T.ink, alignment: 'right' },
@@ -239,9 +237,10 @@ function personnelRows(T, lifeguards, hoursPer, totalStaffHours, peakWeeks) {
       widths: ['*', 'auto'],
       body: [
         row('Number of Lifeguards', `${lifeguards} Lifeguard(s)`),
-        row('Daily Staffing Hours (per guard)', `${daily} Hrs/day`),
-        row('Weekly Staffing Hours', `${weekly} Hrs/week`),
-        row('Seasonal Staffing Hours', `${seasonal} Hrs/season`),
+        row('Operating Days', `${season.openDays} of ${season.days} days`),
+        row('Daily Hours (per guard, open days)', `${daily} Hrs/day`),
+        row('Weekly Staffing Hours (average)', `${weekly} Hrs/week`),
+        row('Total Seasonal Staffing Hours', `${seasonal} Hrs/season`),
       ],
     },
     layout: {
@@ -342,10 +341,18 @@ export function buildQuotePdf(quote, setting = {}, options = {}) {
   const vatAmount = Number(quote.vat_amount || 0);
   const contractAmount = Math.max(0, total - earlyBird);
   const lifeguards = Number(quote.lifeguard_count || 0);
-  const hoursPer = Number(quote.hours_per_week || 0);
-  const totalStaffHours = lifeguards * hoursPer;
-  const seasonWeeks = weeksBetween(quote.season_start, quote.season_end);
-  const peakWeeks = Number(quote.peak_weeks || seasonWeeks || 0);
+  // Staffing figures come from the day-by-day season calendar, so the PDF can
+  // never disagree with the invoice the customer was quoted.
+  const season = computeSeason({
+    season_start: quote.season_start,
+    season_end: quote.season_end,
+    schedules: quote.schedules,
+    lifeguard_count: lifeguards,
+    school_closes: quote.school_closes,
+    school_reopens: quote.school_reopens,
+    holiday_policy: quote.holiday_policy,
+  });
+  const observedHolidays = season.holidays.filter((h) => h.observed && h.hours > 0);
   const customerName = quote.Customer?.name || '';
 
   const company = setting.company_name || 'Four Seasons Pool Management';
@@ -485,7 +492,9 @@ export function buildQuotePdf(quote, setting = {}, options = {}) {
 
   addSection('spec.duration', def.sectionTitles.duration, [
     {
-      text: `${contractorWord} will maintain the aforementioned swimming pool between ${dateEN(quote.season_start)} and ${dateEN(quote.season_end)}.`,
+      text:
+        `${contractorWord} will maintain the aforementioned swimming pool between ${dateEN(quote.season_start)} and ${dateEN(quote.season_end)}` +
+        (season.valid ? ` — ${season.weeksLabel}, ${season.openDays} operating days.` : '.'),
       fontSize: T.fs(8),
       color: T.ink,
       margin: [0, 0, 0, 3],
@@ -505,13 +514,28 @@ export function buildQuotePdf(quote, setting = {}, options = {}) {
     show('spec.personnel')
       ? {
           columns: [
-            personnelRows(T, lifeguards, hoursPer, totalStaffHours, peakWeeks),
-            show('spec.scheduleSchool')
-              ? personnelRows(T, lifeguards, hoursPer, totalStaffHours, peakWeeks)
-              : { width: '*', text: '' },
+            personnelRows(T, lifeguards, season),
+            show('spec.scheduleSchool') ? personnelRows(T, lifeguards, season) : { width: '*', text: '' },
           ],
           columnGap: 18,
           margin: [0, 0, 0, 2],
+        }
+      : null,
+    // Spelled out on the contract so the customer can see exactly which public
+    // holidays are staffed — these are the days a normally-closed weekday opens.
+    observedHolidays.length && show('spec.holidays')
+      ? {
+          text: [
+            { text: 'PUBLIC HOLIDAYS COVERED: ', bold: true },
+            {
+              text: observedHolidays
+                .map((h) => `${h.name} (${dateEN(h.date)}, ${h.weekday}) ${h.hours} hrs`)
+                .join(' · '),
+            },
+          ],
+          fontSize: T.fs(7),
+          color: T.muted,
+          margin: [0, 3, 0, 0],
         }
       : null,
     quote.notes && show('spec.scheduleNote')

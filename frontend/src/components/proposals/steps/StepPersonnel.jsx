@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { Users, Clock3, Calculator, Zap, Plus, Trash2, MapPinned } from 'lucide-react';
+import { Users, Clock3, Calculator, Zap, Plus, Trash2, MapPinned, CalendarDays, AlertTriangle } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx';
 import { HideToggle } from '../VisibilityContext.jsx';
 import { Input } from '@/components/ui/input.jsx';
@@ -43,8 +43,122 @@ function SummaryTile({ icon: Icon, label, value, tone = 'accent' }) {
   );
 }
 
+/**
+ * The calendar behind the invoice: how the season was counted, and which public
+ * holidays are staffed. It sits here because these are the exact numbers the
+ * wage line is built from — the customer is billed for what this lists.
+ */
+function SeasonBreakdown({ season, holidayPolicy, onToggle }) {
+  if (!season || !season.valid) {
+    return (
+      <Card>
+        <CardContent className="p-5 text-sm text-muted-foreground">
+          Enter the contract start and end dates on the Customer step to work out the season calendar.
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const fmt = (d) =>
+    new Date(`${d}T00:00:00Z`).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      timeZone: 'UTC',
+    });
+
+  const stat = (label, value) => (
+    <div className="flex justify-between rounded-lg bg-muted/40 px-3 py-2">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="font-semibold tabular-nums">{value}</span>
+    </div>
+  );
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2">
+          <CalendarDays className="h-4 w-4 text-accent" />
+          Season calendar
+        </CardTitle>
+        <CardDescription>
+          Counted one day at a time across {season.days} calendar days — never rounded to whole weeks. These hours
+          are what the wage line below is priced on.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid gap-2 text-sm sm:grid-cols-2">
+          {stat('Calendar days', `${season.days} (${season.weeksLabel})`)}
+          {stat('Open / closed days', `${season.openDays} / ${season.closedDays}`)}
+          {stat('Pool open hours', season.openHours)}
+          {stat('Normal / school days', `${season.normalDays} / ${season.schoolDays}`)}
+        </div>
+
+        {season.warnings?.length > 0 && (
+          <div className="flex items-start gap-2 rounded-lg border border-amber-300/60 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+            <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+            <div>{season.warnings.join(' ')}</div>
+          </div>
+        )}
+
+        <div>
+          <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2">
+            <div className="text-sm font-semibold">US public holidays in this season</div>
+            {season.holidayExtraStaffHours !== 0 && (
+              <span className="rounded-full bg-accent/10 px-2.5 py-1 text-xs font-semibold text-accent">
+                {season.holidayExtraStaffHours > 0 ? '+' : ''}
+                {season.holidayExtraStaffHours} hrs vs the weekly schedule
+              </span>
+            )}
+          </div>
+          <p className="mb-2 text-xs text-muted-foreground">
+            A holiday uses the <strong>Holiday</strong> row of the operating schedule, so the pool still opens on a
+            day the weekly schedule marks closed. Untick one to keep it shut that day.
+          </p>
+          <div className="divide-y divide-border/70 rounded-xl border border-border">
+            {season.holidays.map((h) => {
+              const on = holidayPolicy?.[h.key] !== false;
+              return (
+                <label key={h.key} className="flex cursor-pointer items-center gap-3 px-3 py-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={on}
+                    onChange={() => onToggle(h.key)}
+                    className="h-4 w-4 accent-accent"
+                  />
+                  <span className="min-w-0 flex-1">
+                    <span className="font-medium">{h.name}</span>
+                    <span className="ml-2 text-xs text-muted-foreground">
+                      {fmt(h.date)} · {h.weekday}
+                    </span>
+                  </span>
+                  <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+                    {on ? `${h.hours} hrs` : 'closed'}
+                    {on && h.replacesHours !== h.hours && (
+                      <span className="ml-1 font-semibold text-accent">
+                        (weekly schedule: {h.replacesHours})
+                      </span>
+                    )}
+                  </span>
+                </label>
+              );
+            })}
+            {season.holidays.length === 0 && (
+              <div className="px-3 py-6 text-center text-sm text-muted-foreground">
+                No US public holiday falls inside these dates.
+              </div>
+            )}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+
 export default function StepPersonnel({
   q, setQ, items, setItems, services, totals, contractAmount, totalHours, weeks, bid,
+  season, holidayPolicy = {}, setHolidayPolicy,
 }) {
   function updateItem(i, patch) {
     setItems((arr) => arr.map((it, idx) => (idx === i ? { ...it, ...patch } : it)));
@@ -63,16 +177,25 @@ export default function StepPersonnel({
   }
 
   function applyBidPricing() {
-    const peakWeeks = Number(q.peak_weeks || weeks || 0);
     const summary = computeBidSummary({
       county: q.county,
       lifeguardCount: q.lifeguard_count,
-      hoursPerWeek: q.hours_per_week,
-      peakWeeks,
+      totalLifeguardHours: season?.staffHours || 0,
+      weeklyStaffHours: season?.avgWeeklyStaffHours || 0,
     });
-    if (!summary.hourlyWage) return;
-    if (!q.peak_weeks && weeks) setQ((prev) => ({ ...prev, peak_weeks: weeks }));
+    if (!summary.hourlyWage || !summary.totalLifeguardHours) return;
+    // Keep the stored figures in step with the calendar so the saved contract,
+    // the invoice and the PDF all quote the same hours.
+    setQ((prev) => ({
+      ...prev,
+      peak_weeks: Math.round(season?.weeks || 0),
+      hours_per_week: Math.round(season?.avgWeeklyStaffHours || 0),
+    }));
     setItems(buildBidLineItems(summary));
+  }
+
+  function toggleHoliday(key) {
+    setHolidayPolicy?.((prev) => ({ ...prev, [key]: prev?.[key] === false }));
   }
 
   const countyWage = COUNTY_WAGES.find((c) => c.id === q.county);
@@ -80,30 +203,37 @@ export default function StepPersonnel({
   return (
     <div className="space-y-4">
       <div className="grid gap-3 sm:grid-cols-3">
-        <SummaryTile icon={Users} label="Peak-season lifeguards" value={Number(q.lifeguard_count || 0)} tone="primary" />
-        <SummaryTile icon={Clock3} label="Weekly peak staff hours" value={totalHours} tone="accent" />
+        <SummaryTile icon={Users} label="Lifeguards on duty" value={Number(q.lifeguard_count || 0)} tone="primary" />
+        <SummaryTile icon={CalendarDays} label="Contract duration" value={season?.weeksLabel || '—'} tone="accent" />
         <SummaryTile
           icon={Calculator}
-          label="Seasonal peak hours"
-          value={round2(totalHours * Number(q.peak_weeks || weeks || 0))}
+          label="Total staffed hours (season)"
+          value={season ? season.staffHours : '—'}
           tone="gold"
         />
       </div>
       <div className="grid gap-3 sm:grid-cols-3">
         <SummaryTile
+          icon={CalendarDays}
+          label="Operating days"
+          value={season ? `${season.openDays} / ${season.days}` : '—'}
+          tone="primary"
+        />
+        <SummaryTile
           icon={Clock3}
-          label="Daily hrs / guard (approx)"
-          value={round2(Number(q.hours_per_week || 0) / 7)}
+          label="Daily hrs / guard (open days)"
+          value={season ? season.avgDailyHoursPerGuard : '—'}
           tone="accent"
         />
-        <SummaryTile icon={Clock3} label="Weekly hrs / guard" value={Number(q.hours_per_week || 0)} tone="primary" />
         <SummaryTile
-          icon={Calculator}
-          label="Contract duration (weeks)"
-          value={Number(q.peak_weeks || weeks || 0)}
+          icon={Clock3}
+          label="Weekly staff hrs (average)"
+          value={season ? season.avgWeeklyStaffHours : '—'}
           tone="gold"
         />
       </div>
+
+      <SeasonBreakdown season={season} holidayPolicy={holidayPolicy} onToggle={toggleHoliday} />
 
       <Card>
         <CardHeader className="flex flex-col gap-2 space-y-0 pb-3 sm:flex-row sm:items-start sm:justify-between">
@@ -145,26 +275,24 @@ export default function StepPersonnel({
                 onChange={(e) => setQ({ ...q, lifeguard_count: e.target.value })}
               />
             </div>
+            {/* Read-only on purpose. These used to be typed by hand and then
+                multiplied together, which is what made the quoted hours drift
+                from the operating schedule. They now report what the season
+                calendar counted. Change the dates or the schedule to move them. */}
             <div className="space-y-2">
-              <Label>Hours per lifeguard / week</Label>
-              <Input
-                type="number"
-                min="0"
-                value={q.hours_per_week}
-                onChange={(e) => setQ({ ...q, hours_per_week: e.target.value })}
-              />
+              <Label>Staffed hours / week (average)</Label>
+              <div className="flex h-10 items-center rounded-lg border border-border bg-muted/40 px-3 text-sm font-medium tabular-nums">
+                {season ? `${season.avgWeeklyStaffHours} hrs` : '\u2014'}
+              </div>
             </div>
             <div className="space-y-2">
-              <Label>Number of peak weeks</Label>
-              <Input
-                type="number"
-                min="0"
-                value={q.peak_weeks || ''}
-                placeholder={weeks ? String(weeks) : '0'}
-                onChange={(e) => setQ({ ...q, peak_weeks: Number(e.target.value) })}
-              />
+              <Label>Total staffed hours (season)</Label>
+              <div className="flex h-10 items-center rounded-lg border border-border bg-muted/40 px-3 text-sm font-medium tabular-nums">
+                {season ? `${season.staffHours} hrs` : '\u2014'}
+              </div>
               <p className="text-xs text-muted-foreground">
-                Defaults from season dates ({weeks} weeks) if left empty when calculating.
+                From the season calendar above — {season ? season.weeksLabel : 'no dates yet'}. Edit the operating
+                schedule or the contract dates to change it.
               </p>
             </div>
             <div className="space-y-2">

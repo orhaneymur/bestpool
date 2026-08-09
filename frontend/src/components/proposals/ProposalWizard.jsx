@@ -46,6 +46,7 @@ export default function ProposalWizard({ id, initialCustomerId }) {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [emailOpen, setEmailOpen] = useState(false);
   const [pdfBlocks, setPdfBlocks] = useState([]);
+  const [season, setSeason] = useState(null);
   const [companyHidden, setCompanyHidden] = useState([]);
   const [hiddenFields, setHiddenFields] = useState([]);
 
@@ -66,8 +67,11 @@ export default function ProposalWizard({ id, initialCustomerId }) {
     currency: 'USD',
     status: 'taslak',
     valid_until: '',
+    school_closes: '',
+    school_reopens: '',
     notes: '',
   });
+  const [holidayPolicy, setHolidayPolicy] = useState({});
   const [items, setItems] = useState([emptyItem()]);
   const [installments, setInstallments] = useState([]);
   const [schedules, setSchedules] = useState(buildDefaultSchedules());
@@ -128,8 +132,11 @@ export default function ProposalWizard({ id, initialCustomerId }) {
         currency: d.currency || 'USD',
         status: d.status,
         valid_until: d.valid_until || '',
+        school_closes: d.school_closes || '',
+        school_reopens: d.school_reopens || '',
         notes: d.notes || '',
       });
+      setHolidayPolicy(d.holiday_policy && typeof d.holiday_policy === 'object' ? d.holiday_policy : {});
       setItems(d.items?.length ? d.items.map((it) => ({ ...it })) : [emptyItem()]);
       setInstallments(d.installments || []);
       setSchedules(d.schedules?.length ? d.schedules.map((s) => ({ ...s })) : buildDefaultSchedules());
@@ -148,15 +155,59 @@ export default function ProposalWizard({ id, initialCustomerId }) {
   const weeks = weeksBetween(q.season_start, q.season_end);
   const peakWeeks = Number(q.peak_weeks || weeks || 0);
   const selectedCustomer = customers.find((c) => String(c.id) === String(q.customer_id));
+  /**
+   * Season figures come from the server, not from arithmetic in the browser.
+   * The invoice, the saved contract and the PDF all read the same
+   * services/seasonCalendar.js, so a second implementation here would be a
+   * standing invitation for the quoted hours and the printed hours to drift.
+   */
+  useEffect(() => {
+    if (!q.season_start || !q.season_end) {
+      setSeason(null);
+      return undefined;
+    }
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      api
+        .post('/season/preview', {
+          season_start: q.season_start,
+          season_end: q.season_end,
+          schedules,
+          lifeguard_count: q.lifeguard_count,
+          school_closes: q.school_closes || null,
+          school_reopens: q.school_reopens || null,
+          holiday_policy: holidayPolicy,
+        })
+        .then((r) => {
+          if (!cancelled) setSeason(r.data);
+        })
+        .catch(() => {
+          if (!cancelled) setSeason(null);
+        });
+    }, 250);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [
+    q.season_start,
+    q.season_end,
+    q.lifeguard_count,
+    q.school_closes,
+    q.school_reopens,
+    schedules,
+    holidayPolicy,
+  ]);
+
   const bid = useMemo(
     () =>
       computeBidSummary({
         county: q.county,
         lifeguardCount: q.lifeguard_count,
-        hoursPerWeek: q.hours_per_week,
-        peakWeeks,
+        totalLifeguardHours: season?.staffHours || 0,
+        weeklyStaffHours: season?.avgWeeklyStaffHours || 0,
       }),
-    [q.county, q.lifeguard_count, q.hours_per_week, peakWeeks]
+    [q.county, q.lifeguard_count, season]
   );
 
   // Spec: when contract total changes, keep March–August schedule in sync if it was empty or already 6 months
@@ -202,6 +253,9 @@ export default function ProposalWizard({ id, initialCustomerId }) {
       schedules,
       special_notes: specialNotes.filter((n) => (n.body || '').trim()),
       hidden_fields: hiddenFields,
+      school_closes: q.school_closes || null,
+      school_reopens: q.school_reopens || null,
+      holiday_policy: holidayPolicy,
     };
     try {
       let res;
@@ -331,6 +385,7 @@ export default function ProposalWizard({ id, initialCustomerId }) {
                   setQ={setQ}
                   customers={customers}
                   selectedCustomer={selectedCustomer}
+                  season={season}
                 />
               )}
               {step === 1 && (
@@ -348,6 +403,9 @@ export default function ProposalWizard({ id, initialCustomerId }) {
                   totalHours={totalHours}
                   weeks={weeks}
                   bid={bid}
+                  season={season}
+                  holidayPolicy={holidayPolicy}
+                  setHolidayPolicy={setHolidayPolicy}
                 />
               )}
               {step === 4 && <StepOutput companyDefault={companyHidden} />}
@@ -404,6 +462,7 @@ export default function ProposalWizard({ id, initialCustomerId }) {
         <div className="hidden xl:sticky xl:top-20 xl:block xl:self-start">
           <LivePaperPreview
             q={q}
+            season={season}
             quoteNo={quoteNo}
             customer={selectedCustomer}
             schedules={schedules}
@@ -441,6 +500,7 @@ export default function ProposalWizard({ id, initialCustomerId }) {
           <div className="flex-1 overflow-y-auto px-3 py-4 pb-24">
             <LivePaperPreview
               q={q}
+              season={season}
               quoteNo={quoteNo}
               customer={selectedCustomer}
               schedules={schedules}

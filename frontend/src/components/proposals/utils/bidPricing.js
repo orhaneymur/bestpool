@@ -56,20 +56,28 @@ export function winterizationForGuards(lifeguardCount) {
 }
 
 /**
- * @param {{ county, lifeguardCount, hoursPerWeek, peakWeeks }} input
+ * @param {object} input
+ * @param {string} input.county
+ * @param {number} input.lifeguardCount
+ * @param {number} input.totalLifeguardHours  staffed hours for the whole season,
+ *   taken from the season calendar (POST /api/season/preview). This is the only
+ *   input that decides the wage bill — there is deliberately no weeks x hours
+ *   fallback, because rounding the season to whole weeks is exactly the bug this
+ *   replaced.
+ * @param {number} [input.weeklyStaffHours]   average, shown for reference only
  */
 export function computeBidSummary({
   county,
   lifeguardCount = 0,
-  hoursPerWeek = 0,
-  peakWeeks = 0,
+  totalLifeguardHours = 0,
+  weeklyStaffHours = 0,
 } = {}) {
   const countyRow = getCountyWage(county);
   const hourlyWage = countyRow?.hourly || 0;
   const guards = Number(lifeguardCount || 0);
-  const weeklyPeakStaffHours = round2(guards * Number(hoursPerWeek || 0));
-  const totalLifeguardHours = round2(weeklyPeakStaffHours * Number(peakWeeks || 0));
-  const totalWages = round2(totalLifeguardHours * hourlyWage);
+  const weeklyPeakStaffHours = round2(Number(weeklyStaffHours || 0));
+  const totalHours = round2(Number(totalLifeguardHours || 0));
+  const totalWages = round2(totalHours * hourlyWage);
 
   const management = BID_RATES.management;
   const drainCleaning = drainCleaningForGuards(guards);
@@ -92,7 +100,7 @@ export function computeBidSummary({
     countyLabel: countyRow?.label || '',
     hourlyWage,
     weeklyPeakStaffHours,
-    totalLifeguardHours,
+    totalLifeguardHours: totalHours,
     totalWages,
     expenses: {
       management,

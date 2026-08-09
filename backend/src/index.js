@@ -13,6 +13,7 @@ import templateRoutes from './routes/templates.routes.js';
 import settingRoutes from './routes/settings.routes.js';
 import definitionRoutes from './routes/definitions.routes.js';
 import quoteRoutes from './routes/quotes.routes.js';
+import seasonRoutes from './routes/season.routes.js';
 import statsRoutes from './routes/stats.routes.js';
 import { ensureSeed } from './seed/seed.js';
 
@@ -49,6 +50,7 @@ app.use('/api/templates', templateRoutes);
 app.use('/api/settings', settingRoutes);
 app.use('/api/definitions', definitionRoutes);
 app.use('/api/quotes', quoteRoutes);
+app.use('/api/season', seasonRoutes);
 app.use('/api/stats', statsRoutes);
 
 app.use((err, _req, res, _next) => {
