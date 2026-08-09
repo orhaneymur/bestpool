@@ -305,6 +305,18 @@ export default function LivePaperPreview({
         <div className="mx-auto min-h-[560px] max-w-[520px] origin-top rounded-[2px] bg-white px-4 py-6 text-[10.5px] leading-relaxed text-slate-800 shadow-paper ring-1 ring-black/5 transition-transform duration-300 sm:min-h-[720px] sm:px-7 sm:py-8">
           {show('spec.header') && (
             <div className="mb-5 text-center">
+              {show('cover.logo') && (
+                // Served from the backend rather than bundled, so the preview and
+                // the PDF can only ever show the same artwork.
+                <img
+                  src="/api/assets/logo.png"
+                  alt=""
+                  className="mx-auto mb-2 h-auto w-[140px]"
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none';
+                  }}
+                />
+              )}
               <div className="text-[9px] italic text-slate-500">
                 Commercial Swimming Pool Management Agreement
               </div>

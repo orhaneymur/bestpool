@@ -15,6 +15,7 @@
 /** Every block of the PDF that can be switched off, in print order. */
 export const PDF_BLOCKS = [
   // --- Cover ---
+  { key: 'cover.logo', group: 'Cover', label: 'Company logo' },
   { key: 'cover.tagline', group: 'Cover', label: 'Tagline', hint: 'Italic motto at the very top' },
   { key: 'cover.title', group: 'Cover', label: 'Agreement title' },
   { key: 'cover.contractNo', group: 'Cover', label: 'Contract number' },
@@ -56,6 +57,14 @@ export const PDF_BLOCKS = [
 
   // --- Terms ---
   { key: 'terms', group: 'Terms', label: 'Terms and conditions pages' },
+
+  // --- Page furniture ---
+  {
+    key: 'page.background',
+    group: 'Page',
+    label: 'Background watermark',
+    hint: 'Faint emblem behind every page',
+  },
 
   // --- Footer ---
   { key: 'footer.initials', group: 'Footer', label: 'Owner initials' },
@@ -133,6 +142,14 @@ export const DEFAULT_DEFINITIONS = {
     padding: 3,              // FSPM-2026-001
     yearlyReset: true,
   },
+  branding: {
+    // Cover logo width in points. The artwork keeps its aspect ratio.
+    logoWidth: 190,
+    // Watermark width in points and how strongly it prints. Kept low on purpose:
+    // the whole point is that it must never compete with the contract text.
+    backgroundWidth: 330,
+    backgroundOpacity: 0.05,
+  },
   /** Blocks a brand-new contract starts with switched off. */
   hidden: [],
 };
@@ -199,6 +216,12 @@ export function validateDefinitions(input) {
 
   d.numbering.padding = clamp(Number(d.numbering.padding), 1, 6, 3);
   d.numbering.yearlyReset = !!d.numbering.yearlyReset;
+
+  d.branding.logoWidth = clamp(Number(d.branding.logoWidth), 40, 420, 190);
+  d.branding.backgroundWidth = clamp(Number(d.branding.backgroundWidth), 80, 600, 330);
+  // Hard ceiling rather than a warning: above roughly 0.18 the watermark starts
+  // fighting the body text, and an unreadable contract is not a preference.
+  d.branding.backgroundOpacity = clamp(Number(d.branding.backgroundOpacity), 0, 0.18, 0.05);
 
   return { definitions: d, errors };
 }

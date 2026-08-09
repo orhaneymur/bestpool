@@ -298,6 +298,59 @@ export default function Definitions() {
 
             <Card>
               <CardHeader>
+                <CardTitle>Branding</CardTitle>
+                <CardDescription>
+                  The cover logo and the watermark printed behind every page. Switch either off entirely on the
+                  <strong> PDF blocks</strong> tab.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label>Cover logo width (pt)</Label>
+                  <Input
+                    type="number"
+                    min={40}
+                    max={420}
+                    disabled={readOnly}
+                    value={d.branding.logoWidth}
+                    onChange={(e) => set('branding.logoWidth', Number(e.target.value))}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Watermark width (pt)</Label>
+                  <Input
+                    type="number"
+                    min={80}
+                    max={600}
+                    disabled={readOnly}
+                    value={d.branding.backgroundWidth}
+                    onChange={(e) => set('branding.backgroundWidth', Number(e.target.value))}
+                  />
+                </div>
+                <div className="space-y-1.5 sm:col-span-2">
+                  <Label>
+                    Watermark strength ({Math.round(Number(d.branding.backgroundOpacity) * 100)}%)
+                  </Label>
+                  <input
+                    type="range"
+                    min={0}
+                    max={0.18}
+                    step={0.01}
+                    disabled={readOnly}
+                    value={d.branding.backgroundOpacity}
+                    onChange={(e) => set('branding.backgroundOpacity', Number(e.target.value))}
+                    className="w-full accent-accent"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Capped at 18%. Above that the artwork starts competing with the contract text, and a contract
+                    that is hard to read is not a style choice. 0% turns it off.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
                 <CardTitle>Colours</CardTitle>
                 <CardDescription>Applied to every page of the PDF.</CardDescription>
               </CardHeader>

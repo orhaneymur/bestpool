@@ -1,6 +1,9 @@
 import PdfPrinter from 'pdfmake';
 import { mergeDefinitions, sanitizeHiddenFields } from '../config/pdfDefinitions.js';
 import { computeSeason } from './seasonCalendar.js';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 /**
  * Commercial Swimming Pool Management Agreement PDF.
@@ -35,6 +38,30 @@ function getPrinter() {
 }
 
 export const DEFAULT_TAGLINE = 'Safety Is Our Standard, Service Is Our Promise';
+
+const ASSET_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'assets');
+
+/**
+ * Brand artwork, read once and cached as data URIs.
+ *
+ * The transparent PNGs are what get drawn — the source JPEGs have no alpha, so
+ * their white background prints as a visible grey box once opacity is applied.
+ * Replacing the artwork means regenerating the PNGs, not just swapping the JPEGs.
+ * A missing file is not fatal: the PDF simply renders without that piece.
+ */
+const assetCache = new Map();
+function asset(name) {
+  if (assetCache.has(name)) return assetCache.get(name);
+  let value = null;
+  try {
+    const file = path.join(ASSET_DIR, name);
+    value = `data:image/png;base64,${fs.readFileSync(file).toString('base64')}`;
+  } catch (err) {
+    console.warn(`[pdf] Brand asset "${name}" is unavailable:`, err.message);
+  }
+  assetCache.set(name, value);
+  return value;
+}
 
 const PAGE_WIDTH = { LETTER: 612, A4: 595.28 };
 
@@ -756,7 +783,17 @@ export function buildQuotePdf(quote, setting = {}, options = {}) {
     : [];
 
   // ---- Cover ----
+  const logo = show('cover.logo') ? asset('logo.png') : null;
+
   const cover = [
+    logo
+      ? {
+          image: 'coverLogo',
+          width: def.branding.logoWidth,
+          alignment: 'center',
+          margin: [0, 18, 0, show('cover.tagline') ? 10 : 24],
+        }
+      : null,
     show('cover.tagline')
       ? {
           text: `“${tagline}”`,
@@ -764,7 +801,7 @@ export function buildQuotePdf(quote, setting = {}, options = {}) {
           alignment: 'center',
           fontSize: T.fs(12.5),
           color: T.muted,
-          margin: [0, 26, 0, 0],
+          margin: [0, logo ? 0 : 26, 0, 0],
         }
       : null,
     show('cover.tagline') ? T.centeredRule(170, [0, 15, 0, 30]) : null,
@@ -820,7 +857,9 @@ export function buildQuotePdf(quote, setting = {}, options = {}) {
     // Pushes the company block toward the foot of the cover. Kept as a spacer
     // rather than an absolute position so an unusually long facility address
     // still reflows instead of colliding with it.
-    { text: ' ', margin: [0, 235, 0, 0] },
+    // The logo adds roughly 100pt to the top of the cover, so the spacer that
+    // pushes the company block to the foot has to give that height back.
+    { text: ' ', margin: [0, logo ? 130 : 235, 0, 0] },
 
     show('cover.company') ? T.centeredRule(220, [0, 0, 0, 14]) : null,
     show('cover.company')
@@ -869,10 +908,34 @@ export function buildQuotePdf(quote, setting = {}, options = {}) {
     content.push({ text: '', pageBreak: 'before' }, ...generalTerms);
   }
 
+  const watermark = show('page.background') && def.branding.backgroundOpacity > 0
+    ? asset('background-watermark.png')
+    : null;
+
   const docDefinition = {
     pageSize: T.size,
     pageMargins: [T.margin, T.margin - 6, T.margin, T.margin - 4],
     defaultStyle: { font: 'Roboto', fontSize: T.fs(9), color: T.ink, lineHeight: 1.06 },
+    // Registered by name: returning the data URI straight from background()
+    // made pdfmake embed the same picture once per page, which took a 6-page
+    // contract from ~90 KB to ~2.9 MB.
+    images: {
+      ...(watermark ? { watermark } : {}),
+      ...(logo ? { coverLogo: logo } : {}),
+    },
+    // Drawn under the content on every page, centred, at low opacity so the
+    // contract stays the thing you read.
+    background: watermark
+      ? (currentPage, pageSize) => ({
+          image: 'watermark',
+          width: def.branding.backgroundWidth,
+          opacity: def.branding.backgroundOpacity,
+          absolutePosition: {
+            x: (pageSize.width - def.branding.backgroundWidth) / 2,
+            y: (pageSize.height - def.branding.backgroundWidth * (600 / 900)) / 2,
+          },
+        })
+      : undefined,
     footer: (currentPage, pageCount) => ({
       margin: [T.margin, 6, T.margin, 0],
       columns: [
