@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { Op } from 'sequelize';
-import { ServiceItem, ServiceCategory, QuoteItem } from '../models/index.js';
+import { sequelize, ServiceItem, ServiceCategory, QuoteItem } from '../models/index.js';
 import { auth } from '../middleware/auth.js';
 
 const router = Router();
@@ -99,25 +99,84 @@ router.put('/:id', auth(['admin', 'sales']), async (req, res, next) => {
   }
 });
 
-router.delete('/:id', auth(['admin']), async (req, res) => {
-  const s = await ServiceItem.findByPk(req.params.id);
-  if (!s) return res.status(404).json({ error: 'Service not found.' });
+/**
+ * Removes a service from the catalogue.
+ *
+ * quote_items.service_item_id points here, so a plain delete used to fail on the
+ * foreign key and surface as a bare 500. Without ?force it refuses and reports
+ * how many contract lines are affected.
+ *
+ * With ?force=1 the link is cut first (service_item_id -> NULL) and only then is
+ * the row removed. Contract lines are NOT deleted: description, quantity, unit,
+ * unit price, tax and line total all live on quote_items, so every existing
+ * contract keeps its wording and its totals to the cent. The only thing lost is
+ * the pointer back to a catalogue entry that no longer exists.
+ */
+async function detachAndDestroy(service) {
+  return sequelize.transaction(async (t) => {
+    const [detached] = await QuoteItem.update(
+      { service_item_id: null },
+      { where: { service_item_id: service.id }, transaction: t }
+    );
+    await service.destroy({ transaction: t });
+    return detached;
+  });
+}
 
-  // quote_items.service_item_id points here. Hard-deleting a service that past
-  // contracts reference failed on the foreign key and surfaced as a bare 500 —
-  // and even if it succeeded it would rewrite history. Deactivating keeps the
-  // old contracts intact and hides the service from new ones.
-  const used = await QuoteItem.count({ where: { service_item_id: s.id } });
-  if (used > 0) {
-    return res.status(409).json({
-      error: `“${s.name}” is used by ${used} contract line(s), so it cannot be deleted. Deactivate it instead to hide it from new contracts.`,
-      contracts: used,
-      canDeactivate: true,
-    });
+router.delete('/:id', auth(['admin']), async (req, res, next) => {
+  try {
+    const s = await ServiceItem.findByPk(req.params.id);
+    if (!s) return res.status(404).json({ error: 'Service not found.' });
+
+    const used = await QuoteItem.count({ where: { service_item_id: s.id } });
+    const force = req.query.force === '1' || req.query.force === 'true';
+
+    if (used > 0 && !force) {
+      return res.status(409).json({
+        error: `“${s.name}” is used by ${used} contract line(s).`,
+        contracts: used,
+        canDeactivate: true,
+        canForce: true,
+      });
+    }
+
+    const detached = used > 0 ? await detachAndDestroy(s) : (await s.destroy(), 0);
+    res.json({ ok: true, detached });
+  } catch (err) {
+    next(err);
   }
+});
 
-  await s.destroy();
-  res.json({ ok: true });
+/** Deletes several services in one go — used to clear out test leftovers. */
+router.post('/bulk-delete', auth(['admin']), async (req, res, next) => {
+  try {
+    const ids = (Array.isArray(req.body?.ids) ? req.body.ids : [])
+      .map((n) => Number(n))
+      .filter(Number.isInteger);
+    if (!ids.length) return res.status(400).json({ error: 'No services selected.' });
+
+    const force = req.body?.force === true;
+    const rows = await ServiceItem.findAll({ where: { id: { [Op.in]: ids } } });
+
+    const deleted = [];
+    const blocked = [];
+    let detached = 0;
+
+    for (const s of rows) {
+      const used = await QuoteItem.count({ where: { service_item_id: s.id } });
+      if (used > 0 && !force) {
+        blocked.push({ id: s.id, name: s.name, contracts: used });
+        continue;
+      }
+      if (used > 0) detached += await detachAndDestroy(s);
+      else await s.destroy();
+      deleted.push({ id: s.id, name: s.name });
+    }
+
+    res.json({ ok: true, deleted, blocked, detached });
+  } catch (err) {
+    next(err);
+  }
 });
 
 export default router;

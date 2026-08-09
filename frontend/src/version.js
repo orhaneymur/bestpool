@@ -1,4 +1,4 @@
 /** App release shown in sidebar (bottom-left). Bump on each production ship. */
-export const APP_VERSION = '1.5.0';
-export const APP_BUILD = 'edc88dc';
-export const APP_LABEL = 'Service catalog management + asset cache fix';
+export const APP_VERSION = '1.6.0';
+export const APP_BUILD = 'pending';
+export const APP_LABEL = 'Force delete and bulk cleanup for services';
