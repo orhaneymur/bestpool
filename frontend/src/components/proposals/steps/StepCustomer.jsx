@@ -15,7 +15,9 @@ export default function StepCustomer({ q, setQ, customers, selectedCustomer }) {
             <CardTitle>Customer &amp; Facility</CardTitle>
             <CardDescription>Select an account and map facility details onto the contract.</CardDescription>
           </div>
-          <HideToggle k="spec.property" />
+          <div className="flex flex-wrap gap-1.5">
+            <HideToggle k="spec.property" />
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
@@ -84,6 +86,21 @@ export default function StepCustomer({ q, setQ, customers, selectedCustomer }) {
                 onChange={(e) => setQ({ ...q, facility_address: e.target.value })}
                 placeholder="Street, city, ZIP"
               />
+            </div>
+          </div>
+
+          {/* PDF Section 1 prints these as two columns. They name the same party
+              on most properties, so either column can be dropped on its own. */}
+          <div className="rounded-xl border border-border bg-muted/30 p-3">
+            <div className="text-xs font-semibold text-foreground">
+              PDF Section 1 — Property information columns
+            </div>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Facility and Owner / Agent are usually the same company. Hide one and the other fills the width.
+            </p>
+            <div className="mt-2 flex flex-wrap items-center gap-1.5">
+              <HideToggle k="spec.propertyFacility" label="Facility name &amp; address" />
+              <HideToggle k="spec.propertyOwner" label="Owner / Agent" />
             </div>
           </div>
         </CardContent>

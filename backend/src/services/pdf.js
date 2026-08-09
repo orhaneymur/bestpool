@@ -459,24 +459,28 @@ export function buildQuotePdf(quote, setting = {}, options = {}) {
     specSections.push({ title, content: body });
   };
 
+  // The facility and the owner/agent are the same party on most properties, so
+  // either column can be switched off on its own. The survivor then spans the
+  // full width instead of leaving an empty half.
+  const propertyColumns = [
+    show('spec.propertyFacility') && { heading: def.labels.facilityHeading, value: facilityAddr },
+    show('spec.propertyOwner') && { heading: def.labels.ownerHeading, value: ownerAddr },
+  ].filter(Boolean);
+
   addSection('spec.property', def.sectionTitles.property, [
-    {
-      table: {
-        widths: ['*', '*'],
-        body: [
-          [
-            { text: def.labels.facilityHeading, style: 'th' },
-            { text: def.labels.ownerHeading, style: 'th' },
-          ],
-          [
-            { text: facilityAddr || '-', fontSize: T.fs(8), color: T.ink },
-            { text: ownerAddr || '-', fontSize: T.fs(8), color: T.ink },
-          ],
-        ],
-      },
-      layout: T.hairline(),
-      margin: [0, 0, 0, 1],
-    },
+    propertyColumns.length
+      ? {
+          table: {
+            widths: propertyColumns.map(() => '*'),
+            body: [
+              propertyColumns.map((c) => ({ text: c.heading, style: 'th' })),
+              propertyColumns.map((c) => ({ text: c.value || '-', fontSize: T.fs(8), color: T.ink })),
+            ],
+          },
+          layout: T.hairline(),
+          margin: [0, 0, 0, 1],
+        }
+      : null,
   ]);
 
   addSection('spec.duration', def.sectionTitles.duration, [

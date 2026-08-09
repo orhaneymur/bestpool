@@ -46,9 +46,12 @@ export function useVisibility() {
  * Deliberately shows the resulting state as words too — an eye icon alone is
  * ambiguous about whether it means "is shown" or "click to show".
  */
-export function HideToggle({ k, className, compact = false }) {
+export function HideToggle({ k, className, compact = false, label }) {
   const { isHidden, toggle } = useVisibility();
   const off = isHidden(k);
+  // With a label the button names the thing it controls, which matters when
+  // several toggles sit side by side and "Hide from PDF" would be ambiguous.
+  const text = label ? (off ? `${label} — hidden` : `Hide ${label}`) : off ? 'Hidden from PDF' : 'Hide from PDF';
   return (
     <button
       type="button"
@@ -64,7 +67,7 @@ export function HideToggle({ k, className, compact = false }) {
       )}
     >
       {off ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-      {!compact && (off ? 'Hidden from PDF' : 'Hide from PDF')}
+      {!compact && text}
     </button>
   );
 }

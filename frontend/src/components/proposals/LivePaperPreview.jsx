@@ -59,22 +59,36 @@ export default function LivePaperPreview({
    * Built as a list so the numbering matches the PDF: hidden sections are
    * dropped and the remaining ones renumber, rather than leaving a gap.
    */
+  // Facility and Owner / Agent name the same party on most properties, so each
+  // column can be hidden on its own; the survivor then spans the full width.
+  const propertyCols = [
+    show('spec.propertyFacility') && {
+      key: 'facility',
+      heading: 'Facility',
+      name: q.facility_name,
+      detail: q.facility_address,
+    },
+    show('spec.propertyOwner') && {
+      key: 'owner',
+      heading: 'Owner / Agent',
+      name: customer?.name,
+      detail: customer?.address || customer?.city,
+    },
+  ].filter(Boolean);
+
   const sections = [];
-  if (show('spec.property')) {
+  if (show('spec.property') && propertyCols.length) {
     sections.push({
       title: 'Property Information',
       node: (
-        <div className="mb-4 grid grid-cols-2 gap-3">
-          <div>
-            <div className="mb-0.5 font-semibold text-slate-500">Facility</div>
-            <div className="font-semibold">{q.facility_name || '—'}</div>
-            <div className="text-slate-600">{q.facility_address || '—'}</div>
-          </div>
-          <div>
-            <div className="mb-0.5 font-semibold text-slate-500">Owner / Agent</div>
-            <div className="font-semibold">{customer?.name || '—'}</div>
-            <div className="text-slate-600">{customer?.address || customer?.city || '—'}</div>
-          </div>
+        <div className={`mb-4 grid gap-3 ${propertyCols.length > 1 ? 'grid-cols-2' : 'grid-cols-1'}`}>
+          {propertyCols.map((c) => (
+            <div key={c.key}>
+              <div className="mb-0.5 font-semibold text-slate-500">{c.heading}</div>
+              <div className="font-semibold">{c.name || '—'}</div>
+              <div className="text-slate-600">{c.detail || '—'}</div>
+            </div>
+          ))}
         </div>
       ),
     });

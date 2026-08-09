@@ -26,7 +26,19 @@ export const PDF_BLOCKS = [
 
   // --- Specification page ---
   { key: 'spec.header', group: 'Specification', label: 'Page header', hint: 'Company name, title and contract no' },
-  { key: 'spec.property', group: 'Specification', label: 'Property information' },
+  { key: 'spec.property', group: 'Specification', label: 'Property information', hint: 'The whole section' },
+  {
+    key: 'spec.propertyFacility',
+    group: 'Specification',
+    label: '— Facility name and address column',
+    hint: 'Hide when it repeats the owner column',
+  },
+  {
+    key: 'spec.propertyOwner',
+    group: 'Specification',
+    label: '— Facility owner / agent column',
+    hint: 'Hide when it repeats the facility column',
+  },
   { key: 'spec.duration', group: 'Specification', label: 'Contract duration sentence' },
   { key: 'spec.schedule', group: 'Specification', label: 'Operating hours tables' },
   { key: 'spec.scheduleSchool', group: 'Specification', label: 'School / off-season hours column' },
