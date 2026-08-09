@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router } from '../middleware/asyncRouter.js';
 import { Setting } from '../models/index.js';
 import { auth } from '../middleware/auth.js';
 import { DEFAULT_TAGLINE } from '../services/pdf.js';
@@ -39,8 +39,17 @@ router.put('/', auth(['admin']), async (req, res) => {
   const s = await getOrCreate();
   const body = req.body || {};
   const patch = {};
+  // Column widths, so an over-long value is trimmed rather than rejected by
+  // MySQL. Keep in step with the Setting model.
+  const MAXLEN = {
+    company_name: 200, company_address: 2000, company_phone: 60, company_fax: 60,
+    company_email: 160, company_website: 160, company_tagline: 200, rev_label: 40,
+    tax_office: 120, tax_no: 40, logo_url: 300,
+  };
   for (const key of EDITABLE) {
-    if (Object.prototype.hasOwnProperty.call(body, key)) patch[key] = body[key];
+    if (!Object.prototype.hasOwnProperty.call(body, key)) continue;
+    const limit = MAXLEN[key];
+    patch[key] = limit && body[key] != null ? String(body[key]).slice(0, limit) : body[key];
   }
   if (patch.quote_prefix !== undefined) {
     // Feeds straight into contract numbers, so keep it to safe filename characters.

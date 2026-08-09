@@ -69,6 +69,10 @@ export function holidaysInSeason(seasonStart, seasonEnd) {
   const end = toUTC(seasonEnd);
   if (!start || !end || end < start) return [];
 
+  // Same reasoning as computeSeason: a mistyped year must not turn into
+  // thousands of holiday tables.
+  if (end.getUTCFullYear() - start.getUTCFullYear() > 3) return [];
+
   const years = new Set([start.getUTCFullYear(), end.getUTCFullYear()]);
   const all = [...years].flatMap((y) => usHolidays(y));
   return all
@@ -140,6 +144,24 @@ export function computeSeason(input = {}) {
 
   if (!start || !end || end < start) {
     return { ...empty, warnings: ['Enter a contract start and end date.'] };
+  }
+
+  // Hard bound before the day loop.
+  //
+  // The wizard re-runs this while the dates are being typed, and a half-typed
+  // year like 9999 asks for ~2.9 million iterations — about three seconds of
+  // blocked event loop per keystroke. Enough of those in a row and the liveness
+  // probe times out and the pod is restarted, which shows up as a 502 on every
+  // other request. No pool contract runs for two years, so refuse instead.
+  const MAX_DAYS = 800;
+  const spanDays = Math.round((end - start) / 86400000) + 1;
+  if (spanDays > MAX_DAYS) {
+    return {
+      ...empty,
+      warnings: [
+        `Those dates span ${spanDays.toLocaleString('en-US')} days. Check the year — a contract cannot run longer than ${MAX_DAYS} days.`,
+      ],
+    };
   }
 
   const schoolCloses = toUTC(input.school_closes);

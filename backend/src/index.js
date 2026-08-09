@@ -55,9 +55,37 @@ app.use('/api/season', seasonRoutes);
 app.use('/api/assets', assetRoutes);
 app.use('/api/stats', statsRoutes);
 
-app.use((err, _req, res, _next) => {
-  console.error(err);
-  res.status(500).json({ error: err.message || 'Server error' });
+// Anything a route forwards with next(err) lands here. Sequelize's data errors
+// are the caller's fault, not the server's, so they get a 4xx with a usable
+// message instead of a blanket 500.
+app.use((err, req, res, _next) => {
+  const name = err?.name || '';
+  const detail = err?.parent?.message || err?.original?.message || err?.message || 'Server error';
+  console.error(`[api] ${req.method} ${req.originalUrl} failed:`, detail);
+
+  if (name === 'SequelizeValidationError' || name === 'SequelizeDatabaseError') {
+    return res.status(400).json({ error: detail });
+  }
+  if (name === 'SequelizeUniqueConstraintError') {
+    return res.status(409).json({ error: detail });
+  }
+  if (name === 'SequelizeForeignKeyConstraintError') {
+    return res.status(409).json({ error: 'That record is still referenced by other data.' });
+  }
+  return res.status(err?.status || 500).json({ error: detail });
+});
+
+/**
+ * Last-resort net. Every route already goes through the async-safe Router, so
+ * nothing should reach here — but an unhandled rejection anywhere else would
+ * otherwise terminate Node and take the API down for every user at once. Log it
+ * loudly and keep serving; a single broken request must never be an outage.
+ */
+process.on('unhandledRejection', (reason) => {
+  console.error('[server] Unhandled promise rejection (kept alive):', reason);
+});
+process.on('uncaughtException', (err) => {
+  console.error('[server] Uncaught exception (kept alive):', err);
 });
 
 const PORT = Number(process.env.PORT || 4000);

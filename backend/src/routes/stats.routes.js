@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router } from '../middleware/asyncRouter.js';
 import { fn, col } from 'sequelize';
 import { Quote, Customer } from '../models/index.js';
 import { auth } from '../middleware/auth.js';

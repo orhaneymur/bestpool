@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router } from '../middleware/asyncRouter.js';
 import bcrypt from 'bcryptjs';
 import { User } from '../models/index.js';
 import { signToken, auth } from '../middleware/auth.js';

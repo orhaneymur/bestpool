@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router } from '../middleware/asyncRouter.js';
 import { auth } from '../middleware/auth.js';
 import { computeSeason, holidaysInSeason } from '../services/seasonCalendar.js';
 
