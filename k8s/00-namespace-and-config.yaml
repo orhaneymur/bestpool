@@ -28,6 +28,8 @@ data:
   # Plain CREATE TABLE IF NOT EXISTS still runs at boot; "true" would add
   # alter, which rewrites live tables on every restart.
   DB_SYNC: "false"
+  # See deploy/k3s-pool.yaml: os.cpus() ignores the container CPU limit.
+  RENDER_WORKERS: "1"
   JWT_EXPIRES_IN: "12h"
   CORS_ORIGIN: "*"
   ADMIN_EMAIL: "admin@havuz.local"

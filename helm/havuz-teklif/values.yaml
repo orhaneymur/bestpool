@@ -11,8 +11,8 @@ image:
 backend:
   replicas: 2
   resources:
-    requests: { cpu: "50m", memory: "128Mi" }
-    limits: { cpu: "500m", memory: "512Mi" }
+    requests: { cpu: "100m", memory: "192Mi" }
+    limits: { cpu: "1500m", memory: "1Gi" }
 
 frontend:
   replicas: 2
@@ -32,6 +32,9 @@ config:
   dbUser: havuz
   # "true" turns on sync({ alter: true }); leave it off outside development.
   dbSync: "false"
+  # PDF/Excel render threads. os.cpus() reports the host's cores inside a
+  # container, so this has to be set rather than inferred.
+  renderWorkers: "1"
   corsOrigin: "*"
   jwtExpiresIn: "12h"
   adminEmail: admin@havuz.local

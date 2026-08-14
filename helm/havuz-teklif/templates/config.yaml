@@ -9,6 +9,7 @@ data:
   DB_NAME: {{ .Values.config.dbName | quote }}
   DB_USER: {{ .Values.config.dbUser | quote }}
   DB_SYNC: {{ .Values.config.dbSync | quote }}
+  RENDER_WORKERS: {{ .Values.config.renderWorkers | quote }}
   JWT_EXPIRES_IN: {{ .Values.config.jwtExpiresIn | quote }}
   CORS_ORIGIN: {{ .Values.config.corsOrigin | quote }}
   ADMIN_EMAIL: {{ .Values.config.adminEmail | quote }}

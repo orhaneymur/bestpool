@@ -42,8 +42,11 @@ spec:
             initialDelaySeconds: 20
             periodSeconds: 15
           resources:
-            requests: { cpu: "50m", memory: "128Mi" }
-            limits: { cpu: "500m", memory: "512Mi" }
+            # Half a core could not render a contract and serve requests at
+            # the same time; the request is unchanged in spirit, only the burst
+            # ceiling moves. See deploy/k3s-pool.yaml.
+            requests: { cpu: "100m", memory: "192Mi" }
+            limits: { cpu: "1500m", memory: "1Gi" }
 ---
 apiVersion: v1
 kind: Service

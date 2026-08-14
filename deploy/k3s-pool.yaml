@@ -41,6 +41,10 @@ data:
   # Plain CREATE TABLE IF NOT EXISTS still runs at boot; "true" would add
   # alter, which rewrites live tables on every restart.
   DB_SYNC: "false"
+  # PDF/Excel render threads. The pool sizes itself from os.cpus(), which inside
+  # a container reports the host's cores and ignores the CPU limit below — on
+  # half a core, two render threads plus the event loop only fight each other.
+  RENDER_WORKERS: "1"
   JWT_EXPIRES_IN: "12h"
   # HTTPS yayın sonrası origin ile sınırlı tutun.
   CORS_ORIGIN: "https://pool.derneklab.com"
@@ -173,8 +177,13 @@ spec:
             timeoutSeconds: 5
             failureThreshold: 6
           resources:
-            requests: { cpu: "50m", memory: "128Mi" }
-            limits: { cpu: "500m", memory: "512Mi" }
+            # The request is what is reserved; the limit only caps a burst, so
+            # raising it does not take capacity from the other sites on this
+            # host. Half a core was not enough to render a contract and answer
+            # requests at the same time, and a render thread carrying pdfmake's
+            # fonts needs headroom over the old 512Mi ceiling.
+            requests: { cpu: "100m", memory: "192Mi" }
+            limits: { cpu: "1500m", memory: "1Gi" }
 ---
 apiVersion: v1
 kind: Service
