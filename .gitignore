@@ -12,3 +12,5 @@ npm-debug.log*
 .DS_Store
 .vscode/
 .idea/
+# Kaynak dokümanlar (spec / sözleşme taslakları — kod değil)
+words/
