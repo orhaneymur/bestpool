@@ -17,6 +17,7 @@ import seasonRoutes from './routes/season.routes.js';
 import assetRoutes from './routes/assets.routes.js';
 import statsRoutes from './routes/stats.routes.js';
 import { ensureSeed } from './seed/seed.js';
+import { warmUpRenderPool, shutdownRenderPool } from './services/renderPool.js';
 
 dotenv.config();
 
@@ -42,6 +43,22 @@ app.get('/health', (_req, res) =>
 app.get('/api/health', (_req, res) =>
   res.json({ status: 'ok', db: dbReady ? 'up' : 'starting' })
 );
+
+/**
+ * Nothing that touches the database runs before the database is up.
+ *
+ * The server binds its port immediately so container probes never wait on
+ * MySQL, but the routes were mounted at the same moment. A request arriving
+ * during startup went straight to Sequelize, found no connection, and sat on the
+ * pool's 30-second acquire timeout before failing — from the browser that is
+ * indistinguishable from a page that simply never loads. An honest 503 lets the
+ * client show something and retry.
+ */
+app.use('/api', (req, res, next) => {
+  if (dbReady || req.path === '/health') return next();
+  res.setHeader('Retry-After', '5');
+  return res.status(503).json({ error: 'The server is still starting up. Please try again in a few seconds.' });
+});
 
 app.use('/api/auth', authRoutes);
 app.use('/api/customers', customerRoutes);
@@ -95,10 +112,18 @@ async function bootstrapDb() {
   for (;;) {
     try {
       await connectWithRetry(30, 2000);
-      if (String(process.env.DB_SYNC).toLowerCase() === 'true') {
-        await sequelize.sync({ alter: true });
-        console.log('[db] Tablolar senkronize edildi.');
-      }
+      /**
+       * Plain sync() is CREATE TABLE IF NOT EXISTS: it builds a brand-new
+       * database and does nothing to an existing one. That is what makes it safe
+       * to leave DB_SYNC off in production — a first boot still works, while
+       * established installs are never rewritten.
+       *
+       * DB_SYNC=true additionally turns on alter, which rewrites live tables.
+       * Useful in development, expensive and index-duplicating in production.
+       */
+      const alter = String(process.env.DB_SYNC).toLowerCase() === 'true';
+      await sequelize.sync(alter ? { alter: true } : undefined);
+      console.log(alter ? '[db] Tablolar senkronize edildi (alter).' : '[db] Eksik tablolar oluşturuldu.');
       await ensureSchemaPatches();
       await ensureSeed();
       dbReady = true;
@@ -114,7 +139,21 @@ async function bootstrapDb() {
 
 async function start() {
   // Bind HTTP immediately so k8s readiness never blocks on MySQL.
-  app.listen(PORT, () => console.log(`[server] API http://0.0.0.0:${PORT} üzerinde çalışıyor`));
+  const server = app.listen(PORT, () =>
+    console.log(`[server] API http://0.0.0.0:${PORT} üzerinde çalışıyor`)
+  );
+  // Starts one render thread now so the first export is not the slow one.
+  warmUpRenderPool();
+
+  for (const signal of ['SIGTERM', 'SIGINT']) {
+    process.on(signal, () => {
+      console.log(`[server] ${signal} received, shutting down.`);
+      server.close(() => {
+        shutdownRenderPool().finally(() => process.exit(0));
+      });
+    });
+  }
+
   bootstrapDb();
 }
 

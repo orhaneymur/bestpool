@@ -1,22 +1,45 @@
+import { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
+import { Loader2 } from 'lucide-react';
 import { useAuth } from './context/AuthContext.jsx';
 import Layout from './components/Layout.jsx';
 import Login from './pages/Login.jsx';
-import Dashboard from './pages/Dashboard.jsx';
-import Customers from './pages/Customers.jsx';
-import CustomerDetail from './pages/CustomerDetail.jsx';
-import Services from './pages/Services.jsx';
-import Templates from './pages/Templates.jsx';
-import Settings from './pages/Settings.jsx';
-import Definitions from './pages/Definitions.jsx';
-import Quotes from './pages/Quotes.jsx';
-import QuoteForm from './pages/QuoteForm.jsx';
-import Profile from './pages/Profile.jsx';
+
+/**
+ * Every page except the login screen loads on demand.
+ *
+ * The whole app used to ship as one bundle, so opening the login page also
+ * downloaded and parsed the contract wizard, the live PDF preview and the
+ * settings screens before anything could render. Login stays eager because it is
+ * the first thing an unauthenticated visitor sees.
+ */
+const Dashboard = lazy(() => import('./pages/Dashboard.jsx'));
+const Customers = lazy(() => import('./pages/Customers.jsx'));
+const CustomerDetail = lazy(() => import('./pages/CustomerDetail.jsx'));
+const Services = lazy(() => import('./pages/Services.jsx'));
+const Templates = lazy(() => import('./pages/Templates.jsx'));
+const Settings = lazy(() => import('./pages/Settings.jsx'));
+const Definitions = lazy(() => import('./pages/Definitions.jsx'));
+const Quotes = lazy(() => import('./pages/Quotes.jsx'));
+const QuoteForm = lazy(() => import('./pages/QuoteForm.jsx'));
+const Profile = lazy(() => import('./pages/Profile.jsx'));
+
+function PageFallback() {
+  return (
+    <div className="flex min-h-[40vh] items-center justify-center text-muted-foreground">
+      <Loader2 className="h-5 w-5 animate-spin" />
+    </div>
+  );
+}
 
 function Private({ children }) {
   const { user } = useAuth();
   if (!user) return <Navigate to="/login" replace />;
-  return <Layout>{children}</Layout>;
+  return (
+    <Layout>
+      <Suspense fallback={<PageFallback />}>{children}</Suspense>
+    </Layout>
+  );
 }
 
 export default function App() {

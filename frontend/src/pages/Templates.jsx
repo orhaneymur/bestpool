@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Plus } from 'lucide-react';
+import { Loader2, Plus } from 'lucide-react';
 import api from '@/api/client.js';
 import PageHeader from '@/components/layout/PageHeader.jsx';
 import { Button } from '@/components/ui/button.jsx';
@@ -11,18 +11,43 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card.j
 export default function Templates() {
   const [rows, setRows] = useState([]);
   const [form, setForm] = useState(null);
+  const [openingId, setOpeningId] = useState(null);
+  const [err, setErr] = useState('');
 
   const load = () => api.get('/templates').then((r) => setRows(r.data));
   useEffect(() => {
     load();
   }, []);
 
+  /**
+   * The list carries only a short preview of the terms, so editing fetches the
+   * full template. Saving the list row would otherwise truncate the contract
+   * body to its first 200 characters.
+   */
+  async function edit(row) {
+    setOpeningId(row.id);
+    setErr('');
+    try {
+      const { data } = await api.get(`/templates/${row.id}`);
+      setForm(data);
+    } catch (e) {
+      setErr(e.response?.data?.error || e.message || 'Could not open this template.');
+    } finally {
+      setOpeningId(null);
+    }
+  }
+
   async function save(e) {
     e.preventDefault();
-    if (form.id) await api.put(`/templates/${form.id}`, form);
-    else await api.post('/templates', form);
-    setForm(null);
-    load();
+    setErr('');
+    try {
+      if (form.id) await api.put(`/templates/${form.id}`, form);
+      else await api.post('/templates', form);
+      setForm(null);
+      load();
+    } catch (e2) {
+      setErr(e2.response?.data?.error || e2.message || 'Could not save this template.');
+    }
   }
 
   return (
@@ -41,6 +66,12 @@ export default function Templates() {
           New Template
         </Button>
       </PageHeader>
+
+      {err && (
+        <div className="rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+          {err}
+        </div>
+      )}
 
       {form && (
         <Card>
@@ -97,11 +128,19 @@ export default function Templates() {
                   {t.is_default && <Badge variant="kabul">Default</Badge>}
                 </div>
                 <div className="mt-1 line-clamp-2 text-xs text-muted-foreground sm:text-sm">
-                  {(t.body || '').slice(0, 160) || 'No body text'}
-                  {(t.body || '').length > 160 ? '…' : ''}
+                  {(t.body_preview || '').slice(0, 160) || 'No body text'}
+                  {(t.body_preview || '').length > 160 ? '…' : ''}
                 </div>
               </div>
-              <Button type="button" variant="outline" size="sm" onClick={() => setForm(t)}>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="gap-1.5"
+                disabled={openingId === t.id}
+                onClick={() => edit(t)}
+              >
+                {openingId === t.id && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                 Edit
               </Button>
             </CardContent>

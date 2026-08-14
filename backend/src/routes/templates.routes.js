@@ -1,13 +1,31 @@
 import { Router } from '../middleware/asyncRouter.js';
-import { Op } from 'sequelize';
+import { Op, fn, col } from 'sequelize';
 import { ContractTemplate, Quote } from '../models/index.js';
 import { auth } from '../middleware/auth.js';
 
 const router = Router();
 router.use(auth());
 
+/**
+ * The list never returns `body`.
+ *
+ * It is a LONGTEXT holding the full terms and conditions of every template, and
+ * it was going out with the contract wizard's opening request even though the
+ * wizard only ever shows template names in a dropdown. The list carries a short
+ * preview for the cards; the editor fetches the real thing by id.
+ */
 router.get('/', async (_req, res) => {
-  const rows = await ContractTemplate.findAll({ order: [['is_default', 'DESC'], ['name', 'ASC']] });
+  const rows = await ContractTemplate.findAll({
+    attributes: [
+      'id',
+      'name',
+      'is_default',
+      'created_at',
+      'updated_at',
+      [fn('LEFT', col('body'), 200), 'body_preview'],
+    ],
+    order: [['is_default', 'DESC'], ['name', 'ASC']],
+  });
   res.json(rows);
 });
 

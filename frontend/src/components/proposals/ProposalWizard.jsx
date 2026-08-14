@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowLeft, ArrowRight, Save, Loader2, Eye, X, Copy, Mail } from 'lucide-react';
-import api, { downloadFile } from '@/api/client.js';
+import api from '@/api/client.js';
+import { useDownload } from '@/hooks/useDownload.js';
 import { Button } from '@/components/ui/button.jsx';
 import WizardStepper from './WizardStepper.jsx';
 import LivePaperPreview from './LivePaperPreview.jsx';
@@ -36,7 +37,10 @@ export default function ProposalWizard({ id, initialCustomerId }) {
   const editing = !!id;
 
   const [step, setStep] = useState(0);
-  const [customers, setCustomers] = useState([]);
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
+  // True only between picking a customer and its full record arriving, so the
+  // facility fields are prefilled on a fresh choice and never on a reload.
+  const [prefillFromCustomer, setPrefillFromCustomer] = useState(false);
   const [services, setServices] = useState([]);
   const [templates, setTemplates] = useState([]);
   const [saving, setSaving] = useState(false);
@@ -49,6 +53,8 @@ export default function ProposalWizard({ id, initialCustomerId }) {
   const [season, setSeason] = useState(null);
   const [companyHidden, setCompanyHidden] = useState([]);
   const [hiddenFields, setHiddenFields] = useState([]);
+  const [duplicating, setDuplicating] = useState(false);
+  const { busyKey, download } = useDownload();
 
   const [q, setQ] = useState({
     customer_id: initialCustomerId || '',
@@ -98,17 +104,59 @@ export default function ProposalWizard({ id, initialCustomerId }) {
     };
   }, [editing]);
 
+  /**
+   * The customer table is no longer part of this request.
+   *
+   * Opening the wizard used to fetch every customer, every service and every
+   * contract template — including each template's full LONGTEXT body — before
+   * the first field could be edited. The picker now searches server-side and
+   * the templates arrive without their body text.
+   */
   useEffect(() => {
-    Promise.all([api.get('/customers'), api.get('/services'), api.get('/templates')]).then(
-      ([c, s, t]) => {
-        setCustomers(c.data);
-        setServices(s.data);
-        setTemplates(t.data);
-        const def = t.data.find((x) => x.is_default);
-        if (def && !editing) setQ((prev) => ({ ...prev, contract_template_id: def.id }));
-      }
-    );
+    Promise.all([api.get('/services'), api.get('/templates')]).then(([s, t]) => {
+      setServices(s.data);
+      setTemplates(t.data);
+      const def = t.data.find((x) => x.is_default);
+      if (def && !editing) setQ((prev) => ({ ...prev, contract_template_id: def.id }));
+    });
   }, [editing]);
+
+  /**
+   * Resolve the chosen customer to its full record — the picker's rows carry
+   * only the columns its dropdown draws, and the summary card below it needs
+   * address, email and tax details.
+   */
+  useEffect(() => {
+    if (!q.customer_id) {
+      setSelectedCustomer(null);
+      return undefined;
+    }
+    if (selectedCustomer && String(selectedCustomer.id) === String(q.customer_id)) return undefined;
+
+    let cancelled = false;
+    api
+      .get(`/customers/${q.customer_id}`)
+      .then((r) => {
+        if (cancelled) return;
+        setSelectedCustomer(r.data);
+        // Only when the user just picked this customer, so re-opening a saved
+        // contract never overwrites a facility name that was cleared on purpose.
+        if (prefillFromCustomer) {
+          setPrefillFromCustomer(false);
+          setQ((prev) => ({
+            ...prev,
+            facility_name: prev.facility_name || r.data.name || '',
+            facility_address: prev.facility_address || r.data.address || '',
+          }));
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setSelectedCustomer(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [q.customer_id, selectedCustomer, prefillFromCustomer]);
 
   useEffect(() => {
     if (!editing) return;
@@ -154,7 +202,13 @@ export default function ProposalWizard({ id, initialCustomerId }) {
   const totalHours = Number(q.lifeguard_count || 0) * Number(q.hours_per_week || 0);
   const weeks = weeksBetween(q.season_start, q.season_end);
   const peakWeeks = Number(q.peak_weeks || weeks || 0);
-  const selectedCustomer = customers.find((c) => String(c.id) === String(q.customer_id));
+
+  /** Picking from the dropdown: remember the id, then let the effect above fill in the rest. */
+  function selectCustomer(row) {
+    setPrefillFromCustomer(true);
+    setSelectedCustomer(null);
+    setQ((prev) => ({ ...prev, customer_id: row.id }));
+  }
   /**
    * Season figures come from the server, not from arithmetic in the browser.
    * The invoice, the saved contract and the PDF all read the same
@@ -283,13 +337,18 @@ export default function ProposalWizard({ id, initialCustomerId }) {
 
   async function exportFile(kind) {
     let sid = savedId || id;
+    let no = quoteNo;
     if (!sid) {
       const created = await save();
       sid = created?.id;
+      // Read the number off the response: setQuoteNo() above has not re-rendered
+      // yet, so the `quoteNo` captured by this closure is still empty and the
+      // file would download as "proposal.pdf".
+      no = created?.quote_no || no;
     }
     if (!sid) return;
-    const name = `${quoteNo || 'proposal'}.${kind === 'pdf' ? 'pdf' : 'xlsx'}`;
-    await downloadFile(`/quotes/${sid}/${kind}`, name);
+    const name = `${no || 'proposal'}.${kind === 'pdf' ? 'pdf' : 'xlsx'}`;
+    await download(`${kind}-${sid}`, `/quotes/${sid}/${kind}`, name);
   }
 
   return (
@@ -327,13 +386,21 @@ export default function ProposalWizard({ id, initialCustomerId }) {
               type="button"
               variant="outline"
               className="gap-2"
+              disabled={duplicating}
               onClick={async () => {
-                const sid = savedId || id;
-                const { data } = await api.post(`/quotes/${sid}/duplicate`);
-                nav(`/quotes/${data.id}`);
+                setDuplicating(true);
+                setErr('');
+                try {
+                  const { data } = await api.post(`/quotes/${savedId || id}/duplicate`);
+                  nav(`/quotes/${data.id}`);
+                } catch (e) {
+                  setErr(e.response?.data?.error || e.message || 'Could not duplicate this contract.');
+                } finally {
+                  setDuplicating(false);
+                }
               }}
             >
-              <Copy className="h-4 w-4" />
+              {duplicating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Copy className="h-4 w-4" />}
               Duplicate
             </Button>
           )}
@@ -383,8 +450,8 @@ export default function ProposalWizard({ id, initialCustomerId }) {
                 <StepCustomer
                   q={q}
                   setQ={setQ}
-                  customers={customers}
                   selectedCustomer={selectedCustomer}
+                  onSelectCustomer={selectCustomer}
                   season={season}
                 />
               )}
@@ -472,6 +539,7 @@ export default function ProposalWizard({ id, initialCustomerId }) {
             totals={totals}
             contractAmount={contractAmount}
             canExport={!!(savedId || id)}
+            busyKind={busyKey ? busyKey.split('-')[0] : null}
             onPdf={() => exportFile('pdf')}
             onExcel={() => exportFile('excel')}
           />
@@ -510,6 +578,7 @@ export default function ProposalWizard({ id, initialCustomerId }) {
               totals={totals}
               contractAmount={contractAmount}
               canExport={!!(savedId || id)}
+              busyKind={busyKey ? busyKey.split('-')[0] : null}
               onPdf={() => exportFile('pdf')}
               onExcel={() => exportFile('excel')}
             />

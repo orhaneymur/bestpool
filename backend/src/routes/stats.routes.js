@@ -18,7 +18,10 @@ router.get('/summary', async (_req, res) => {
   const byStatus = { taslak: 0, gonderildi: 0, kabul: 0, red: 0 };
   statusRows.forEach((r) => { byStatus[r.status] = Number(r.count); });
 
+  // The dashboard card shows eight lines; it does not need every column of
+  // every contract, least of all the JSON visibility list.
   const recent = await Quote.findAll({
+    attributes: ['id', 'quote_no', 'facility_name', 'status', 'total', 'currency', 'created_at'],
     include: [{ model: Customer, attributes: ['name'] }],
     order: [['created_at', 'DESC']],
     limit: 8,

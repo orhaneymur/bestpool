@@ -1,5 +1,5 @@
 import nodemailer from 'nodemailer';
-import { buildQuotePdf } from './pdf.js';
+import { renderDocument } from './renderPool.js';
 
 const COMPANY_MAIL = process.env.MAIL_FROM || process.env.SMTP_USER || 'orhaneymur@gmail.com';
 
@@ -131,7 +131,9 @@ export async function sendProposalEmail(quote, setting, overrides = {}) {
   const text = overrides.text || draft.text;
   const html = overrides.html || draft.html;
 
-  const pdfBuffer = await buildQuotePdf(quote, setting || {});
+  // Same render path the download button uses, so the attachment is built on a
+  // worker thread rather than blocking the API while an email goes out.
+  const pdfBuffer = await renderDocument('pdf', quote, setting || {});
   const filename = `${quote.quote_no || 'proposal'}.pdf`;
 
   const transporter = getTransport();

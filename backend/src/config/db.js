@@ -11,7 +11,20 @@ export const sequelize = new Sequelize(
     host: process.env.DB_HOST || 'localhost',
     port: Number(process.env.DB_PORT || 3306),
     dialect: 'mysql',
-    logging: false,
+    /**
+     * Off by default. Set SLOW_QUERY_MS to log any statement that takes longer
+     * than that many milliseconds — the cheapest way to find out which query is
+     * responsible the next time a screen feels slow, without turning on the
+     * general log and drowning in noise.
+     */
+    benchmark: !!Number(process.env.SLOW_QUERY_MS),
+    logging: Number(process.env.SLOW_QUERY_MS)
+      ? (sql, timingMs) => {
+          if (timingMs >= Number(process.env.SLOW_QUERY_MS)) {
+            console.warn(`[db] slow query ${timingMs}ms: ${String(sql).slice(0, 300)}`);
+          }
+        }
+      : false,
     define: {
       underscored: true,
       freezeTableName: false,
@@ -20,7 +33,14 @@ export const sequelize = new Sequelize(
       createdAt: 'created_at',
       updatedAt: 'updated_at',
     },
-    pool: { max: 10, min: 0, acquire: 30000, idle: 10000 },
+    /**
+     * `acquire` was 30s: when the pool was saturated a request would sit there
+     * for half a minute before erroring, which is long past the point where the
+     * user has given up. Ten seconds still absorbs a burst but surfaces real
+     * contention quickly, and a warm minimum connection keeps the first request
+     * after an idle spell from paying for a handshake.
+     */
+    pool: { max: Number(process.env.DB_POOL_MAX) || 15, min: 1, acquire: 10000, idle: 10000 },
   }
 );
 

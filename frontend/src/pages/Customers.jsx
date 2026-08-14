@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, Search } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Loader2, Plus, Search } from 'lucide-react';
 import api from '@/api/client.js';
 import PageHeader from '@/components/layout/PageHeader.jsx';
 import { Button } from '@/components/ui/button.jsx';
@@ -21,23 +21,105 @@ const EMPTY = {
   notes: '',
 };
 
+const PAGE_SIZE = 50;
+
 export default function Customers() {
   const [rows, setRows] = useState([]);
   const [q, setQ] = useState('');
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState('');
   const [form, setForm] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [openingId, setOpeningId] = useState(null);
+  // Bumped to re-run the effect below after a save, so loading stays in one place.
+  const [reloadKey, setReloadKey] = useState(0);
 
-  const load = () => api.get('/customers', { params: { q } }).then((r) => setRows(r.data));
+  /**
+   * One request per settled search, and never a stale one.
+   *
+   * This used to fire on every keystroke with no debounce and no cancellation,
+   * so a slow early response could land after a fast later one and repaint the
+   * table with results for a query the user had already moved past. That is what
+   * made the list look like it "sometimes just doesn't load".
+   */
   useEffect(() => {
-    load();
+    const controller = new AbortController();
+    setLoading(true);
+    const timer = setTimeout(() => {
+      api
+        .get('/customers', {
+          params: { q: q.trim() || undefined, page, limit: PAGE_SIZE },
+          signal: controller.signal,
+        })
+        .then((r) => {
+          setRows(r.data.rows || []);
+          setTotal(r.data.count || 0);
+          setErr('');
+        })
+        .catch((e) => {
+          if (controller.signal.aborted) return;
+          setErr(e.response?.data?.error || e.message || 'Could not load customers.');
+        })
+        .finally(() => {
+          if (!controller.signal.aborted) setLoading(false);
+        });
+    }, 250);
+
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [q, page, reloadKey]);
+
+  // A new search starts from the first page rather than from wherever the user
+  // had paged to for the previous one.
+  useEffect(() => {
+    setPage(1);
   }, [q]);
+
+  const reload = () => setReloadKey((n) => n + 1);
+
+  /**
+   * The table only carries the columns it draws, so editing has to fetch the
+   * full record — otherwise saving would blank out address, notes and tax
+   * details that the row never contained.
+   */
+  async function edit(customer) {
+    setOpeningId(customer.id);
+    setErr('');
+    try {
+      const { data } = await api.get(`/customers/${customer.id}`);
+      // Columns with no value come back as null, and a null `value` would flip
+      // these inputs from controlled to uncontrolled mid-edit.
+      const filled = { ...EMPTY };
+      for (const key of Object.keys(EMPTY)) filled[key] = data[key] ?? '';
+      setForm({ ...filled, id: data.id });
+    } catch (e) {
+      setErr(e.response?.data?.error || e.message || 'Could not open this customer.');
+    } finally {
+      setOpeningId(null);
+    }
+  }
 
   async function save(e) {
     e.preventDefault();
-    if (form.id) await api.put(`/customers/${form.id}`, form);
-    else await api.post('/customers', form);
-    setForm(null);
-    load();
+    setSaving(true);
+    setErr('');
+    try {
+      if (form.id) await api.put(`/customers/${form.id}`, form);
+      else await api.post('/customers', form);
+      setForm(null);
+      reload();
+    } catch (e2) {
+      setErr(e2.response?.data?.error || e2.message || 'Could not save this customer.');
+    } finally {
+      setSaving(false);
+    }
   }
+
+  const lastPage = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
     <div className="space-y-4 sm:space-y-5">
@@ -51,12 +133,21 @@ export default function Customers() {
       <div className="relative">
         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
-          className="h-11 pl-9"
+          className="h-11 pl-9 pr-9"
           placeholder="Search name, code, phone, tax ID…"
           value={q}
           onChange={(e) => setQ(e.target.value)}
         />
+        {loading && (
+          <Loader2 className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />
+        )}
       </div>
+
+      {err && (
+        <div className="rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+          {err}
+        </div>
+      )}
 
       {form && (
         <Card>
@@ -137,7 +228,8 @@ export default function Customers() {
                 <Button type="button" variant="outline" onClick={() => setForm(null)}>
                   Cancel
                 </Button>
-                <Button type="submit" variant="accent">
+                <Button type="submit" variant="accent" disabled={saving} className="gap-2">
+                  {saving && <Loader2 className="h-4 w-4 animate-spin" />}
                   Save
                 </Button>
               </div>
@@ -158,7 +250,15 @@ export default function Customers() {
                   </Link>
                   <div className="mt-0.5 text-xs text-muted-foreground">{c.code || '—'}</div>
                 </div>
-                <Button type="button" variant="outline" size="sm" onClick={() => setForm(c)}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5"
+                  disabled={openingId === c.id}
+                  onClick={() => edit(c)}
+                >
+                  {openingId === c.id && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                   Edit
                 </Button>
               </div>
@@ -172,7 +272,9 @@ export default function Customers() {
         ))}
         {rows.length === 0 && (
           <Card>
-            <CardContent className="p-8 text-center text-sm text-muted-foreground">No records.</CardContent>
+            <CardContent className="p-8 text-center text-sm text-muted-foreground">
+              {loading ? 'Loading…' : 'No records.'}
+            </CardContent>
           </Card>
         )}
       </div>
@@ -204,7 +306,15 @@ export default function Customers() {
                   <td className="px-4 py-3 text-muted-foreground">{c.phone || '—'}</td>
                   <td className="px-4 py-3 text-muted-foreground">{c.city || '—'}</td>
                   <td className="px-4 py-3 text-right">
-                    <Button type="button" variant="ghost" size="sm" onClick={() => setForm(c)}>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="gap-1.5"
+                      disabled={openingId === c.id}
+                      onClick={() => edit(c)}
+                    >
+                      {openingId === c.id && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                       Edit
                     </Button>
                   </td>
@@ -213,7 +323,7 @@ export default function Customers() {
               {rows.length === 0 && (
                 <tr>
                   <td colSpan={6} className="px-4 py-10 text-center text-muted-foreground">
-                    No records.
+                    {loading ? 'Loading…' : 'No records.'}
                   </td>
                 </tr>
               )}
@@ -221,6 +331,39 @@ export default function Customers() {
           </table>
         </div>
       </Card>
+
+      {total > 0 && (
+        <div className="flex flex-col items-center justify-between gap-3 sm:flex-row">
+          <div className="text-xs text-muted-foreground">
+            {`Showing ${(page - 1) * PAGE_SIZE + 1}–${Math.min(page * PAGE_SIZE, total)} of ${total}`}
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="gap-1"
+              disabled={page <= 1 || loading}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+            >
+              <ChevronLeft className="h-3.5 w-3.5" />
+              Previous
+            </Button>
+            <span className="text-xs tabular-nums text-muted-foreground">{`Page ${page} / ${lastPage}`}</span>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="gap-1"
+              disabled={page >= lastPage || loading}
+              onClick={() => setPage((p) => p + 1)}
+            >
+              Next
+              <ChevronRight className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

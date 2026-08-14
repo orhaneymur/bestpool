@@ -25,7 +25,9 @@ data:
   DB_PORT: "3306"
   DB_NAME: "havuz_teklif"
   DB_USER: "havuz"
-  DB_SYNC: "true"
+  # Plain CREATE TABLE IF NOT EXISTS still runs at boot; "true" would add
+  # alter, which rewrites live tables on every restart.
+  DB_SYNC: "false"
   JWT_EXPIRES_IN: "12h"
   CORS_ORIGIN: "*"
   ADMIN_EMAIL: "admin@havuz.local"

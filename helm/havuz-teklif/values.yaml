@@ -30,7 +30,8 @@ mysql:
 config:
   dbName: havuz_teklif
   dbUser: havuz
-  dbSync: "true"
+  # "true" turns on sync({ alter: true }); leave it off outside development.
+  dbSync: "false"
   corsOrigin: "*"
   jwtExpiresIn: "12h"
   adminEmail: admin@havuz.local

@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, FileDown, Plus, Sheet } from 'lucide-react';
-import api, { downloadFile } from '@/api/client.js';
+import { ArrowLeft, FileDown, Loader2, Plus, Sheet } from 'lucide-react';
+import api from '@/api/client.js';
+import { useDownload } from '@/hooks/useDownload.js';
 import { fmtMoney, fmtDate, statusLabel } from '@/api/utils.js';
 import PageHeader from '@/components/layout/PageHeader.jsx';
 import { Button } from '@/components/ui/button.jsx';
@@ -11,9 +12,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card.j
 export default function CustomerDetail() {
   const { id } = useParams();
   const [c, setC] = useState(null);
+  const { busyKey, download } = useDownload();
 
   useEffect(() => {
-    api.get(`/customers/${id}`).then((r) => setC(r.data));
+    // The contract history is opt-in on the API now, and this is the one screen
+    // that shows it.
+    api.get(`/customers/${id}`, { params: { include: 'quotes' } }).then((r) => setC(r.data));
   }, [id]);
 
   if (!c) {
@@ -95,17 +99,27 @@ export default function CustomerDetail() {
                       type="button"
                       variant="outline"
                       size="sm"
-                      onClick={() => downloadFile(`/quotes/${q.id}/pdf`, `${q.quote_no}.pdf`)}
+                      disabled={busyKey !== null}
+                      onClick={() => download(`pdf-${q.id}`, `/quotes/${q.id}/pdf`, `${q.quote_no}.pdf`)}
                     >
-                      <FileDown className="h-3.5 w-3.5" />
+                      {busyKey === `pdf-${q.id}` ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <FileDown className="h-3.5 w-3.5" />
+                      )}
                     </Button>
                     <Button
                       type="button"
                       variant="outline"
                       size="sm"
-                      onClick={() => downloadFile(`/quotes/${q.id}/excel`, `${q.quote_no}.xlsx`)}
+                      disabled={busyKey !== null}
+                      onClick={() => download(`excel-${q.id}`, `/quotes/${q.id}/excel`, `${q.quote_no}.xlsx`)}
                     >
-                      <Sheet className="h-3.5 w-3.5" />
+                      {busyKey === `excel-${q.id}` ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Sheet className="h-3.5 w-3.5" />
+                      )}
                     </Button>
                   </div>
                 </div>
@@ -149,8 +163,10 @@ export default function CustomerDetail() {
                         type="button"
                         variant="ghost"
                         size="sm"
-                        onClick={() => downloadFile(`/quotes/${q.id}/pdf`, `${q.quote_no}.pdf`)}
+                        disabled={busyKey !== null}
+                        onClick={() => download(`pdf-${q.id}`, `/quotes/${q.id}/pdf`, `${q.quote_no}.pdf`)}
                       >
+                        {busyKey === `pdf-${q.id}` && <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />}
                         PDF
                       </Button>
                     </td>

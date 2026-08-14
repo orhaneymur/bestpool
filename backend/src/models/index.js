@@ -29,7 +29,12 @@ export const Customer = sequelize.define('Customer', {
   tax_office: { type: DataTypes.STRING(120) }, // vergi dairesi
   tax_no: { type: DataTypes.STRING(40) },      // vergi / TC no
   notes: { type: DataTypes.TEXT },
-}, { tableName: 'customers' });
+}, {
+  tableName: 'customers',
+  // The list is always sorted by name; without this MySQL sorted the whole
+  // table on every request.
+  indexes: [{ name: 'idx_customers_name', fields: ['name'] }],
+});
 
 // --- Hizmet Kategorileri (panelden yönetilir) ---
 // ServiceItem.category, buradaki `code` değerini metin olarak tutar. Yabancı
@@ -106,7 +111,25 @@ export const Quote = sequelize.define('Quote', {
   // No defaultValue: a literal [] would be one array shared by every instance.
   // Readers go through sanitizeHiddenFields(), which turns null into [].
   hidden_fields: { type: DataTypes.JSON },
-}, { tableName: 'quotes' });
+}, {
+  tableName: 'quotes',
+  /**
+   * The contract list is the hottest query in the app: filter by status and/or
+   * season year, always ordered by created_at DESC. With no index MySQL read
+   * every row and sorted the lot on each keystroke.
+   *
+   * idx_quotes_status_created serves both the filtered and the unfiltered list —
+   * the leading column is optional for a range scan on the second only when the
+   * filter is present, so created_at also gets its own index for the "All
+   * statuses" case.
+   */
+  indexes: [
+    { name: 'idx_quotes_created', fields: ['created_at'] },
+    { name: 'idx_quotes_status_created', fields: ['status', 'created_at'] },
+    { name: 'idx_quotes_customer', fields: ['customer_id'] },
+    { name: 'idx_quotes_season_start', fields: ['season_start'] },
+  ],
+});
 
 // --- Teklif Kalemleri ---
 export const QuoteItem = sequelize.define('QuoteItem', {

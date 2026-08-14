@@ -1,11 +1,11 @@
 import { Router } from '../middleware/asyncRouter.js';
-import { Op } from 'sequelize';
+import { Op, fn, col, QueryTypes } from 'sequelize';
 import { sequelize, Quote, QuoteItem, QuoteInstallment, QuoteSchedule, QuoteNote, Customer, ContractTemplate, User, Setting } from '../models/index.js';
 import { auth } from '../middleware/auth.js';
 import { computeTotals } from '../services/pricing.js';
-import { buildQuotePdf } from '../services/pdf.js';
+import { renderDocument } from '../services/renderPool.js';
+import { parsePaging, pageResult } from '../middleware/pagination.js';
 import { mergeDefinitions, sanitizeHiddenFields } from '../config/pdfDefinitions.js';
-import { buildQuoteExcel } from '../services/excel.js';
 import { buildProposalEmail, sendProposalEmail } from '../services/mail.js';
 
 const router = Router();
@@ -24,16 +24,22 @@ async function nextQuoteNo(attempt = 0) {
   const year = new Date().getFullYear();
   const stem = def.numbering.yearlyReset ? `${prefix}-${year}-` : `${prefix}-`;
 
-  const issued = await Quote.findAll({
-    attributes: ['quote_no'],
-    where: { quote_no: { [Op.like]: `${stem}%` } },
-    raw: true,
-  });
+  // MySQL finds the highest sequence. This used to pull every contract number
+  // issued this year back into Node just to run Math.max over them, so saving a
+  // contract got steadily slower as the year went on.
+  const [row] = await sequelize.query(
+    `SELECT MAX(CAST(SUBSTRING(quote_no, :stemLength) AS UNSIGNED)) AS highest
+       FROM quotes
+      WHERE quote_no LIKE :pattern
+        AND SUBSTRING(quote_no, :stemLength) REGEXP '^[0-9]+$'`,
+    {
+      // SUBSTRING is 1-indexed, so the sequence starts one past the stem.
+      replacements: { stemLength: stem.length + 1, pattern: `${stem}%` },
+      type: QueryTypes.SELECT,
+    }
+  );
 
-  const highest = issued.reduce((max, row) => {
-    const n = Number.parseInt(String(row.quote_no).slice(stem.length), 10);
-    return Number.isFinite(n) && n > max ? n : max;
-  }, 0);
+  const highest = Number(row?.highest) || 0;
 
   // `attempt` walks the sequence forward when a concurrent request grabbed the
   // same number first — see createWithUniqueNo().
@@ -67,11 +73,15 @@ async function defaultHiddenFields() {
   return mergeDefinitions(setting?.definitions).hidden;
 }
 
+/**
+ * Saving a contract writes four child tables. Each row used to be its own
+ * awaited INSERT inside the transaction — a typical contract meant forty-odd
+ * sequential round trips, all of them holding locks while the next one waited
+ * for the network. bulkCreate sends each table as a single statement.
+ */
 async function saveSchedules(quoteId, schedules, t) {
-  const rows = Array.isArray(schedules) ? schedules : [];
-  for (const [i, s] of rows.entries()) {
-    if (!s || !s.day_label) continue;
-    await QuoteSchedule.create({
+  const rows = (Array.isArray(schedules) ? schedules : [])
+    .map((s, i) => (!s || !s.day_label ? null : {
       quote_id: quoteId,
       season_type: s.season_type === 'okul' ? 'okul' : 'normal',
       day_label: s.day_label,
@@ -79,22 +89,44 @@ async function saveSchedules(quoteId, schedules, t) {
       close_time: s.is_closed ? null : (s.close_time || null),
       is_closed: !!s.is_closed,
       sort_order: s.sort_order ?? i,
-    }, { transaction: t });
-  }
+    }))
+    .filter(Boolean);
+  if (rows.length) await QuoteSchedule.bulkCreate(rows, { transaction: t });
 }
 
 async function saveNotes(quoteId, notes, t) {
-  const rows = Array.isArray(notes) ? notes : [];
-  for (const [i, n] of rows.entries()) {
-    const body = (n?.body || '').trim();
-    if (!body) continue;
-    await QuoteNote.create({
-      quote_id: quoteId,
-      label: n.label || null,
-      body,
-      sort_order: n.sort_order ?? i,
-    }, { transaction: t });
-  }
+  const rows = (Array.isArray(notes) ? notes : [])
+    .map((n, i) => {
+      const body = (n?.body || '').trim();
+      if (!body) return null;
+      return { quote_id: quoteId, label: n.label || null, body, sort_order: n.sort_order ?? i };
+    })
+    .filter(Boolean);
+  if (rows.length) await QuoteNote.bulkCreate(rows, { transaction: t });
+}
+
+/** Contract line items, in the order the form listed them. */
+function itemRows(quoteId, lines) {
+  return (lines || []).map((it, i) => ({
+    quote_id: quoteId,
+    service_item_id: it.service_item_id || null,
+    description: it.description,
+    quantity: it.quantity,
+    unit: it.unit || 'unit',
+    unit_price: it.unit_price,
+    vat_rate: it.vat_rate,
+    line_total: it.line_total,
+    sort_order: i,
+  }));
+}
+
+function installmentRows(quoteId, installments) {
+  return (installments || []).map((inst) => ({
+    quote_id: quoteId,
+    label: inst.label,
+    due_date: nullIfEmpty(inst.due_date),
+    amount: toNum(inst.amount, 0),
+  }));
 }
 
 function nullIfEmpty(v) {
@@ -167,13 +199,21 @@ function fullQuoteInclude() {
   ];
 }
 
-// Liste (filtre: müşteri, durum, sezon yılı, arama)
-router.get('/', async (req, res) => {
+/** Columns the contract table renders — the rest stays in the database. */
+const LIST_ATTRIBUTES = [
+  'id', 'quote_no', 'customer_id', 'facility_name', 'season_start', 'season_end',
+  'status', 'total', 'currency', 'created_at',
+];
+
+/**
+ * Everything except the status filter, so the status tiles can be counted over
+ * the same year and search the user is looking at.
+ */
+function baseFilter(query) {
   const and = [];
-  if (req.query.customer_id) and.push({ customer_id: req.query.customer_id });
-  if (req.query.status) and.push({ status: req.query.status });
-  if (req.query.year) {
-    const y = Number(req.query.year);
+  if (query.customer_id) and.push({ customer_id: query.customer_id });
+  if (query.year) {
+    const y = Number(query.year);
     if (y) {
       and.push({
         [Op.or]: [
@@ -183,31 +223,61 @@ router.get('/', async (req, res) => {
       });
     }
   }
-  if (req.query.q) {
-    const q = `%${String(req.query.q).trim()}%`;
+  if (query.q) {
+    const q = `%${String(query.q).trim()}%`;
+    // The customer columns are matched in SQL through the joined table. This
+    // used to be a second pass in JavaScript over every row the database had
+    // already returned, which meant fetching rows only to throw them away.
     and.push({
       [Op.or]: [
         { quote_no: { [Op.like]: q } },
         { facility_name: { [Op.like]: q } },
+        { '$Customer.name$': { [Op.like]: q } },
+        { '$Customer.code$': { [Op.like]: q } },
       ],
     });
   }
-  let rows = await Quote.findAll({
-    where: and.length ? { [Op.and]: and } : {},
-    include: [{ model: Customer, attributes: ['id', 'name', 'code'] }],
-    order: [['created_at', 'DESC']],
+  return and;
+}
+
+// Liste (filtre: müşteri, durum, sezon yılı, arama)
+router.get('/', async (req, res) => {
+  const base = baseFilter(req.query);
+  const and = [...base];
+  if (req.query.status) and.push({ status: req.query.status });
+
+  const { limit, offset, page } = parsePaging(req.query);
+  const customerJoin = { model: Customer, attributes: ['id', 'name', 'code'] };
+
+  const [{ rows, count }, statusRows] = await Promise.all([
+    Quote.findAndCountAll({
+      where: and.length ? { [Op.and]: and } : {},
+      attributes: LIST_ATTRIBUTES,
+      include: [customerJoin],
+      order: [['created_at', 'DESC']],
+      limit,
+      offset,
+      // belongsTo is one row per contract, so LIMIT can be applied directly
+      // instead of Sequelize wrapping the query in a subquery.
+      subQuery: false,
+      distinct: true,
+    }),
+    // The tiles show totals for the whole filter, not for the page on screen.
+    Quote.findAll({
+      where: base.length ? { [Op.and]: base } : {},
+      attributes: ['status', [fn('COUNT', col('Quote.id')), 'count']],
+      include: req.query.q ? [{ ...customerJoin, attributes: [] }] : [],
+      group: ['Quote.status'],
+      raw: true,
+    }),
+  ]);
+
+  const counts = { taslak: 0, gonderildi: 0, kabul: 0, red: 0 };
+  statusRows.forEach((r) => {
+    if (counts[r.status] != null) counts[r.status] = Number(r.count);
   });
-  if (req.query.q) {
-    const needle = String(req.query.q).trim().toLowerCase();
-    rows = rows.filter((r) => {
-      const hay = [r.quote_no, r.facility_name, r.Customer?.name, r.Customer?.code]
-        .filter(Boolean)
-        .join(' ')
-        .toLowerCase();
-      return hay.includes(needle);
-    });
-  }
-  res.json(rows);
+
+  res.json(pageResult({ rows, count, page, limit, extra: { counts } }));
 });
 
 router.get('/:id', async (req, res) => {
@@ -244,28 +314,10 @@ router.post('/', auth(['admin', 'sales']), async (req, res) => {
       total: totals.total,
     }, t);
 
-    for (const [i, it] of totals.lines.entries()) {
-      await QuoteItem.create({
-        quote_id: quote.id,
-        service_item_id: it.service_item_id || null,
-        description: it.description,
-        quantity: it.quantity,
-        unit: it.unit || 'unit',
-        unit_price: it.unit_price,
-        vat_rate: it.vat_rate,
-        line_total: it.line_total,
-        sort_order: i,
-      }, { transaction: t });
-    }
-
-    for (const inst of (body.installments || [])) {
-      await QuoteInstallment.create({
-        quote_id: quote.id,
-        label: inst.label,
-        due_date: nullIfEmpty(inst.due_date),
-        amount: toNum(inst.amount, 0),
-      }, { transaction: t });
-    }
+    const items_ = itemRows(quote.id, totals.lines);
+    if (items_.length) await QuoteItem.bulkCreate(items_, { transaction: t });
+    const installments_ = installmentRows(quote.id, body.installments);
+    if (installments_.length) await QuoteInstallment.bulkCreate(installments_, { transaction: t });
 
     await saveSchedules(quote.id, body.schedules, t);
     await saveNotes(quote.id, body.special_notes, t);
@@ -300,27 +352,18 @@ router.put('/:id', auth(['admin', 'sales']), async (req, res) => {
       total: totals.total,
     }, { transaction: t });
 
+    // Four deletes and four inserts, instead of four deletes and one insert per
+    // line, instalment, schedule row and note.
     await QuoteItem.destroy({ where: { quote_id: quote.id }, transaction: t });
-    for (const [i, it] of totals.lines.entries()) {
-      await QuoteItem.create({
-        quote_id: quote.id, service_item_id: it.service_item_id || null, description: it.description,
-        quantity: it.quantity, unit: it.unit || 'unit', unit_price: it.unit_price,
-        vat_rate: it.vat_rate, line_total: it.line_total, sort_order: i,
-      }, { transaction: t });
-    }
     await QuoteInstallment.destroy({ where: { quote_id: quote.id }, transaction: t });
-    for (const inst of (body.installments || [])) {
-      await QuoteInstallment.create({
-        quote_id: quote.id,
-        label: inst.label,
-        due_date: nullIfEmpty(inst.due_date),
-        amount: toNum(inst.amount, 0),
-      }, { transaction: t });
-    }
-
     await QuoteSchedule.destroy({ where: { quote_id: quote.id }, transaction: t });
-    await saveSchedules(quote.id, body.schedules, t);
     await QuoteNote.destroy({ where: { quote_id: quote.id }, transaction: t });
+
+    const items_ = itemRows(quote.id, totals.lines);
+    if (items_.length) await QuoteItem.bulkCreate(items_, { transaction: t });
+    const installments_ = installmentRows(quote.id, body.installments);
+    if (installments_.length) await QuoteInstallment.bulkCreate(installments_, { transaction: t });
+    await saveSchedules(quote.id, body.schedules, t);
     await saveNotes(quote.id, body.special_notes, t);
 
     await t.commit();
@@ -387,27 +430,10 @@ router.post('/:id/duplicate', auth(['admin', 'sales']), async (req, res) => {
       hidden_fields: sanitizeHiddenFields(src.hidden_fields),
     }, t);
 
-    for (const [i, it] of (src.items || []).entries()) {
-      await QuoteItem.create({
-        quote_id: copy.id,
-        service_item_id: it.service_item_id,
-        description: it.description,
-        quantity: it.quantity,
-        unit: it.unit,
-        unit_price: it.unit_price,
-        vat_rate: it.vat_rate,
-        line_total: it.line_total,
-        sort_order: i,
-      }, { transaction: t });
-    }
-    for (const inst of (src.installments || [])) {
-      await QuoteInstallment.create({
-        quote_id: copy.id,
-        label: inst.label,
-        due_date: inst.due_date,
-        amount: inst.amount,
-      }, { transaction: t });
-    }
+    const copiedItems = itemRows(copy.id, src.items || []);
+    if (copiedItems.length) await QuoteItem.bulkCreate(copiedItems, { transaction: t });
+    const copiedInstallments = installmentRows(copy.id, src.installments || []);
+    if (copiedInstallments.length) await QuoteInstallment.bulkCreate(copiedInstallments, { transaction: t });
     await saveSchedules(copy.id, (src.schedules || []).map((s) => s.toJSON ? s.toJSON() : s), t);
     await saveNotes(copy.id, (src.special_notes || []).map((n) => n.toJSON ? n.toJSON() : n), t);
 
@@ -428,67 +454,48 @@ router.delete('/:id', auth(['admin', 'sales']), async (req, res) => {
 });
 
 // --- Çıktılar ---
-/**
- * Renderers run under a watchdog.
- *
- * pdfmake signals completion through stream events. If it ever finishes without
- * emitting 'end' or 'error' the promise never settles, the request hangs, and
- * the proxy in front eventually answers 502 — an outage symptom with nothing in
- * the logs to explain it. Losing the race turns that into an ordinary 500 that
- * names the contract.
- */
-function withTimeout(promise, ms, label) {
-  let timer;
-  const guard = new Promise((_resolve, reject) => {
-    timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms / 1000}s`)), ms);
-  });
-  return Promise.race([promise, guard]).finally(() => clearTimeout(timer));
-}
-
 /** Quote numbers are generated, but never trust one straight into a header. */
 const safeFilename = (name) => String(name || 'contract').replace(/[^A-Za-z0-9._-]/g, '_').slice(0, 80);
 
-router.get('/:id/pdf', async (req, res) => {
+const MIME = {
+  pdf: 'application/pdf',
+  excel: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+};
+
+/**
+ * Both exports follow the same path: load the contract, hand it to a render
+ * thread, stream the bytes back.
+ *
+ * The render never runs here. renderPool.js owns the worker threads and the
+ * watchdog, so a slow contract costs one background thread instead of freezing
+ * every other request in the process.
+ */
+async function sendRender(req, res, kind, extension) {
   const quote = await Quote.findByPk(req.params.id, { include: fullQuoteInclude() });
   if (!quote) return res.status(404).json({ error: 'Proposal not found.' });
   const setting = await Setting.findByPk(1);
 
   let buffer;
   try {
-    buffer = await withTimeout(
-      buildQuotePdf(quote.toJSON(), setting?.toJSON() || {}),
-      25000,
-      'PDF generation'
-    );
+    buffer = await renderDocument(kind, quote.toJSON(), setting?.toJSON() || {});
   } catch (err) {
-    console.error(`[pdf] Contract ${quote.quote_no} (id ${quote.id}) failed:`, err?.stack || err);
-    return res.status(500).json({ error: `Could not build the PDF: ${err.message}` });
+    console.error(`[${kind}] Contract ${quote.quote_no} (id ${quote.id}) failed:`, err?.stack || err);
+    return res
+      .status(err.status || 500)
+      .json({ error: `Could not build the ${kind === 'pdf' ? 'PDF' : 'Excel file'}: ${err.message}` });
   }
 
-  res.setHeader('Content-Type', 'application/pdf');
-  res.setHeader('Content-Disposition', `attachment; filename="${safeFilename(quote.quote_no)}.pdf"`);
-  res.send(buffer);
-});
+  res.setHeader('Content-Type', MIME[kind]);
+  res.setHeader('Content-Disposition', `attachment; filename="${safeFilename(quote.quote_no)}.${extension}"`);
+  // Content-Length lets the browser show a real progress bar instead of an
+  // open-ended spinner. res.end() rather than res.send() so Express does not
+  // hash the whole document again just to produce an ETag nobody revalidates.
+  res.setHeader('Content-Length', buffer.length);
+  return res.end(buffer);
+}
 
-router.get('/:id/excel', async (req, res) => {
-  const quote = await Quote.findByPk(req.params.id, { include: fullQuoteInclude() });
-  if (!quote) return res.status(404).json({ error: 'Proposal not found.' });
-  const setting = await Setting.findByPk(1);
-  let buffer;
-  try {
-    buffer = await withTimeout(
-      buildQuoteExcel(quote.toJSON(), setting?.toJSON() || {}),
-      25000,
-      'Excel generation'
-    );
-  } catch (err) {
-    console.error(`[excel] Contract ${quote.quote_no} (id ${quote.id}) failed:`, err?.stack || err);
-    return res.status(500).json({ error: `Could not build the Excel file: ${err.message}` });
-  }
-  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-  res.setHeader('Content-Disposition', `attachment; filename="${safeFilename(quote.quote_no)}.xlsx"`);
-  res.send(buffer);
-});
+router.get('/:id/pdf', (req, res) => sendRender(req, res, 'pdf', 'pdf'));
+router.get('/:id/excel', (req, res) => sendRender(req, res, 'excel', 'xlsx'));
 
 // Email draft preview (auto-filled English body)
 router.get('/:id/email-preview', async (req, res) => {

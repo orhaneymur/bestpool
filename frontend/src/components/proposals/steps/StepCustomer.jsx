@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label.jsx';
 import CustomerCombobox from '../CustomerCombobox.jsx';
 import { HideToggle } from '../VisibilityContext.jsx';
 
-export default function StepCustomer({ q, setQ, customers, selectedCustomer, season }) {
+export default function StepCustomer({ q, setQ, selectedCustomer, onSelectCustomer, season }) {
   return (
     <div className="space-y-4">
       <Card>
@@ -22,17 +22,13 @@ export default function StepCustomer({ q, setQ, customers, selectedCustomer, sea
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <Label>Customer</Label>
+            {/* The picker only ever sees the light list row. Address and the
+                other detail columns come from the full record the wizard
+                fetches once a customer is chosen. */}
             <CustomerCombobox
-              customers={customers}
               value={q.customer_id}
-              onChange={(c) => {
-                setQ((prev) => ({
-                  ...prev,
-                  customer_id: c.id,
-                  facility_name: prev.facility_name || c.name || '',
-                  facility_address: prev.facility_address || c.address || '',
-                }));
-              }}
+              selected={selectedCustomer}
+              onChange={onSelectCustomer}
             />
           </div>
 

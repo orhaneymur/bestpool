@@ -166,7 +166,7 @@ helm upgrade havuz ./helm/havuz-teklif -n havuz --set image.tag=v1.0.1
 
 - `JWT_SECRET`, tüm parolalar ve `ADMIN_PASSWORD` mutlaka değiştirilmeli (Secret / `--set`).
 - `CORS_ORIGIN` değerini kendi alan adınızla sınırlayın (`*` yerine).
-- `DB_SYNC=true` geliştirme kolaylığı içindir; üretimde şema oturduktan sonra `false` yapıp migration kullanmanız önerilir.
+- `DB_SYNC=true` geliştirme kolaylığı içindir ve üretimde **kapalı** gelir. Açıldığında her açılışta `sync({ alter: true })` çalışır: canlı tabloları yeniden yazar, açılışı yavaşlatır ve unique kısıtları tekrar ekleyerek zamanla mükerrer index biriktirebilir. Kapalıyken de eksik tablolar `CREATE TABLE IF NOT EXISTS` ile oluşur; şema değişiklikleri `ensureSchemaPatches()` üzerinden gider.
 - İlk girişten sonra yönetici şifresini değiştirin ve ek kullanıcıları rolleriyle tanımlayın.
 
 ## 🔌 API Özeti

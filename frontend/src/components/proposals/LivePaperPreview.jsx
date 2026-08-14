@@ -1,4 +1,4 @@
-import { FileDown, Sheet } from 'lucide-react';
+import { FileDown, Loader2, Sheet } from 'lucide-react';
 import { Button } from '@/components/ui/button.jsx';
 import { Badge } from '@/components/ui/badge.jsx';
 import { fmtMoney, fmtDate } from '@/api/utils.js';
@@ -35,6 +35,8 @@ export default function LivePaperPreview({
   onPdf,
   onExcel,
   canExport,
+  /** 'pdf' | 'excel' | null — which export is currently building, if any. */
+  busyKind = null,
 }) {
   const { isHidden, hidden } = useVisibility();
   const show = (k) => !isHidden(k);
@@ -290,13 +292,35 @@ export default function LivePaperPreview({
           </div>
         </div>
         <div className="grid grid-cols-2 gap-2 sm:flex">
-          <Button type="button" variant="outline" size="sm" className="gap-1.5" disabled={!canExport} onClick={onExcel}>
-            <Sheet className="h-3.5 w-3.5" />
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="gap-1.5"
+            disabled={!canExport || !!busyKind}
+            onClick={onExcel}
+          >
+            {busyKind === 'excel' ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Sheet className="h-3.5 w-3.5" />
+            )}
             Excel
           </Button>
-          <Button type="button" variant="accent" size="sm" className="gap-1.5" disabled={!canExport} onClick={onPdf}>
-            <FileDown className="h-3.5 w-3.5" />
-            Review PDF
+          <Button
+            type="button"
+            variant="accent"
+            size="sm"
+            className="gap-1.5"
+            disabled={!canExport || !!busyKind}
+            onClick={onPdf}
+          >
+            {busyKind === 'pdf' ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <FileDown className="h-3.5 w-3.5" />
+            )}
+            {busyKind === 'pdf' ? 'Building PDF…' : 'Review PDF'}
           </Button>
         </div>
       </div>

@@ -21,13 +21,22 @@ import { fileURLToPath } from 'url';
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 
+/**
+ * The printer is built once per process, not once per contract.
+ *
+ * Constructing it decodes four Roboto TTFs out of pdfmake's base64 font bundle —
+ * roughly 700 KB of synchronous work that used to run on every single PDF
+ * request, on the same thread that answers every other API call.
+ */
+let printerInstance = null;
 function getPrinter() {
+  if (printerInstance) return printerInstance;
   const vfs = require('pdfmake/build/vfs_fonts.js');
   const vfsData = vfs?.pdfMake?.vfs || vfs?.vfs || vfs?.default?.pdfMake?.vfs || vfs;
   if (!vfsData || !vfsData['Roboto-Regular.ttf']) {
     throw new Error('pdfmake fonts (vfs_fonts) could not be loaded. Ensure pdfmake is installed.');
   }
-  return new PdfPrinter({
+  printerInstance = new PdfPrinter({
     Roboto: {
       normal: Buffer.from(vfsData['Roboto-Regular.ttf'], 'base64'),
       bold: Buffer.from(vfsData['Roboto-Medium.ttf'], 'base64'),
@@ -35,6 +44,12 @@ function getPrinter() {
       bolditalics: Buffer.from(vfsData['Roboto-MediumItalic.ttf'], 'base64'),
     },
   });
+  return printerInstance;
+}
+
+/** Pays the font-decoding cost at boot so the first contract is not the slow one. */
+export function warmUpPdf() {
+  getPrinter();
 }
 
 export const DEFAULT_TAGLINE = 'Safety Is Our Standard, Service Is Our Promise';

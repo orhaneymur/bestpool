@@ -1,13 +1,16 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { Copy, FileDown, Plus, Search, Sheet } from 'lucide-react';
-import api, { downloadFile } from '@/api/client.js';
+import { ChevronLeft, ChevronRight, Copy, FileDown, Loader2, Plus, Search, Sheet } from 'lucide-react';
+import api from '@/api/client.js';
+import { useDownload } from '@/hooks/useDownload.js';
 import { fmtMoney, fmtDate, statusLabel } from '@/api/utils.js';
 import PageHeader from '@/components/layout/PageHeader.jsx';
 import { Button } from '@/components/ui/button.jsx';
 import { Badge } from '@/components/ui/badge.jsx';
 import { Card, CardContent } from '@/components/ui/card.jsx';
 import { Input } from '@/components/ui/input.jsx';
+
+const PAGE_SIZE = 50;
 
 const STATUSES = [
   { key: '', label: 'All' },
@@ -24,7 +27,15 @@ export default function Quotes() {
   const [status, setStatus] = useState(() => searchParams.get('status') || '');
   const [year, setYear] = useState(String(new Date().getFullYear()));
   const [q, setQ] = useState('');
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [counts, setCounts] = useState({ taslak: 0, gonderildi: 0, kabul: 0, red: 0 });
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState('');
   const [busyId, setBusyId] = useState(null);
+  // Bumped after a mutation so the list effect re-runs without a second loader.
+  const [reloadKey, setReloadKey] = useState(0);
+  const { busyKey, download } = useDownload();
 
   useEffect(() => {
     const s = searchParams.get('status') || '';
@@ -43,44 +54,80 @@ export default function Quotes() {
     return [y + 1, y, y - 1, y - 2].map(String);
   }, []);
 
-  const load = () =>
-    api
-      .get('/quotes', {
-        params: {
-          ...(status ? { status } : {}),
-          ...(year ? { year } : {}),
-          ...(q.trim() ? { q: q.trim() } : {}),
-        },
-      })
-      .then((r) => setRows(r.data));
-
+  /**
+   * The list is paged and every request is abortable.
+   *
+   * The debounce alone was not enough: two overlapping requests could still
+   * resolve out of order and leave the table showing results for a filter the
+   * user had already changed.
+   */
   useEffect(() => {
-    const t = setTimeout(load, 200);
-    return () => clearTimeout(t);
+    const controller = new AbortController();
+    setLoading(true);
+    const timer = setTimeout(() => {
+      api
+        .get('/quotes', {
+          params: {
+            ...(status ? { status } : {}),
+            ...(year ? { year } : {}),
+            ...(q.trim() ? { q: q.trim() } : {}),
+            page,
+            limit: PAGE_SIZE,
+          },
+          signal: controller.signal,
+        })
+        .then((r) => {
+          setRows(r.data.rows || []);
+          setTotal(r.data.count || 0);
+          setCounts(r.data.counts || { taslak: 0, gonderildi: 0, kabul: 0, red: 0 });
+          setErr('');
+        })
+        .catch((e) => {
+          if (controller.signal.aborted) return;
+          setErr(e.response?.data?.error || e.message || 'Could not load contracts.');
+        })
+        .finally(() => {
+          if (!controller.signal.aborted) setLoading(false);
+        });
+    }, 250);
+
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [status, year, q, page, reloadKey]);
+
+  // Any change to the filters starts again at page one.
+  useEffect(() => {
+    setPage(1);
   }, [status, year, q]);
 
+  const reload = () => setReloadKey((n) => n + 1);
+
   async function changeStatus(id, newStatus) {
-    await api.patch(`/quotes/${id}/status`, { status: newStatus });
-    load();
+    setErr('');
+    try {
+      await api.patch(`/quotes/${id}/status`, { status: newStatus });
+      reload();
+    } catch (e) {
+      setErr(e.response?.data?.error || e.message || 'Could not change the status.');
+    }
   }
 
   async function duplicate(id) {
     setBusyId(id);
+    setErr('');
     try {
       const { data } = await api.post(`/quotes/${id}/duplicate`);
       nav(`/quotes/${data.id}`);
+    } catch (e) {
+      setErr(e.response?.data?.error || e.message || 'Could not duplicate this contract.');
     } finally {
       setBusyId(null);
     }
   }
 
-  const counts = useMemo(() => {
-    const c = { taslak: 0, gonderildi: 0, kabul: 0, red: 0 };
-    rows.forEach((r) => {
-      if (c[r.status] != null) c[r.status] += 1;
-    });
-    return c;
-  }, [rows]);
+  const lastPage = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
     <div className="space-y-4 sm:space-y-5">
@@ -95,6 +142,12 @@ export default function Quotes() {
           </Link>
         </Button>
       </PageHeader>
+
+      {err && (
+        <div className="rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+          {err}
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         {STATUSES.filter((s) => s.key).map((s) => (
@@ -118,11 +171,14 @@ export default function Quotes() {
         <div className="relative flex-1">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            className="h-11 pl-9"
+            className="h-11 pl-9 pr-9"
             placeholder="Search proposal #, facility, customer…"
             value={q}
             onChange={(e) => setQ(e.target.value)}
           />
+          {loading && (
+            <Loader2 className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />
+          )}
         </div>
         <select
           value={year}
@@ -187,12 +243,34 @@ export default function Quotes() {
                 <Button asChild size="sm" variant="accent">
                   <Link to={`/quotes/${quote.id}`}>Open</Link>
                 </Button>
-                <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={() => downloadFile(`/quotes/${quote.id}/pdf`, `${quote.quote_no}.pdf`)}>
-                  <FileDown className="h-3.5 w-3.5" />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5"
+                  disabled={busyKey !== null}
+                  onClick={() => download(`pdf-${quote.id}`, `/quotes/${quote.id}/pdf`, `${quote.quote_no}.pdf`)}
+                >
+                  {busyKey === `pdf-${quote.id}` ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <FileDown className="h-3.5 w-3.5" />
+                  )}
                   PDF
                 </Button>
-                <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={() => downloadFile(`/quotes/${quote.id}/excel`, `${quote.quote_no}.xlsx`)}>
-                  <Sheet className="h-3.5 w-3.5" />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5"
+                  disabled={busyKey !== null}
+                  onClick={() => download(`excel-${quote.id}`, `/quotes/${quote.id}/excel`, `${quote.quote_no}.xlsx`)}
+                >
+                  {busyKey === `excel-${quote.id}` ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Sheet className="h-3.5 w-3.5" />
+                  )}
                   Excel
                 </Button>
               </div>
@@ -202,7 +280,7 @@ export default function Quotes() {
         {rows.length === 0 && (
           <Card>
             <CardContent className="p-8 text-center text-sm text-muted-foreground">
-              No proposals match these filters.
+              {loading ? 'Loading…' : 'No proposals match these filters.'}
             </CardContent>
           </Card>
         )}
@@ -257,10 +335,24 @@ export default function Quotes() {
                         <Copy className="mr-1 h-3.5 w-3.5" />
                         Duplicate
                       </Button>
-                      <Button type="button" variant="ghost" size="sm" onClick={() => downloadFile(`/quotes/${quote.id}/pdf`, `${quote.quote_no}.pdf`)}>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        disabled={busyKey !== null}
+                        onClick={() => download(`pdf-${quote.id}`, `/quotes/${quote.id}/pdf`, `${quote.quote_no}.pdf`)}
+                      >
+                        {busyKey === `pdf-${quote.id}` && <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />}
                         PDF
                       </Button>
-                      <Button type="button" variant="ghost" size="sm" onClick={() => downloadFile(`/quotes/${quote.id}/excel`, `${quote.quote_no}.xlsx`)}>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        disabled={busyKey !== null}
+                        onClick={() => download(`excel-${quote.id}`, `/quotes/${quote.id}/excel`, `${quote.quote_no}.xlsx`)}
+                      >
+                        {busyKey === `excel-${quote.id}` && <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />}
                         Excel
                       </Button>
                     </div>
@@ -270,7 +362,7 @@ export default function Quotes() {
               {rows.length === 0 && (
                 <tr>
                   <td colSpan={6} className="px-4 py-10 text-center text-muted-foreground">
-                    No proposals match these filters.
+                    {loading ? 'Loading…' : 'No proposals match these filters.'}
                   </td>
                 </tr>
               )}
@@ -278,6 +370,39 @@ export default function Quotes() {
           </table>
         </div>
       </Card>
+
+      {total > 0 && (
+        <div className="flex flex-col items-center justify-between gap-3 sm:flex-row">
+          <div className="text-xs text-muted-foreground">
+            {`Showing ${(page - 1) * PAGE_SIZE + 1}–${Math.min(page * PAGE_SIZE, total)} of ${total}`}
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="gap-1"
+              disabled={page <= 1 || loading}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+            >
+              <ChevronLeft className="h-3.5 w-3.5" />
+              Previous
+            </Button>
+            <span className="text-xs tabular-nums text-muted-foreground">{`Page ${page} / ${lastPage}`}</span>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="gap-1"
+              disabled={page >= lastPage || loading}
+              onClick={() => setPage((p) => p + 1)}
+            >
+              Next
+              <ChevronRight className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
