@@ -35,14 +35,18 @@ const origins = (process.env.CORS_ORIGIN || '*').split(',').map((s) => s.trim())
 app.use(cors({ origin: origins.includes('*') ? true : origins }));
 
 let dbReady = false;
+/** Startup steps that failed. Empty is the happy path; see step() and /health. */
+const startupIssues = [];
+
+const healthBody = () => ({
+  status: 'ok',
+  db: dbReady ? 'up' : 'starting',
+  ...(startupIssues.length ? { startupIssues } : {}),
+});
 
 // Sağlık kontrolü (Kubernetes probe'ları için) — DB beklenmeden 200 dönmeli
-app.get('/health', (_req, res) =>
-  res.json({ status: 'ok', db: dbReady ? 'up' : 'starting', time: new Date().toISOString() })
-);
-app.get('/api/health', (_req, res) =>
-  res.json({ status: 'ok', db: dbReady ? 'up' : 'starting' })
-);
+app.get('/health', (_req, res) => res.json({ ...healthBody(), time: new Date().toISOString() }));
+app.get('/api/health', (_req, res) => res.json(healthBody()));
 
 /**
  * Nothing that touches the database runs before the database is up.
@@ -107,34 +111,85 @@ process.on('uncaughtException', (err) => {
 
 const PORT = Number(process.env.PORT || 4000);
 
+/**
+ * Is the schema already there?
+ *
+ * An established install does not need sync() at all, and running it anyway is
+ * a risk rather than a safeguard: sync() also adds any index a model declares,
+ * which fails outright on a table that has hit MySQL's 64-index ceiling.
+ */
+async function hasCoreSchema() {
+  const [rows] = await sequelize.query(
+    `SELECT COUNT(*) AS c
+       FROM information_schema.TABLES
+      WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME IN ('users', 'quotes', 'customers')`
+  );
+  return Number(rows?.[0]?.c || 0) >= 3;
+}
+
+/**
+ * One maintenance step. A failure here is worth shouting about, but it must
+ * never be the reason the API stays down — see bootstrapDb().
+ */
+async function step(label, fn) {
+  try {
+    await fn();
+    return true;
+  } catch (err) {
+    const detail = err?.parent?.message || err?.message || String(err);
+    console.error(`[server] Startup step "${label}" failed (continuing):`, detail);
+    // Surfaced on /health so a failure is visible without shell access to the pod.
+    startupIssues.push({ step: label, error: detail });
+    return false;
+  }
+}
+
 async function bootstrapDb() {
   // Never exit the process on DB errors — keep retrying so pods stay Running.
   for (;;) {
     try {
       await connectWithRetry(30, 2000);
-      /**
-       * Plain sync() is CREATE TABLE IF NOT EXISTS: it builds a brand-new
-       * database and does nothing to an existing one. That is what makes it safe
-       * to leave DB_SYNC off in production — a first boot still works, while
-       * established installs are never rewritten.
-       *
-       * DB_SYNC=true additionally turns on alter, which rewrites live tables.
-       * Useful in development, expensive and index-duplicating in production.
-       */
-      const alter = String(process.env.DB_SYNC).toLowerCase() === 'true';
-      await sequelize.sync(alter ? { alter: true } : undefined);
-      console.log(alter ? '[db] Tablolar senkronize edildi (alter).' : '[db] Eksik tablolar oluşturuldu.');
-      await ensureSchemaPatches();
-      await ensureSeed();
-      dbReady = true;
-      console.log('[server] Startup migrations/seed complete.');
-      return;
+      break;
     } catch (err) {
       dbReady = false;
-      console.error('[server] DB bootstrap failed, retrying in 5s:', err.message);
+      console.error('[server] Cannot reach the database, retrying in 5s:', err.message);
       await new Promise((r) => setTimeout(r, 5000));
     }
   }
+
+  /**
+   * Reachable is what the request gate is asking about.
+   *
+   * This flag used to be set only after every migration and seed step had
+   * succeeded, so one failing step meant an infinite retry loop and a permanent
+   * 503 on every endpoint — an outage caused by maintenance work, on a database
+   * that was serving queries perfectly well. Connectivity opens the gate; the
+   * steps below report their own problems and do not hold it shut.
+   */
+  dbReady = true;
+
+  const alter = String(process.env.DB_SYNC).toLowerCase() === 'true';
+  const established = await hasCoreSchema().catch(() => false);
+
+  if (alter) {
+    // Development convenience: rewrite live tables to match the models.
+    await step('sync(alter)', async () => {
+      await sequelize.sync({ alter: true });
+      console.log('[db] Tablolar senkronize edildi (alter).');
+    });
+  } else if (!established) {
+    // First boot against an empty database: create the tables.
+    await step('sync', async () => {
+      await sequelize.sync();
+      console.log('[db] Tablolar oluşturuldu.');
+    });
+  } else {
+    console.log('[db] Şema mevcut, sync atlandı.');
+  }
+
+  await step('schema patches', ensureSchemaPatches);
+  await step('seed', ensureSeed);
+  console.log('[server] Startup migrations/seed complete.');
 }
 
 async function start() {
