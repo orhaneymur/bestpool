@@ -328,13 +328,10 @@ export default function LivePaperPreview({
       title: S.acceptance,
       node: (
         <div className="grid grid-cols-2 gap-6 pt-2">
+          {/* Signature last in both columns, and the same height reserved on
+              each, exactly as the PDF lays it out. */}
           <div>
             <div className="font-semibold">{L.ownerColumn}</div>
-            {/* Matches the PDF, where the same box is reserved in both columns so
-                the two sets of rules stay level. */}
-            <div className="mt-2 h-10" />
-            <div className="border-b border-slate-400" />
-            <div className="mt-0.5 text-[8px] uppercase tracking-wide text-slate-400">Signature</div>
             <div className="mt-3 border-b border-slate-400" />
             <div className="mt-0.5 text-[8px] uppercase tracking-wide text-slate-400">Title</div>
             <div className="mt-3 border-b border-slate-400" />
@@ -342,16 +339,12 @@ export default function LivePaperPreview({
             <div className="mt-3 h-4" />
             <div className="border-b border-slate-400" />
             <div className="mt-0.5 text-[8px] uppercase tracking-wide text-slate-400">Date</div>
+            <div className="mt-3 h-11" />
+            <div className="border-b border-slate-400" />
+            <div className="mt-0.5 text-[8px] uppercase tracking-wide text-slate-400">Signature</div>
           </div>
           <div>
             <div className="font-semibold">{L.contractorColumn}</div>
-            <div className="mt-2 flex h-10 items-end">
-              {showSignature && (
-                <img src={signatureImage} alt="Contractor signature" className="max-h-10 max-w-full object-contain" />
-              )}
-            </div>
-            <div className="border-b border-slate-400" />
-            <div className="mt-0.5 text-[8px] uppercase tracking-wide text-slate-400">Signature</div>
             <div className="mt-3 border-b border-slate-400" />
             <div className="mt-0.5 text-[8px] uppercase tracking-wide text-slate-400">
               {L.signatoryPrefix} {String(signatoryName).toUpperCase()}
@@ -363,6 +356,18 @@ export default function LivePaperPreview({
             </div>
             <div className="border-b border-slate-400" />
             <div className="mt-0.5 text-[8px] uppercase tracking-wide text-slate-400">Date</div>
+            {/* -mb-3 drops the ink onto the rule the way the PDF does. */}
+            <div className="mt-3 flex h-11 items-end overflow-visible">
+              {showSignature && (
+                <img
+                  src={signatureImage}
+                  alt="Contractor signature"
+                  className="-mb-3 max-h-11 max-w-full object-contain object-left"
+                />
+              )}
+            </div>
+            <div className="border-b border-slate-400" />
+            <div className="mt-0.5 text-[8px] uppercase tracking-wide text-slate-400">Signature</div>
           </div>
         </div>
       ),

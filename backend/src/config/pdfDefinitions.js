@@ -291,8 +291,8 @@ export const DEFAULT_DEFINITIONS = {
      * columns whether or not there is an image, so the two sets of rules stay
      * level with each other.
      */
-    signatureWidth: 150,
-    signatureHeight: 38,
+    signatureWidth: 210,
+    signatureHeight: 54,
   },
   /**
    * Blocks a brand-new contract starts with switched off.
@@ -348,6 +348,17 @@ const DEFINITION_MIGRATIONS = [
     apply(d) {
       if (!d.contractor.signatory) d.contractor.signatory = 'Mustafa INAN';
     },
+  },
+  {
+    /**
+     * Nothing changes in the company defaults here — hide-cover-email-and-initials
+     * already did that, and on installs where it has run this entry is the only
+     * way to trigger the matching change on contracts created beforehand. The
+     * backfill itself lives in the seed, which is where the contracts are; this
+     * only records that it has happened, so a redeploy does not repeat it.
+     */
+    id: 'apply-cover-defaults-to-existing-contracts',
+    apply() {},
   },
 ];
 
@@ -459,8 +470,8 @@ export function validateDefinitions(input) {
   d.branding.backgroundOpacity = clamp(Number(d.branding.backgroundOpacity), 0, 0.18, 0.05);
   // Bounded so an over-large signature cannot push the acceptance block onto a
   // page of its own, which is exactly what the one-page fit works to avoid.
-  d.branding.signatureWidth = clamp(Number(d.branding.signatureWidth), 40, 260, 150);
-  d.branding.signatureHeight = clamp(Number(d.branding.signatureHeight), 14, 90, 38);
+  d.branding.signatureWidth = clamp(Number(d.branding.signatureWidth), 40, 260, 210);
+  d.branding.signatureHeight = clamp(Number(d.branding.signatureHeight), 14, 90, 54);
 
   return { definitions: d, errors };
 }

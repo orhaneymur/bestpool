@@ -1,7 +1,7 @@
 import dotenv from 'dotenv';
 import bcrypt from 'bcryptjs';
-import { sequelize, User, ServiceItem, ServiceCategory, ContractTemplate, Setting, Customer } from '../models/index.js';
-import { applyDefinitionMigrations } from '../config/pdfDefinitions.js';
+import { sequelize, User, ServiceItem, ServiceCategory, ContractTemplate, Setting, Customer, Quote } from '../models/index.js';
+import { applyDefinitionMigrations, sanitizeHiddenFields } from '../config/pdfDefinitions.js';
 import { DEFAULT_CONTRACT_BODY } from './contractTemplate.js';
 import { DEFAULT_CONTRACT_BODY_EN, EN_TEMPLATE_NAME } from './contractTemplateEn.js';
 import { DEFAULT_TAGLINE } from '../services/pdf.js';
@@ -41,6 +41,43 @@ const SERVICES = [
   { code: 'INS-001', name: 'Insurance', category: 'other', unit: 'season', default_unit_price: 2500, vat_rate: 0 },
   { code: 'WIN-001', name: 'Winterization', category: 'winterization', unit: 'season', default_unit_price: 2000, vat_rate: 0 },
 ];
+
+/**
+ * Blocks that a definitions migration should also switch off on contracts that
+ * already exist.
+ *
+ * Normally it must not: a contract copies the company defaults once, at
+ * creation, precisely so that changing them later cannot alter paperwork
+ * already signed and sent. These two are the exception, and only because they
+ * are the company's own contact details on a title page rather than anything
+ * agreed with a customer — reprinting an old contract should not put an email
+ * address back on the cover that the company has decided to stop printing.
+ */
+const QUOTE_BACKFILLS = {
+  'apply-cover-defaults-to-existing-contracts': ['cover.email', 'cover.initials'],
+};
+
+async function backfillQuoteHiddenFields(appliedMigrations) {
+  const keys = appliedMigrations.flatMap((id) => QUOTE_BACKFILLS[id] || []);
+  if (!keys.length) return;
+
+  try {
+    const quotes = await Quote.findAll({ attributes: ['id', 'hidden_fields'] });
+    let changed = 0;
+    for (const quote of quotes) {
+      const current = sanitizeHiddenFields(quote.hidden_fields);
+      const missing = keys.filter((k) => !current.includes(k));
+      if (!missing.length) continue;
+      await quote.update({ hidden_fields: [...current, ...missing] });
+      changed += 1;
+    }
+    if (changed) console.log(`[seed] Applied cover defaults to ${changed} existing contract(s).`);
+  } catch (err) {
+    // Not fatal: new contracts already have the right defaults, and the rest can
+    // be changed one at a time from the contract's PDF output step.
+    console.warn('[seed] Could not backfill contract visibility:', err.message);
+  }
+}
 
 export async function ensureSeed() {
   const adminEmail = process.env.ADMIN_EMAIL || 'admin@havuz.local';
@@ -106,6 +143,7 @@ export async function ensureSeed() {
     if (migrated) {
       await settingsRow.update({ definitions: migrated.definitions });
       console.log('[seed] Definition defaults applied:', migrated.applied.join(', '));
+      await backfillQuoteHiddenFields(migrated.applied);
     }
   }
 

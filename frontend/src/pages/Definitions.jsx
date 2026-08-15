@@ -392,6 +392,24 @@ export default function Definitions() {
                   />
                 </div>
                 <div className="space-y-1.5 sm:col-span-2">
+                  <Label>Signature box width (pt)</Label>
+                  <Input
+                    type="number"
+                    disabled={readOnly}
+                    value={d.branding.signatureWidth}
+                    onChange={(e) => set('branding.signatureWidth', Number(e.target.value))}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Signature box height (pt)</Label>
+                  <Input
+                    type="number"
+                    disabled={readOnly}
+                    value={d.branding.signatureHeight}
+                    onChange={(e) => set('branding.signatureHeight', Number(e.target.value))}
+                  />
+                </div>
+                <div className="space-y-1.5">
                   <Label>
                     Watermark strength ({Math.round(Number(d.branding.backgroundOpacity) * 100)}%)
                   </Label>

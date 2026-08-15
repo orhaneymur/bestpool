@@ -265,7 +265,10 @@ function makeTheme(def) {
    * aspect ratio says so, and stacking it directly would misalign the columns by
    * exactly that difference.
    */
-  const sigLine = (label, { width = sigWidth, value = '', image = null, boxHeight = 0 } = {}) => {
+  const sigLine = (
+    label,
+    { width = sigWidth, value = '', image = null, imageFit = null, boxHeight = 0, overlap = 0 } = {}
+  ) => {
     const above = boxHeight > 0
       ? [{
           table: {
@@ -273,7 +276,12 @@ function makeTheme(def) {
             heights: [boxHeight],
             body: [[
               image
-                ? { image, fit: [width, boxHeight], alignment: 'left', border: [false, false, false, false] }
+                ? {
+                    image,
+                    fit: imageFit || [width, boxHeight],
+                    alignment: 'left',
+                    border: [false, false, false, false],
+                  }
                 : {
                     text: value,
                     fontSize: fs(8),
@@ -285,6 +293,12 @@ function makeTheme(def) {
             ]],
           },
           layout: 'noBorders',
+          /**
+           * A negative bottom margin pulls the rule up under the box, so the ink
+           * crosses the line the way a pen would. Both columns pass the same
+           * value, so their rules still finish level with each other.
+           */
+          margin: [0, 0, 0, -overlap],
         }]
       : [];
 
@@ -854,6 +868,11 @@ export async function buildQuotePdf(quote, setting = {}, options = {}) {
      */
     const signatureImage = show('spec.contractorSignature') ? signatureAsset : null;
     const signatureBox = signatureImage ? def.branding.signatureHeight : 0;
+    // Never wider than the column it sits in, however the setting is typed.
+    const signatureFitWidth = Math.min(def.branding.signatureWidth, T.sigWidth);
+    // How far the ink drops onto the rule. A third of the box reads as a pen
+    // stroke crossing the line; much more and the descenders fall off it.
+    const signatureOverlap = signatureImage ? Math.round(def.branding.signatureHeight / 3) : 0;
     // The date the contract was drawn up. A contract being previewed before its
     // first save has no created_at yet, so it shows today.
     const contractDate = dateEN(quote.created_at || new Date());
@@ -882,10 +901,10 @@ export async function buildQuotePdf(quote, setting = {}, options = {}) {
                 characterSpacing: 1,
                 margin: [0, 0, 0, 8],
               },
-              T.sigLine('SIGNATURE', { boxHeight: signatureBox }),
               T.sigLine('TITLE'),
               T.sigLine('COMPANY'),
               T.sigLine('DATE', { boxHeight: dateBox }),
+              T.sigLine('SIGNATURE', { boxHeight: signatureBox, overlap: signatureOverlap }),
             ],
           },
           {
@@ -899,10 +918,20 @@ export async function buildQuotePdf(quote, setting = {}, options = {}) {
                 characterSpacing: 1,
                 margin: [0, 0, 0, 8],
               },
-              T.sigLine('SIGNATURE', { boxHeight: signatureBox, image: signatureImage ? 'contractorSignature' : null }),
               T.sigLine(`${def.labels.signatoryPrefix} ${signatoryName.toUpperCase()}`),
               T.sigLine('TITLE'),
               T.sigLine('DATE', { boxHeight: dateBox, value: contractDate }),
+              /**
+               * Last, because signing is the last thing anyone does — and
+               * because a signature stranded above three empty lines read as a
+               * stamp rather than as somebody having signed the page.
+               */
+              T.sigLine('SIGNATURE', {
+                boxHeight: signatureBox,
+                overlap: signatureOverlap,
+                image: signatureImage ? 'contractorSignature' : null,
+                imageFit: [signatureFitWidth, def.branding.signatureHeight],
+              }),
             ],
           },
         ],
