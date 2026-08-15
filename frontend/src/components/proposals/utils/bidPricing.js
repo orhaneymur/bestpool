@@ -29,6 +29,63 @@ export const BID_RATES = {
   winterSingleGuard: 1000,
 };
 
+/**
+ * The catalogue entry behind each calculated expense.
+ *
+ * The bid used to price itself from the constants above and only label the
+ * lines afterwards, which left two sources of truth for the same numbers: edit
+ * a price on the Services page and the bid ignored you. The catalogue is the
+ * source now, and BID_RATES is the fallback for a service that has been deleted.
+ *
+ * Matched on code first and on name second, so renaming a code — or clearing it
+ * — does not quietly unlink every line and leave the wizard showing "Custom /
+ * calculated" for the lot.
+ */
+export const BID_SERVICES = {
+  wages: { code: 'LG-WAGE', name: 'Lifeguard wages' },
+  management: { code: 'MGT-001', name: 'Management' },
+  drainCleaning: { code: 'DRN-001', name: 'Drain and cleaning' },
+  commission: { code: 'COM-001', name: 'Commission' },
+  insurance: { code: 'INS-001', name: 'Insurance' },
+  winterization: { code: 'WIN-001', name: 'Winterization' },
+};
+
+/** Chemicals are three catalogue rows; which one applies follows the guard count. */
+export function chemicalServiceFor(lifeguardCount) {
+  const n = Number(lifeguardCount || 0);
+  if (n <= 1) return { code: 'CHM-1G', name: 'Chemicals (1-guard pool)' };
+  if (n <= 3) return { code: 'CHM-23G', name: 'Chemicals (2–3 guard pool)' };
+  return { code: 'CHM-4G', name: 'Chemicals (4+ guard pool)' };
+}
+
+const normalise = (v) => String(v || '').trim().toLowerCase();
+
+export function findBidService(services, ref) {
+  if (!ref || !Array.isArray(services)) return null;
+  const wantedCode = normalise(ref.code);
+  const wantedName = normalise(ref.name);
+
+  const byCode = services.find((s) => wantedCode && normalise(s.code) === wantedCode);
+  if (byCode) return byCode;
+
+  const byName = services.find((s) => wantedName && normalise(s.name) === wantedName);
+  if (byName) return byName;
+
+  // "Chemicals (4+ guard pool)" should still answer to "Chemicals".
+  const head = wantedName.split('(')[0].trim();
+  return services.find((s) => head && normalise(s.name).startsWith(head)) || null;
+}
+
+/** The catalogue price for one expense, or the shipped rate if it is not listed. */
+function catalogued(services, ref, fallback) {
+  const svc = findBidService(services, ref);
+  const price = Number(svc?.default_unit_price);
+  return {
+    service: svc,
+    price: Number.isFinite(price) && price > 0 ? round2(price) : fallback,
+  };
+}
+
 export function round2(n) {
   return Math.round((Number(n) + Number.EPSILON) * 100) / 100;
 }
@@ -71,6 +128,8 @@ export function computeBidSummary({
   lifeguardCount = 0,
   totalLifeguardHours = 0,
   weeklyStaffHours = 0,
+  /** The service catalogue. Prices come from here; BID_RATES is the fallback. */
+  services = [],
 } = {}) {
   const countyRow = getCountyWage(county);
   const hourlyWage = countyRow?.hourly || 0;
@@ -79,12 +138,37 @@ export function computeBidSummary({
   const totalHours = round2(Number(totalLifeguardHours || 0));
   const totalWages = round2(totalHours * hourlyWage);
 
-  const management = BID_RATES.management;
-  const drainCleaning = drainCleaningForGuards(guards);
-  const chemicals = chemicalsForGuards(guards);
-  const commission = BID_RATES.commission;
-  const insurance = BID_RATES.insurance;
-  const winterization = winterizationForGuards(guards);
+  const mgmt = catalogued(services, BID_SERVICES.management, BID_RATES.management);
+  const chem = catalogued(services, chemicalServiceFor(guards), chemicalsForGuards(guards));
+  const comm = catalogued(services, BID_SERVICES.commission, BID_RATES.commission);
+  const ins = catalogued(services, BID_SERVICES.insurance, BID_RATES.insurance);
+
+  /**
+   * Drain/cleaning and winterization are flat, except that a single-guard pool
+   * pays half. The catalogue holds the flat price; the halving is a rule, not a
+   * second price, so it is applied here rather than expected of the catalogue.
+   */
+  const drain = catalogued(services, BID_SERVICES.drainCleaning, BID_RATES.drainBase);
+  const winter = catalogued(services, BID_SERVICES.winterization, BID_RATES.winterBase);
+  const halveForSingleGuard = (value) => (guards <= 1 ? round2(value / 2) : value);
+
+  const management = mgmt.price;
+  const drainCleaning = halveForSingleGuard(drain.price);
+  const chemicals = chem.price;
+  const commission = comm.price;
+  const insurance = ins.price;
+  const winterization = halveForSingleGuard(winter.price);
+
+  // Which catalogue row priced each line, so the wizard can name them.
+  const sources = {
+    wages: findBidService(services, BID_SERVICES.wages),
+    management: mgmt.service,
+    drainCleaning: drain.service,
+    chemicals: chem.service,
+    commission: comm.service,
+    insurance: ins.service,
+    winterization: winter.service,
+  };
 
   const expenses = round2(
     management + drainCleaning + chemicals + commission + insurance + winterization
@@ -119,34 +203,23 @@ export function computeBidSummary({
     projectCost,
     salesTax,
     contractTotal,
+    sources,
   };
 }
 
 /** Build quote line items from bid summary (for PDF / totals). */
 /**
- * Which catalogue service each calculated line corresponds to.
+ * Turn a bid summary into contract line items.
  *
- * Without this every generated line came back marked "Manual" in the wizard,
- * even though most of them are priced straight off the service catalogue —
- * which left no way to tell, at a glance, which row was which. Overhead, profit
- * and sales tax have no catalogue entry because they are percentages of the
- * rest; those stay unlinked, and honestly so.
+ * Each line carries the catalogue row that priced it, so the wizard names the
+ * service instead of showing every row as unlinked. Overhead, profit and sales
+ * tax stay unlinked because they are percentages of the rest rather than
+ * anything the catalogue sells.
  */
-const CHEMICAL_CODE_BY_GUARDS = (guards) => {
-  const n = Number(guards || 0);
-  if (n <= 1) return 'CHM-1G';
-  if (n <= 3) return 'CHM-23G';
-  return 'CHM-4G';
-};
-
-export function buildBidLineItems(bid, services = []) {
+export function buildBidLineItems(bid) {
   if (!bid || !bid.hourlyWage) return [];
-
-  const byCode = new Map(services.map((s) => [String(s.code || '').toUpperCase(), s]));
-  const link = (code) => {
-    const svc = code ? byCode.get(code.toUpperCase()) : null;
-    return svc ? { service_item_id: svc.id } : { service_item_id: null };
-  };
+  const src = bid.sources || {};
+  const link = (svc) => ({ service_item_id: svc?.id ?? null });
 
   const lines = [];
   if (bid.totalLifeguardHours > 0) {
@@ -156,30 +229,32 @@ export function buildBidLineItems(bid, services = []) {
       unit: 'hour',
       unit_price: bid.hourlyWage,
       vat_rate: 0,
-      ...link('LG-WAGE'),
+      ...link(src.wages),
     });
   }
 
   const fixed = [
-    ['Management', bid.expenses.management, 'MGT-001'],
-    ['Drain and cleaning', bid.expenses.drainCleaning, 'DRN-001'],
-    ['Chemicals', bid.expenses.chemicals, CHEMICAL_CODE_BY_GUARDS(bid.lifeguardCount)],
-    ['Commission', bid.expenses.commission, 'COM-001'],
-    ['Insurance', bid.expenses.insurance, 'INS-001'],
-    ['Winterization', bid.expenses.winterization, 'WIN-001'],
+    ['Management', bid.expenses.management, src.management],
+    ['Drain and cleaning', bid.expenses.drainCleaning, src.drainCleaning],
+    ['Chemicals', bid.expenses.chemicals, src.chemicals],
+    ['Commission', bid.expenses.commission, src.commission],
+    ['Insurance', bid.expenses.insurance, src.insurance],
+    ['Winterization', bid.expenses.winterization, src.winterization],
     [`Overhead (${BID_RATES.overheadPct}%)`, bid.overhead, null],
     [`Profit (${BID_RATES.profitPct}%)`, bid.profit, null],
     [`Sales tax (${BID_RATES.salesTaxPct}%)`, bid.salesTax, null],
   ];
-  for (const [description, amount, code] of fixed) {
+  for (const [description, amount, service] of fixed) {
     if (!amount) continue;
     lines.push({
-      description,
+      // The catalogue's own wording when it priced the line, so the description
+      // and the named service cannot disagree.
+      description: service?.name || description,
       quantity: 1,
-      unit: 'season',
+      unit: service?.unit || 'season',
       unit_price: amount,
       vat_rate: 0,
-      ...link(code),
+      ...link(service),
     });
   }
   return lines;

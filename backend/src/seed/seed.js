@@ -186,20 +186,19 @@ export async function ensureSeed() {
     console.warn('[seed] Category adoption warning:', err.message);
   }
 
+  /**
+   * The catalogue ships with these, and is the user's from then on.
+   *
+   * This used to rewrite name, unit, price and vat on every boot, so a price
+   * edited on the Services page was silently reverted by the next deploy — and
+   * the bid, which now takes its prices from here, would have gone back with it.
+   * A missing service is still created; an existing one is left alone.
+   */
   for (const svc of SERVICES) {
     const existing = await ServiceItem.findOne({ where: { code: svc.code } });
     if (!existing) {
       await ServiceItem.create(svc);
       console.log('[seed] Service created:', svc.code);
-    } else {
-      await existing.update({
-        name: svc.name,
-        category: svc.category,
-        unit: svc.unit,
-        default_unit_price: svc.default_unit_price,
-        vat_rate: svc.vat_rate,
-        is_active: true,
-      });
     }
   }
 

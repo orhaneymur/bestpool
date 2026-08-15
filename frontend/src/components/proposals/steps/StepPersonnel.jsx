@@ -182,6 +182,7 @@ export default function StepPersonnel({
       lifeguardCount: q.lifeguard_count,
       totalLifeguardHours: season?.staffHours || 0,
       weeklyStaffHours: season?.weeklyStaffHours || 0,
+      services,
     });
     if (!summary.hourlyWage || !summary.totalLifeguardHours) return;
     // Keep the stored figures in step with the calendar so the saved contract,
@@ -191,7 +192,7 @@ export default function StepPersonnel({
       peak_weeks: Math.round(season?.weeks || 0),
       hours_per_week: Math.round(season?.weeklyStaffHours || 0),
     }));
-    setItems(buildBidLineItems(summary, services));
+    setItems(buildBidLineItems(summary));
   }
 
   function toggleHoliday(key) {

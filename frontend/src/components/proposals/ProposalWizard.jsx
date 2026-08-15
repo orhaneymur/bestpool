@@ -279,8 +279,9 @@ export default function ProposalWizard({ id, initialCustomerId }) {
         lifeguardCount: q.lifeguard_count,
         totalLifeguardHours: season?.staffHours || 0,
         weeklyStaffHours: season?.weeklyStaffHours || 0,
+        services,
       }),
-    [q.county, q.lifeguard_count, season]
+    [q.county, q.lifeguard_count, season, services]
   );
 
   // Spec: when contract total changes, keep March–August schedule in sync if it was empty or already 6 months
