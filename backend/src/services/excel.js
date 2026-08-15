@@ -19,7 +19,7 @@ export async function buildQuoteExcel(quote, setting) {
   ws.getCell('A1').value = setting.company_name || 'Company';
   ws.getCell('A1').font = { bold: true, size: 14, color: { argb: BLUE } };
   ws.mergeCells('A2:F2');
-  ws.getCell('A2').value = [setting.company_address, setting.company_phone, setting.company_email || 'orhaneymur@gmail.com']
+  ws.getCell('A2').value = [setting.company_address, setting.company_phone, setting.company_email]
     .filter(Boolean)
     .join('  •  ');
   ws.getCell('A2').font = { size: 9, color: { argb: '555555' } };

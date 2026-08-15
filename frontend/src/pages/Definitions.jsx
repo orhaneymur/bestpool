@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Eye, EyeOff, Loader2, RotateCcw, Save } from 'lucide-react';
+import { ArrowDown, ArrowUp, Eye, EyeOff, Loader2, Plus, RotateCcw, Save, Trash2 } from 'lucide-react';
 import api from '@/api/client.js';
 import PageHeader from '@/components/layout/PageHeader.jsx';
 import { Button } from '@/components/ui/button.jsx';
@@ -17,22 +17,69 @@ import { cn } from '@/lib/utils.js';
  * never drift; nothing here is duplicated in the frontend.
  */
 
-const LABEL_FIELDS = [
-  ['contractPrefix', 'Contract number prefix text', 'Contract :'],
-  ['titleLine1', 'Cover title — line 1'],
-  ['titleLine2', 'Cover title — line 2'],
-  ['specTitle', 'Specification page title'],
-  ['ownerColumn', 'Signature column — owner'],
-  ['contractorColumn', 'Signature column — contractor'],
-  ['ownerParty', 'Owner party word', 'OWNER'],
-  ['initials', 'Initials line'],
-  ['facilityHeading', 'Property table — facility column'],
-  ['ownerHeading', 'Property table — owner column'],
-  ['normalSeason', 'Schedule — normal season heading'],
-  ['schoolSeason', 'Schedule — school season heading'],
-  ['schoolSeasonNote', 'Schedule — school season note'],
-  ['servicesIncluded', 'Services table heading'],
-  ['signatureNote', 'Electronic signature note'],
+/**
+ * Grouped so the Wording tab reads like the contract does, top to bottom,
+ * instead of as one long undifferentiated column of inputs.
+ */
+const LABEL_GROUPS = [
+  ['Cover and headings', [
+    ['contractPrefix', 'Contract number prefix text', 'Contract :'],
+    ['titleLine1', 'Cover title — line 1'],
+    ['titleLine2', 'Cover title — line 2'],
+    ['specTitle', 'Specification page title'],
+  ]],
+  ['Parties', [
+    ['ownerColumn', 'Signature column — owner'],
+    ['contractorColumn', 'Signature column — contractor'],
+    ['ownerParty', 'Owner party word', 'OWNER'],
+    ['initials', 'Initials line'],
+    ['facilityHeading', 'Property table — facility column'],
+    ['ownerHeading', 'Property table — owner column'],
+  ]],
+  ['Operating hours', [
+    ['normalSeason', 'Normal season heading'],
+    ['schoolSeason', 'School season heading'],
+    ['schoolSeasonNote', 'School season note'],
+    ['scheduleDay', 'Table column — day'],
+    ['scheduleOpen', 'Table column — open'],
+    ['scheduleClose', 'Table column — close'],
+    ['scheduleClosed', 'Closed-day wording'],
+  ]],
+  ['Staffing rows', [
+    ['staffLifeguards', 'Number of lifeguards'],
+    ['staffOperatingDays', 'Operating days'],
+    ['staffDailyHours', 'Daily hours'],
+    ['staffWeeklyHours', 'Weekly staffing hours'],
+    ['staffSeasonHours', 'Seasonal staffing hours'],
+  ]],
+  ['Services and money', [
+    ['servicesIncluded', 'Services table heading'],
+    ['itemsDescription', 'Table column — description'],
+    ['itemsQty', 'Table column — quantity'],
+    ['itemsUnit', 'Table column — unit'],
+    ['itemsUnitPrice', 'Table column — unit price'],
+    ['itemsAmount', 'Table column — amount'],
+    ['totalPrice', 'Total contract price'],
+    ['earlyBirdPrice', 'Early bird price'],
+    ['dueLabel', 'Payment due prefix'],
+    ['noInstallments', 'Empty payment schedule'],
+  ]],
+  ['Notes and prefixes', [
+    ['holidaysPrefix', 'Public holidays prefix'],
+    ['schoolNotePrefix', 'School calendar note prefix'],
+    ['noComments', 'Empty additional comments'],
+    ['signatureNote', 'Electronic signature note'],
+  ]],
+];
+
+/**
+ * Full sentences. Each carries `{placeholders}` that are filled in at render
+ * time; the hint lists which ones that sentence understands.
+ */
+const SENTENCE_FIELDS = [
+  ['duration', 'Contract duration', '{contractor}, {owner}, {start}, {end}, {seasonSummary}'],
+  ['compensation', 'Compensation intro', '{contractor}, {owner}'],
+  ['earlyBirdNote', 'Early bird note', '{contractor}, {owner}, {deadline}'],
 ];
 
 const SECTION_FIELDS = [
@@ -134,6 +181,21 @@ export default function Definitions() {
     onChange: (e) => set(`${group}.${key}`, e.target.value),
   });
 
+  const clauses = Array.isArray(d.defaultClauses) ? d.defaultClauses : [];
+  const setClauses = (next) => setD((prev) => ({ ...prev, defaultClauses: next }));
+  const updateClause = (i, patch) =>
+    setClauses(clauses.map((c, idx) => (idx === i ? { ...c, ...patch } : c)));
+  const removeClause = (i) => setClauses(clauses.filter((_, idx) => idx !== i));
+  const moveClause = (i, delta) => {
+    const j = i + delta;
+    if (j < 0 || j >= clauses.length) return;
+    const next = [...clauses];
+    [next[i], next[j]] = [next[j], next[i]];
+    setClauses(next);
+  };
+  const addClause = () =>
+    setClauses([...clauses, { label: String.fromCharCode(65 + clauses.length), body: '' }]);
+
   return (
     <div className="space-y-4 sm:space-y-5">
       <PageHeader
@@ -177,6 +239,7 @@ export default function Definitions() {
           <TabsTrigger value="visibility">PDF blocks</TabsTrigger>
           <TabsTrigger value="layout">Layout &amp; colours</TabsTrigger>
           <TabsTrigger value="wording">Wording</TabsTrigger>
+          <TabsTrigger value="clauses">Standard clauses</TabsTrigger>
           <TabsTrigger value="parties">Parties</TabsTrigger>
           <TabsTrigger value="numbering">Numbering</TabsTrigger>
         </TabsList>
@@ -395,19 +458,111 @@ export default function Definitions() {
 
             <Card>
               <CardHeader>
-                <CardTitle>Fixed text</CardTitle>
-                <CardDescription>Every literal string the PDF prints outside the contract data.</CardDescription>
+                <CardTitle>Sentences</CardTitle>
+                <CardDescription>
+                  The full lines of text the contract prints. Anything in braces is filled in from the
+                  contract — leave a placeholder out and it simply will not appear.
+                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
-                {LABEL_FIELDS.map(([key, label, placeholder]) => (
+                {SENTENCE_FIELDS.map(([key, label, placeholders]) => (
                   <div key={key} className="space-y-1.5">
                     <Label>{label}</Label>
-                    <Input placeholder={placeholder} {...text('labels', key)} />
+                    <textarea
+                      rows={3}
+                      {...text('sentences', key)}
+                      className="flex w-full rounded-xl border border-input bg-transparent px-3 py-2 text-sm shadow-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/20 disabled:opacity-60"
+                    />
+                    <div className="text-xs text-muted-foreground">Placeholders: {placeholders}</div>
                   </div>
                 ))}
               </CardContent>
             </Card>
           </div>
+
+          <div className="mt-4 grid gap-4 lg:grid-cols-2">
+            {LABEL_GROUPS.map(([groupLabel, fields]) => (
+              <Card key={groupLabel}>
+                <CardHeader>
+                  <CardTitle>{groupLabel}</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {fields.map(([key, label, placeholder]) => (
+                    <div key={key} className="space-y-1.5">
+                      <Label>{label}</Label>
+                      <Input placeholder={placeholder} {...text('labels', key)} />
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </TabsContent>
+
+        {/* ---------------- Standard clauses ---------------- */}
+        <TabsContent value="clauses">
+          <Card>
+            <CardHeader>
+              <CardTitle>Default Additional Comments</CardTitle>
+              <CardDescription>
+                What a <strong>new</strong> contract starts with. A contract copies these once, when it is
+                created, and owns its copy from then on — editing this list never changes paperwork that
+                has already gone out, and the wizard can reload it at any time.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {clauses.map((c, i) => (
+                <div key={i} className="flex items-start gap-2">
+                  <Input
+                    aria-label="Clause label"
+                    className="w-16 shrink-0 text-center"
+                    value={c.label ?? ''}
+                    disabled={readOnly}
+                    onChange={(e) => updateClause(i, { label: e.target.value })}
+                  />
+                  <textarea
+                    rows={2}
+                    value={c.body ?? ''}
+                    disabled={readOnly}
+                    onChange={(e) => updateClause(i, { body: e.target.value })}
+                    className="flex w-full rounded-xl border border-input bg-transparent px-3 py-2 text-sm shadow-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/20 disabled:opacity-60"
+                  />
+                  {!readOnly && (
+                    <div className="flex shrink-0 flex-col gap-1">
+                      <Button type="button" variant="ghost" size="sm" onClick={() => moveClause(i, -1)} disabled={i === 0}>
+                        <ArrowUp className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => moveClause(i, 1)}
+                        disabled={i === clauses.length - 1}
+                      >
+                        <ArrowDown className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button type="button" variant="ghost" size="sm" onClick={() => removeClause(i)}>
+                        <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              ))}
+
+              {clauses.length === 0 && (
+                <div className="rounded-xl border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
+                  No standard clauses. New contracts will start with an empty Additional Comments section.
+                </div>
+              )}
+
+              {!readOnly && (
+                <Button type="button" variant="outline" className="gap-2" onClick={addClause}>
+                  <Plus className="h-4 w-4" />
+                  Add clause
+                </Button>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* ---------------- Parties ---------------- */}

@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button.jsx';
 import { Badge } from '@/components/ui/badge.jsx';
 import { fmtMoney, fmtDate } from '@/api/utils.js';
 import { DAYS, formatTime12 } from './utils/quoteMath.js';
+import { fillTemplate } from './utils/template.js';
 import { useVisibility } from './VisibilityContext.jsx';
 
 function Money({ n, cur }) {
@@ -35,11 +36,30 @@ export default function LivePaperPreview({
   onPdf,
   onExcel,
   canExport,
+  /**
+   * Company-wide contract wording, straight from the API.
+   *
+   * This preview used to carry its own hard-coded titles and sentences, which is
+   * why it never quite matched the PDF — two copies of the same contract text,
+   * drifting independently. Now both read the same definitions, so editing a
+   * heading on the Definitions page changes the preview and the PDF together.
+   */
+  definitions = null,
   /** 'pdf' | 'excel' | null — which export is currently building, if any. */
   busyKind = null,
 }) {
   const { isHidden, hidden } = useVisibility();
   const show = (k) => !isHidden(k);
+
+  // Falls back to empty objects so a slow /definitions response renders a blank
+  // heading for a moment rather than throwing away the whole preview.
+  const L = definitions?.labels || {};
+  const S = definitions?.sectionTitles || {};
+  const SENT = definitions?.sentences || {};
+  const contractorWord = definitions?.contractor?.replaceWord
+    ? (definitions.contractor.label || '').trim().toUpperCase() || 'the CONTRACTOR'
+    : 'the CONTRACTOR';
+  const ownerWord = L.ownerParty || 'OWNER';
 
   const normal = DAYS.map(([day, label]) => {
     const r = schedules.find((s) => s.season_type === 'normal' && s.day_label === day);
@@ -55,8 +75,8 @@ export default function LivePaperPreview({
   const totalHours = Number(q.lifeguard_count || 0) * Number(q.hours_per_week || 0);
   const lineItems = items.filter((it) => it.description?.trim());
 
-  const seasonTables = [['Normal / Season', normal]];
-  if (show('spec.scheduleSchool')) seasonTables.push(['School / Off Season', okul]);
+  const seasonTables = [[L.normalSeason, normal]];
+  if (show('spec.scheduleSchool')) seasonTables.push([L.schoolSeason, okul]);
 
   /**
    * Built as a list so the numbering matches the PDF: hidden sections are
@@ -67,13 +87,13 @@ export default function LivePaperPreview({
   const propertyCols = [
     show('spec.propertyFacility') && {
       key: 'facility',
-      heading: 'Facility',
+      heading: L.facilityHeading,
       name: q.facility_name,
       detail: q.facility_address,
     },
     show('spec.propertyOwner') && {
       key: 'owner',
-      heading: 'Owner / Agent',
+      heading: L.ownerHeading,
       name: customer?.name,
       detail: customer?.address || customer?.city,
     },
@@ -82,7 +102,7 @@ export default function LivePaperPreview({
   const sections = [];
   if (show('spec.property') && propertyCols.length) {
     sections.push({
-      title: 'Property Information',
+      title: S.property,
       node: (
         <div className={`mb-4 grid gap-3 ${propertyCols.length > 1 ? 'grid-cols-2' : 'grid-cols-1'}`}>
           {propertyCols.map((c) => (
@@ -99,13 +119,19 @@ export default function LivePaperPreview({
 
   if (show('spec.duration')) {
     sections.push({
-      title: 'Duration & Schedule',
+      title: S.duration,
       node: (
         <>
           <p className="mb-3 text-slate-700">
-            The pool will be maintained between <strong>{fmtDate(q.season_start)}</strong> and{' '}
-            <strong>{fmtDate(q.season_end)}</strong>
-            {season?.valid ? ` — ${season.weeksLabel}, ${season.openDays} operating days.` : '.'}
+            {fillTemplate(SENT.duration, {
+              contractor: contractorWord,
+              owner: ownerWord,
+              start: fmtDate(q.season_start),
+              end: fmtDate(q.season_end),
+              seasonSummary: season?.valid
+                ? ` — ${season.weeksLabel}, ${season.openDays} operating days.`
+                : '.',
+            })}
           </p>
 
           {show('spec.schedule') && (
@@ -116,9 +142,9 @@ export default function LivePaperPreview({
                   <table className="w-full border-collapse text-[9px]">
                     <thead>
                       <tr className="border-b border-[#0d47a1] text-[#0d47a1]">
-                        <th className="px-1 py-0.5 text-left font-semibold">Day</th>
-                        <th className="px-1 py-0.5">Open</th>
-                        <th className="px-1 py-0.5">Close</th>
+                        <th className="px-1 py-0.5 text-left font-semibold">{L.scheduleDay}</th>
+                        <th className="px-1 py-0.5">{L.scheduleOpen}</th>
+                        <th className="px-1 py-0.5">{L.scheduleClose}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -126,7 +152,7 @@ export default function LivePaperPreview({
                         <tr key={label} className="border-b border-slate-200">
                           <td className="px-1 py-0.5">{label}</td>
                           <td className="px-1 py-0.5 text-center">
-                            {r?.is_closed ? 'Closed' : formatTime12(r?.open_time)}
+                            {r?.is_closed ? L.scheduleClosed : formatTime12(r?.open_time)}
                           </td>
                           <td className="px-1 py-0.5 text-center">
                             {r?.is_closed ? '—' : formatTime12(r?.close_time)}
@@ -143,16 +169,17 @@ export default function LivePaperPreview({
           {show('spec.personnel') && (
             <div className="mb-4 flex flex-wrap gap-x-4 gap-y-1 text-[10px]">
               <span>
-                <strong>Lifeguards:</strong> {Number(q.lifeguard_count || 0)}
+                <strong>{L.staffLifeguards}:</strong> {Number(q.lifeguard_count || 0)}
               </span>
               <span>
-                <strong>Operating days:</strong> {season ? `${season.openDays} / ${season.days}` : '\u2014'}
+                <strong>{L.staffOperatingDays}:</strong>{' '}
+                {season ? `${season.openDays} of ${season.days} days` : '\u2014'}
               </span>
               <span>
-                <strong>Staff hrs/wk:</strong> {season ? season.weeklyStaffHours : '\u2014'}
+                <strong>{L.staffWeeklyHours}:</strong> {season ? `${season.weeklyStaffHours} Hrs/week` : '\u2014'}
               </span>
               <span>
-                <strong>Season hrs:</strong> {season ? season.staffHours : '\u2014'}
+                <strong>{L.staffSeasonHours}:</strong> {season ? `${season.staffHours} Hrs/season` : '\u2014'}
               </span>
             </div>
           )}
@@ -164,10 +191,10 @@ export default function LivePaperPreview({
   if (show('spec.comments')) {
     const visibleNotes = specialNotes.filter((n) => n.body?.trim());
     sections.push({
-      title: 'Additional Comments',
+      title: S.comments,
       node: (
         <ul className="mb-4 list-none space-y-0.5">
-          {(visibleNotes.length ? visibleNotes : [{ label: '—', body: 'None.' }]).map((n, i) => (
+          {(visibleNotes.length ? visibleNotes : [{ label: '', body: L.noComments }]).map((n, i) => (
             <li key={i}>
               <strong>{n.label ? `${n.label}. ` : ''}</strong>
               {n.body}
@@ -180,18 +207,22 @@ export default function LivePaperPreview({
 
   if (show('spec.compensation')) {
     sections.push({
-      title: 'Compensation Schedule',
+      title: S.compensation,
       node: (
         <>
+          <p className="mb-2 text-slate-600">
+            {fillTemplate(SENT.compensation, { owner: ownerWord, contractor: contractorWord })}
+          </p>
+
           {show('spec.items') && lineItems.length > 0 && (
             <div className="mb-3">
-              <div className="mb-1 font-semibold text-slate-700">Services Included</div>
+              <div className="mb-1 font-semibold text-slate-700">{L.servicesIncluded}</div>
               <table className="mb-2 w-full border-collapse text-[9px]">
                 <thead>
                   <tr className="border-b border-[#0d47a1] text-[#0d47a1]">
-                    <th className="px-1 py-0.5 text-left">Description</th>
-                    <th className="px-1 py-0.5 text-right">Qty</th>
-                    <th className="px-1 py-0.5 text-right">Amount</th>
+                    <th className="px-1 py-0.5 text-left">{L.itemsDescription}</th>
+                    <th className="px-1 py-0.5 text-right">{L.itemsQty}</th>
+                    <th className="px-1 py-0.5 text-right">{L.itemsAmount}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -212,14 +243,14 @@ export default function LivePaperPreview({
           {show('spec.totals') && (
             <div className="mb-2 flex flex-wrap justify-between gap-2">
               <div>
-                <span className="text-slate-500">Total Contract Price: </span>
+                <span className="text-slate-500">{L.totalPrice}: </span>
                 <strong>
                   <Money n={totals.total} cur={q.currency} />
                 </strong>
               </div>
               {Number(q.early_bird_discount) > 0 && show('spec.earlyBird') && (
                 <div>
-                  <span className="text-slate-500">Early Bird: </span>
+                  <span className="text-slate-500">{L.earlyBirdPrice}: </span>
                   <strong>
                     <Money n={contractAmount} cur={q.currency} />
                   </strong>
@@ -228,12 +259,22 @@ export default function LivePaperPreview({
             </div>
           )}
 
+          {Number(q.early_bird_discount) > 0 && show('spec.earlyBird') && (
+            <p className="mb-2 text-[9px] italic text-slate-500">
+              {fillTemplate(SENT.earlyBirdNote, {
+                contractor: contractorWord,
+                owner: ownerWord,
+                deadline: q.valid_until ? fmtDate(q.valid_until) : 'the stated deadline',
+              })}
+            </p>
+          )}
+
           {show('spec.installments') && (
             <div className="mb-4 grid grid-cols-2 gap-x-4 gap-y-0.5">
               <div className="space-y-0.5">
                 {left.map((inst, i) => (
                   <div key={i} className="flex justify-between gap-2">
-                    <span>Due: {inst.due_date ? fmtDate(inst.due_date) : inst.label}</span>
+                    <span>{L.dueLabel}: {inst.due_date ? fmtDate(inst.due_date) : inst.label}</span>
                     <span>
                       <Money n={inst.amount} cur={q.currency} />
                     </span>
@@ -243,7 +284,7 @@ export default function LivePaperPreview({
               <div className="space-y-0.5">
                 {right.map((inst, i) => (
                   <div key={i} className="flex justify-between gap-2">
-                    <span>Due: {inst.due_date ? fmtDate(inst.due_date) : inst.label}</span>
+                    <span>{L.dueLabel}: {inst.due_date ? fmtDate(inst.due_date) : inst.label}</span>
                     <span>
                       <Money n={inst.amount} cur={q.currency} />
                     </span>
@@ -251,7 +292,7 @@ export default function LivePaperPreview({
                 ))}
               </div>
               {installments.length === 0 && (
-                <div className="col-span-2 italic text-slate-400">No payment schedule yet.</div>
+                <div className="col-span-2 italic text-slate-400">{L.noInstallments}</div>
               )}
             </div>
           )}
@@ -262,16 +303,16 @@ export default function LivePaperPreview({
 
   if (show('spec.acceptance')) {
     sections.push({
-      title: 'Acceptance',
+      title: S.acceptance,
       node: (
         <div className="grid grid-cols-2 gap-6 pt-2">
           <div>
-            <div className="font-semibold">OWNER / CLIENT</div>
+            <div className="font-semibold">{L.ownerColumn}</div>
             <div className="mt-3 border-b border-slate-300 pb-1 text-slate-400">Signature</div>
             <div className="mt-2 text-[9px] text-slate-400">Title · Company · Date</div>
           </div>
           <div>
-            <div className="font-semibold">CONTRACTOR</div>
+            <div className="font-semibold">{L.contractorColumn}</div>
             <div className="mt-3 border-b border-slate-300 pb-1 text-slate-400">Signature</div>
             <div className="mt-2 text-[9px] text-slate-400">Title · Date</div>
           </div>
@@ -366,7 +407,7 @@ export default function LivePaperPreview({
           )}
 
           <div className="mt-6 flex items-center justify-between text-[9px] text-slate-400">
-            <span>{show('footer.initials') ? 'Owner’s Initial(s) ______' : ''}</span>
+            <span>{show('footer.initials') ? `${L.initials} ______` : ''}</span>
             <Badge variant="outline" className="text-[9px]">
               Live Preview
             </Badge>

@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button.jsx';
 import { Progress } from '@/components/ui/progress.jsx';
 import { fmtMoney } from '@/api/utils.js';
 import { AYLAR, round2 } from '../utils/quoteMath.js';
-import { STANDARD_CLAUSES, cloneStandardClauses } from '../utils/defaultClauses.js';
 import { buildMarchAugustInstallments } from '../utils/bidPricing.js';
 import { cn } from '@/lib/utils.js';
 import { HideToggle } from '../VisibilityContext.jsx';
@@ -15,6 +14,9 @@ import { HideToggle } from '../VisibilityContext.jsx';
 export default function StepPayment({
   q, setQ, installments, setInstallments, specialNotes, setSpecialNotes,
   contractAmount, installmentsSum, templates, setErr, setItems,
+  // The company's standard clauses, editable on the Definitions page rather
+  // than compiled into this bundle.
+  defaultClauses = [],
 }) {
   const remaining = round2(contractAmount - installmentsSum);
   const progress = contractAmount > 0 ? Math.min(100, (installmentsSum / contractAmount) * 100) : 0;
@@ -100,7 +102,7 @@ export default function StepPayment({
   }
 
   function loadStandardClauses() {
-    setSpecialNotes(cloneStandardClauses());
+    setSpecialNotes(defaultClauses.map((c) => ({ label: c.label || '', body: c.body || '' })));
   }
 
   function addPreset(clause) {
@@ -299,7 +301,7 @@ export default function StepPayment({
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex flex-wrap gap-1.5">
-            {STANDARD_CLAUSES.map((c) => (
+            {defaultClauses.map((c) => (
               <button
                 key={c.label}
                 type="button"

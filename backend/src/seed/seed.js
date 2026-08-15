@@ -1,6 +1,7 @@
 import dotenv from 'dotenv';
 import bcrypt from 'bcryptjs';
 import { sequelize, User, ServiceItem, ServiceCategory, ContractTemplate, Setting, Customer } from '../models/index.js';
+import { applyDefinitionMigrations } from '../config/pdfDefinitions.js';
 import { DEFAULT_CONTRACT_BODY } from './contractTemplate.js';
 import { DEFAULT_CONTRACT_BODY_EN, EN_TEMPLATE_NAME } from './contractTemplateEn.js';
 import { DEFAULT_TAGLINE } from '../services/pdf.js';
@@ -82,9 +83,24 @@ export async function ensureSeed() {
       }
       if (!s.rev_label) patch.rev_label = 'Rev 07/2026';
       if (s.company_email !== COMPANY_EMAIL) patch.company_email = COMPANY_EMAIL;
+
+      /**
+       * New PDF defaults reach an existing install through here, once each.
+       *
+       * `definitions.hidden` is the user's own choice, so a new default cannot
+       * simply be applied on every boot — it would undo their edits after each
+       * deploy. Each change is recorded in definitions.migrations and offered a
+       * single time.
+       */
+      const migrated = applyDefinitionMigrations(s.definitions);
+      if (migrated) {
+        patch.definitions = migrated.definitions;
+        console.log('[seed] Definition defaults applied:', migrated.applied.join(', '));
+      }
+
       if (Object.keys(patch).length) {
         await s.update(patch);
-        console.log('[seed] Company settings updated:', patch);
+        console.log('[seed] Company settings updated:', Object.keys(patch).join(', '));
       }
     }
   }

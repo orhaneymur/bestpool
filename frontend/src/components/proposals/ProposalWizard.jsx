@@ -21,7 +21,6 @@ import {
   round2,
   weeksBetween,
 } from './utils/quoteMath.js';
-import { cloneStandardClauses } from './utils/defaultClauses.js';
 import { computeBidSummary, buildMarchAugustInstallments } from './utils/bidPricing.js';
 
 const STEPS = [
@@ -52,6 +51,9 @@ export default function ProposalWizard({ id, initialCustomerId }) {
   const [pdfBlocks, setPdfBlocks] = useState([]);
   const [season, setSeason] = useState(null);
   const [companyHidden, setCompanyHidden] = useState([]);
+  // The company-wide contract wording. The preview renders from this so it shows
+  // the same titles and sentences the PDF prints.
+  const [definitions, setDefinitions] = useState(null);
   const [hiddenFields, setHiddenFields] = useState([]);
   const [duplicating, setDuplicating] = useState(false);
   const { busyKey, download } = useDownload();
@@ -81,7 +83,9 @@ export default function ProposalWizard({ id, initialCustomerId }) {
   const [items, setItems] = useState([emptyItem()]);
   const [installments, setInstallments] = useState([]);
   const [schedules, setSchedules] = useState(buildDefaultSchedules());
-  const [specialNotes, setSpecialNotes] = useState(() => (id ? [] : cloneStandardClauses()));
+  // Starts empty even for a new contract: the defaults come from the server
+  // with the definitions, a moment later.
+  const [specialNotes, setSpecialNotes] = useState([]);
 
   // The block registry and the company-wide default visibility. A new contract
   // starts from the company default; an existing one loads its own saved list.
@@ -91,9 +95,16 @@ export default function ProposalWizard({ id, initialCustomerId }) {
       .then(([schema, defs]) => {
         if (cancelled) return;
         setPdfBlocks(schema.data.blocks || []);
+        setDefinitions(defs.data);
         const companyDefault = defs.data.hidden || [];
         setCompanyHidden(companyDefault);
-        if (!editing) setHiddenFields(companyDefault);
+        if (!editing) {
+          setHiddenFields(companyDefault);
+          // The starting Additional Comments are company settings now, not a
+          // constant in this bundle, so they arrive with the definitions.
+          const clauses = Array.isArray(defs.data.defaultClauses) ? defs.data.defaultClauses : [];
+          setSpecialNotes(clauses.map((c) => ({ label: c.label || '', body: c.body || '' })));
+        }
       })
       .catch(() => {
         // Definitions are optional chrome — a failure here must not block the
@@ -487,6 +498,7 @@ export default function ProposalWizard({ id, initialCustomerId }) {
                   contractAmount={contractAmount}
                   installmentsSum={installmentsSum}
                   templates={templates}
+                  defaultClauses={definitions?.defaultClauses || []}
                   err={err}
                   setErr={setErr}
                   setItems={setItems}
@@ -539,6 +551,7 @@ export default function ProposalWizard({ id, initialCustomerId }) {
             totals={totals}
             contractAmount={contractAmount}
             canExport={!!(savedId || id)}
+            definitions={definitions}
             busyKind={busyKey ? busyKey.split('-')[0] : null}
             onPdf={() => exportFile('pdf')}
             onExcel={() => exportFile('excel')}
@@ -578,6 +591,7 @@ export default function ProposalWizard({ id, initialCustomerId }) {
               totals={totals}
               contractAmount={contractAmount}
               canExport={!!(savedId || id)}
+              definitions={definitions}
               busyKind={busyKey ? busyKey.split('-')[0] : null}
               onPdf={() => exportFile('pdf')}
               onExcel={() => exportFile('excel')}

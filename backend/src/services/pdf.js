@@ -1,5 +1,5 @@
 import PdfPrinter from 'pdfmake';
-import { mergeDefinitions, sanitizeHiddenFields } from '../config/pdfDefinitions.js';
+import { mergeDefinitions, sanitizeHiddenFields, fillTemplate } from '../config/pdfDefinitions.js';
 import { computeSeason } from './seasonCalendar.js';
 import fs from 'fs';
 import path from 'path';
@@ -250,14 +250,14 @@ function makeTheme(def) {
   };
 }
 
-function scheduleColumn(T, schedules, seasonType, title, subtitle) {
+function scheduleColumn(T, schedules, seasonType, title, subtitle, labels) {
   const rows = (schedules || [])
     .filter((s) => s.season_type === seasonType)
     .sort((a, b) => DAY_ORDER.indexOf(a.day_label) - DAY_ORDER.indexOf(b.day_label));
 
   const bodyRows = DAY_ORDER.map((day) => {
     const r = rows.find((x) => x.day_label === day);
-    const open = r ? (r.is_closed ? 'Closed' : to12h(r.open_time) || '-') : '-';
+    const open = r ? (r.is_closed ? labels.scheduleClosed : to12h(r.open_time) || '-') : '-';
     const close = r ? (r.is_closed ? '—' : to12h(r.close_time) || '-') : '-';
     return [
       { text: DAY_EN[day], fontSize: T.fs(7.5), color: T.ink },
@@ -279,9 +279,9 @@ function scheduleColumn(T, schedules, seasonType, title, subtitle) {
           widths: ['*', 50, 50],
           body: [
             [
-              { text: '', style: 'th' },
-              { text: 'OPEN', style: 'th', alignment: 'center' },
-              { text: 'CLOSE', style: 'th', alignment: 'center' },
+              { text: labels.scheduleDay, style: 'th' },
+              { text: labels.scheduleOpen, style: 'th', alignment: 'center' },
+              { text: labels.scheduleClose, style: 'th', alignment: 'center' },
             ],
             ...bodyRows,
           ],
@@ -296,7 +296,7 @@ function scheduleColumn(T, schedules, seasonType, title, subtitle) {
  * Staffing figures, all derived from the season calendar rather than from a
  * hand-typed hours-per-week multiplied by a rounded week count.
  */
-function personnelRows(T, lifeguards, season, seasonType = 'normal') {
+function personnelRows(T, lifeguards, season, seasonType = 'normal', labels = {}) {
   const daily = season.avgDailyHoursPerGuard;
   // The configured week, not the season average — see scheduledWeekHours().
   const weekly = seasonType === 'okul' ? season.weeklyStaffHoursSchool : season.weeklyStaffHours;
@@ -310,11 +310,11 @@ function personnelRows(T, lifeguards, season, seasonType = 'normal') {
     table: {
       widths: ['*', 'auto'],
       body: [
-        row('Number of Lifeguards', `${lifeguards} Lifeguard(s)`),
-        row('Operating Days', `${season.openDays} of ${season.days} days`),
-        row('Daily Hours (per guard, open days)', `${daily} Hrs/day`),
-        row('Weekly Staffing Hours', `${weekly} Hrs/week`),
-        row('Total Seasonal Staffing Hours', `${seasonal} Hrs/season`),
+        row(labels.staffLifeguards, `${lifeguards} Lifeguard(s)`),
+        row(labels.staffOperatingDays, `${season.openDays} of ${season.days} days`),
+        row(labels.staffDailyHours, `${daily} Hrs/day`),
+        row(labels.staffWeeklyHours, `${weekly} Hrs/week`),
+        row(labels.staffSeasonHours, `${seasonal} Hrs/season`),
       ],
     },
     layout: {
@@ -456,10 +456,12 @@ export async function buildQuotePdf(quote, setting = {}, options = {}) {
     const proposalNo = quote.quote_no || '-';
     const contractLabel = `${def.labels.contractPrefix} ${proposalNo}`;
     const tagline = setting.company_tagline || DEFAULT_TAGLINE;
+    // Split so the email can be switched off on its own — the cover already
+    // carries the website, and repeating the address is noise on a title page.
     const contactLine = [
       setting.company_phone ? `Tel: ${setting.company_phone}` : '',
       setting.company_fax ? `Fax: ${setting.company_fax}` : '',
-      setting.company_email || '',
+      show('cover.email') ? setting.company_email || '' : '',
     ]
       .filter(Boolean)
       .join('  •  ');
@@ -482,7 +484,7 @@ export async function buildQuotePdf(quote, setting = {}, options = {}) {
           fontSize: T.fs(8),
           margin: [0, 0, 0, 1],
         }))
-      : [{ text: 'None.', fontSize: T.fs(8), italics: true, color: T.muted }];
+      : [{ text: def.labels.noComments, fontSize: T.fs(8), italics: true, color: T.muted }];
 
     const items = (quote.items || []).filter((it) => (it.description || '').trim());
     const itemTable = items.length
@@ -492,11 +494,11 @@ export async function buildQuotePdf(quote, setting = {}, options = {}) {
             widths: ['*', 34, 38, 54, 54],
             body: [
               [
-                { text: 'DESCRIPTION', style: 'th' },
-                { text: 'QTY', style: 'th', alignment: 'right' },
-                { text: 'UNIT', style: 'th', alignment: 'center' },
-                { text: 'UNIT PRICE', style: 'th', alignment: 'right' },
-                { text: 'AMOUNT', style: 'th', alignment: 'right' },
+                { text: def.labels.itemsDescription, style: 'th' },
+                { text: def.labels.itemsQty, style: 'th', alignment: 'right' },
+                { text: def.labels.itemsUnit, style: 'th', alignment: 'center' },
+                { text: def.labels.itemsUnitPrice, style: 'th', alignment: 'right' },
+                { text: def.labels.itemsAmount, style: 'th', alignment: 'right' },
               ],
               ...items.map((it) => {
                 const qty = Number(it.quantity || 0);
@@ -525,7 +527,11 @@ export async function buildQuotePdf(quote, setting = {}, options = {}) {
     const dueStack = (list) =>
       list.map((inst) => ({
         columns: [
-          { text: `Due ${inst.due_date ? dateEN(inst.due_date) : inst.label || '-'}`, fontSize: T.fs(8), color: T.muted },
+          {
+            text: `${def.labels.dueLabel} ${inst.due_date ? dateEN(inst.due_date) : inst.label || '-'}`,
+            fontSize: T.fs(8),
+            color: T.muted,
+          },
           { text: money(inst.amount, cur), fontSize: T.fs(8), bold: true, color: T.ink, alignment: 'right', width: 70 },
         ],
         margin: [0, 0, 0, 1],
@@ -578,9 +584,13 @@ export async function buildQuotePdf(quote, setting = {}, options = {}) {
 
     addSection('spec.duration', def.sectionTitles.duration, [
       {
-        text:
-          `${contractorWord} will maintain the aforementioned swimming pool between ${dateEN(quote.season_start)} and ${dateEN(quote.season_end)}` +
-          (season.valid ? ` — ${season.weeksLabel}, ${season.openDays} operating days.` : '.'),
+        text: fillTemplate(def.sentences.duration, {
+          contractor: contractorWord,
+          owner: ownerWord,
+          start: dateEN(quote.season_start),
+          end: dateEN(quote.season_end),
+          seasonSummary: season.valid ? ` — ${season.weeksLabel}, ${season.openDays} operating days.` : '.',
+        }),
         fontSize: T.fs(8),
         color: T.ink,
         margin: [0, 0, 0, 3],
@@ -588,9 +598,9 @@ export async function buildQuotePdf(quote, setting = {}, options = {}) {
       show('spec.schedule')
         ? {
             columns: [
-              scheduleColumn(T, quote.schedules, 'normal', def.labels.normalSeason),
+              scheduleColumn(T, quote.schedules, 'normal', def.labels.normalSeason, null, def.labels),
               show('spec.scheduleSchool')
-                ? scheduleColumn(T, quote.schedules, 'okul', def.labels.schoolSeason, def.labels.schoolSeasonNote)
+                ? scheduleColumn(T, quote.schedules, 'okul', def.labels.schoolSeason, def.labels.schoolSeasonNote, def.labels)
                 : { width: '*', text: '' },
             ],
             columnGap: 18,
@@ -600,9 +610,9 @@ export async function buildQuotePdf(quote, setting = {}, options = {}) {
       show('spec.personnel')
         ? {
             columns: [
-              personnelRows(T, lifeguards, season, 'normal'),
+              personnelRows(T, lifeguards, season, 'normal', def.labels),
               show('spec.scheduleSchool')
-                ? personnelRows(T, lifeguards, season, 'okul')
+                ? personnelRows(T, lifeguards, season, 'okul', def.labels)
                 : { width: '*', text: '' },
             ],
             columnGap: 18,
@@ -614,7 +624,7 @@ export async function buildQuotePdf(quote, setting = {}, options = {}) {
       observedHolidays.length && show('spec.holidays')
         ? {
             text: [
-              { text: 'PUBLIC HOLIDAYS COVERED: ', bold: true },
+              { text: def.labels.holidaysPrefix, bold: true },
               {
                 text: observedHolidays
                   .map((h) => `${h.name} (${dateEN(h.date)}, ${h.weekday}) ${h.hours} hrs`)
@@ -629,7 +639,7 @@ export async function buildQuotePdf(quote, setting = {}, options = {}) {
       quote.notes && show('spec.scheduleNote')
         ? {
             text: [
-              { text: 'NOTE (school / off-season calendar): ', bold: true },
+              { text: def.labels.schoolNotePrefix, bold: true },
               { text: quote.notes },
             ],
             fontSize: T.fs(7),
@@ -643,7 +653,7 @@ export async function buildQuotePdf(quote, setting = {}, options = {}) {
 
     addSection('spec.compensation', def.sectionTitles.compensation, [
       {
-        text: `Payment from the ${ownerWord} is to be received by ${contractorWord} by the dates listed below.`,
+        text: fillTemplate(def.sentences.compensation, { owner: ownerWord, contractor: contractorWord }),
         fontSize: T.fs(8),
         color: T.muted,
         margin: [0, 0, 0, 3],
@@ -667,7 +677,7 @@ export async function buildQuotePdf(quote, setting = {}, options = {}) {
                 stack: [
                   {
                     text: [
-                      { text: 'Total Contract Price   ', color: T.muted, fontSize: T.fs(8) },
+                      { text: `${def.labels.totalPrice}   `, color: T.muted, fontSize: T.fs(8) },
                       { text: money(total, cur), bold: true, fontSize: T.fs(11), color: T.primary },
                     ],
                     margin: [0, 0, 0, 2],
@@ -676,7 +686,7 @@ export async function buildQuotePdf(quote, setting = {}, options = {}) {
                     ? [
                         {
                           text: [
-                            { text: '“Early Bird Discount” Price   ', color: T.muted, fontSize: T.fs(8) },
+                            { text: `${def.labels.earlyBirdPrice}   `, color: T.muted, fontSize: T.fs(8) },
                             { text: money(contractAmount, cur), bold: true, fontSize: T.fs(11), color: T.primary },
                           ],
                           margin: [0, 0, 0, 2],
@@ -703,7 +713,11 @@ export async function buildQuotePdf(quote, setting = {}, options = {}) {
               showEarlyBird
                 ? {
                     width: '48%',
-                    text: `Note: In order for the “Early Bird Discount” to be honored the executed contract must be received by ${contractorWord} no later than ${earlyBirdDeadline}. If applicable, the discount will be applied to the last Installment payment.`,
+                    text: fillTemplate(def.sentences.earlyBirdNote, {
+                      contractor: contractorWord,
+                      owner: ownerWord,
+                      deadline: earlyBirdDeadline,
+                    }),
                     fontSize: T.fs(7),
                     italics: true,
                     color: T.muted,
@@ -725,7 +739,7 @@ export async function buildQuotePdf(quote, setting = {}, options = {}) {
               margin: [0, 0, 0, 4],
             }
           : {
-              text: 'No payment schedule defined.',
+              text: def.labels.noInstallments,
               fontSize: T.fs(8),
               italics: true,
               color: T.muted,

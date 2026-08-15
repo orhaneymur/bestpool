@@ -23,7 +23,13 @@ export const PDF_BLOCKS = [
   { key: 'cover.facility', group: 'Cover', label: 'Facility name' },
   { key: 'cover.facilityAddress', group: 'Cover', label: 'Facility address' },
   { key: 'cover.company', group: 'Cover', label: 'Company block', hint: 'Name, address, phone, website' },
-  { key: 'cover.initials', group: 'Cover', label: 'Owner initials line' },
+  {
+    key: 'cover.email',
+    group: 'Cover',
+    label: '— Email address',
+    hint: 'Part of the company block. Off by default; the website line already carries the address.',
+  },
+  { key: 'cover.initials', group: 'Cover', label: 'Owner initials line', hint: 'Off by default — the cover is not signed' },
 
   // --- Specification page ---
   { key: 'spec.header', group: 'Specification', label: 'Page header', hint: 'Company name, title and contract no' },
@@ -124,7 +130,90 @@ export const DEFAULT_DEFINITIONS = {
     servicesIncluded: 'SERVICES INCLUDED',
     signatureNote:
       'Electronic, touch, mouse, and uploaded signatures are accepted and have the same force as handwritten signatures. Please initial each page of this contract where indicated.',
+
+    // --- Schedule table ---
+    scheduleDay: 'DAY',
+    scheduleOpen: 'OPEN',
+    scheduleClose: 'CLOSE',
+    scheduleClosed: 'Closed',
+
+    // --- Staffing rows ---
+    staffLifeguards: 'Number of Lifeguards',
+    staffOperatingDays: 'Operating Days',
+    staffDailyHours: 'Daily Hours (per guard, open days)',
+    staffWeeklyHours: 'Weekly Staffing Hours',
+    staffSeasonHours: 'Total Seasonal Staffing Hours',
+
+    // --- Services table ---
+    itemsDescription: 'DESCRIPTION',
+    itemsQty: 'QTY',
+    itemsUnit: 'UNIT',
+    itemsUnitPrice: 'UNIT PRICE',
+    itemsAmount: 'AMOUNT',
+
+    // --- Money and payment ---
+    totalPrice: 'Total Contract Price',
+    earlyBirdPrice: '“Early Bird Discount” Price',
+    dueLabel: 'Due',
+    noInstallments: 'No payment schedule defined.',
+
+    // --- Inline prefixes ---
+    holidaysPrefix: 'PUBLIC HOLIDAYS COVERED: ',
+    schoolNotePrefix: 'NOTE (school / off-season calendar): ',
+    noComments: 'None.',
   },
+
+  /**
+   * Full sentences, kept apart from the short labels above because they are the
+   * ones most likely to need rewording, and because they carry placeholders.
+   *
+   * `{name}` is substituted at render time — see fillTemplate(). An unknown
+   * placeholder renders as empty rather than printing braces at the customer.
+   * Available everywhere: {contractor}, {owner}. Per-sentence extras are noted
+   * on each line.
+   */
+  sentences: {
+    // {start}, {end}, {seasonSummary} — e.g. "15 weeks, 96 operating days"
+    duration: '{contractor} will maintain the aforementioned swimming pool between {start} and {end}{seasonSummary}',
+    compensation: 'Payment from the {owner} is to be received by {contractor} by the dates listed below.',
+    // {deadline}
+    earlyBirdNote:
+      'Note: In order for the “Early Bird Discount” to be honored the executed contract must be received by {contractor} no later than {deadline}. If applicable, the discount will be applied to the last Installment payment.',
+  },
+
+  /**
+   * The Additional Comments a brand-new contract starts with.
+   *
+   * These used to live in the frontend bundle, which meant changing a rate or a
+   * clause needed a release. A contract copies them once, at creation, and owns
+   * its copy from then on — editing this list never rewrites paperwork that has
+   * already gone out.
+   */
+  defaultClauses: [
+    { label: 'A', body: 'Test kit restock included.' },
+    { label: 'B', body: 'First aid kit restock included.' },
+    { label: 'C', body: 'Cost for additional lifeguard hours (more than 48 hours notice): $35/hr.' },
+    { label: 'D', body: 'Cost for additional lifeguard hours (less than 48 hours notice): $55/hr.' },
+    {
+      label: 'E',
+      body: 'Upon contract execution, the CONTRACTOR will conduct two service visits per month during the off-season.',
+    },
+    { label: 'F', body: 'The CONTRACTOR will schedule and attend all Health Department inspections.' },
+    { label: 'G', body: 'The CONTRACTOR will conduct random safety inspections and in-service training.' },
+    {
+      label: 'H',
+      body: 'Contract includes pool opening and closing. This contract will expire once the pool winterization has been completed.',
+    },
+    { label: 'I', body: 'Chemicals included for disinfectant and pH compliance.' },
+    {
+      label: 'J',
+      body: 'The CONTRACTOR will conduct a minimum of three (3) inspections per week during the regular pool season.',
+    },
+    {
+      label: 'K',
+      body: 'All lifeguards have current certifications in Lifeguarding, First Aid, CPR and AED issued by Ellis & Associates or American Red Cross.',
+    },
+  ],
   sectionTitles: {
     property: 'Property Information',
     duration: 'Contract Duration, Operating Schedule and Personnel',
@@ -150,9 +239,71 @@ export const DEFAULT_DEFINITIONS = {
     backgroundWidth: 330,
     backgroundOpacity: 0.05,
   },
-  /** Blocks a brand-new contract starts with switched off. */
-  hidden: [],
+  /**
+   * Blocks a brand-new contract starts with switched off.
+   *
+   * The cover is a title page: it carries the company block and the website, so
+   * repeating the email is noise, and nothing on it is signed — the signature
+   * lines belong with the Acceptance section on the specification page.
+   */
+  hidden: ['cover.email', 'cover.initials'],
+
+  /**
+   * One-time adjustments already applied to this settings row.
+   *
+   * `hidden` is a user's own choice, so new defaults must not silently overwrite
+   * it on every boot. Each entry here records that a change has been offered
+   * once and should not be offered again — see applyDefinitionMigrations().
+   */
+  migrations: [],
 };
+
+/**
+ * Substitutes `{name}` placeholders in an editable sentence.
+ *
+ * Anything unknown becomes empty rather than printing braces into a contract,
+ * because these strings are typed by a user and a typo must not reach the
+ * customer as `{contracter}`.
+ *
+ * The frontend preview has a copy of this — see utils/template.js.
+ */
+export function fillTemplate(text, vars = {}) {
+  return String(text ?? '').replace(/\{(\w+)\}/g, (_match, key) =>
+    vars[key] === undefined || vars[key] === null ? '' : String(vars[key])
+  );
+}
+
+/**
+ * Defaults that should reach installs created before they existed.
+ *
+ * Returns the definitions to save, or null when there is nothing to do. Applied
+ * once each: a user who deliberately switches the cover email back on keeps it.
+ */
+const DEFINITION_MIGRATIONS = [
+  {
+    id: 'hide-cover-email-and-initials',
+    apply(d) {
+      d.hidden = [...new Set([...d.hidden, 'cover.email', 'cover.initials'])];
+    },
+  },
+];
+
+export function applyDefinitionMigrations(stored) {
+  const d = mergeDefinitions(stored);
+  const done = new Set(Array.isArray(d.migrations) ? d.migrations : []);
+  const applied = [];
+
+  for (const migration of DEFINITION_MIGRATIONS) {
+    if (done.has(migration.id)) continue;
+    migration.apply(d);
+    done.add(migration.id);
+    applied.push(migration.id);
+  }
+
+  if (!applied.length) return null;
+  d.migrations = [...done];
+  return { definitions: d, applied };
+}
 
 /** Deep-merges stored definitions onto the defaults so missing keys never crash the PDF. */
 export function mergeDefinitions(stored) {
@@ -203,12 +354,31 @@ export function validateDefinitions(input) {
     }
   }
 
-  for (const group of ['labels', 'sectionTitles']) {
+  // A blank field means "I did not mean to change this", so it falls back to the
+  // shipped wording rather than printing a gap in the contract.
+  for (const [group, limit] of [['labels', 400], ['sectionTitles', 400], ['sentences', 1200]]) {
     for (const [k, v] of Object.entries(d[group])) {
-      d[group][k] = String(v ?? '').slice(0, 400);
+      d[group][k] = String(v ?? '').trim().slice(0, limit);
       if (!d[group][k]) d[group][k] = DEFAULT_DEFINITIONS[group][k];
     }
   }
+
+  /**
+   * The starting Additional Comments. Rows without body text are dropped rather
+   * than rejected — an empty row is how a half-finished edit looks, not an error
+   * worth refusing the whole save for.
+   */
+  d.defaultClauses = (Array.isArray(d.defaultClauses) ? d.defaultClauses : [])
+    .map((c) => ({
+      label: String(c?.label ?? '').trim().slice(0, 10),
+      body: String(c?.body ?? '').trim().slice(0, 1000),
+    }))
+    .filter((c) => c.body)
+    .slice(0, 40);
+
+  d.migrations = (Array.isArray(d.migrations) ? d.migrations : [])
+    .filter((m) => typeof m === 'string')
+    .slice(0, 50);
 
   if (!['all', 'spec'].includes(d.contractor.scope)) d.contractor.scope = 'all';
   d.contractor.replaceWord = !!d.contractor.replaceWord;
