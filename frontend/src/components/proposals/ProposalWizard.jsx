@@ -356,20 +356,22 @@ export default function ProposalWizard({ id, initialCustomerId }) {
     }
   }
 
+  /**
+   * Export always saves first.
+   *
+   * The document is built on the server, from what the server has. Only a
+   * brand-new contract used to be saved before exporting, so on an existing one
+   * every edit since the last save was missing from the PDF while the preview —
+   * which reads the form — showed it. Toggling a clause to bold and pressing
+   * Review PDF produced a contract without it, and nothing said why.
+   */
   async function exportFile(kind) {
-    let sid = savedId || id;
-    let no = quoteNo;
-    if (!sid) {
-      const created = await save();
-      sid = created?.id;
-      // Read the number off the response: setQuoteNo() above has not re-rendered
-      // yet, so the `quoteNo` captured by this closure is still empty and the
-      // file would download as "proposal.pdf".
-      no = created?.quote_no || no;
-    }
-    if (!sid) return;
-    const name = `${no || 'proposal'}.${kind === 'pdf' ? 'pdf' : 'xlsx'}`;
-    await download(`${kind}-${sid}`, `/quotes/${sid}/${kind}`, name);
+    const saved = await save();
+    if (!saved) return;
+    // Read the number off the response: setQuoteNo() has not re-rendered yet, so
+    // the `quoteNo` captured by this closure is still the previous one.
+    const name = `${saved.quote_no || quoteNo || 'proposal'}.${kind === 'pdf' ? 'pdf' : 'xlsx'}`;
+    await download(`${kind}-${saved.id}`, `/quotes/${saved.id}/${kind}`, name);
   }
 
   return (
@@ -434,12 +436,10 @@ export default function ProposalWizard({ id, initialCustomerId }) {
             variant="accent"
             className="gap-2"
             onClick={async () => {
-              let sid = savedId || id;
-              if (!sid) {
-                const created = await save();
-                sid = created?.id;
-              }
-              if (sid) setEmailOpen(true);
+              // Same reason as exportFile: the attachment is built from what the
+              // server holds, so unsaved edits must reach it first.
+              const saved = await save();
+              if (saved) setEmailOpen(true);
             }}
           >
             <Mail className="h-4 w-4" />

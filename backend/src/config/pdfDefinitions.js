@@ -360,6 +360,22 @@ const DEFINITION_MIGRATIONS = [
     id: 'apply-cover-defaults-to-existing-contracts',
     apply() {},
   },
+  {
+    /**
+     * The first two standard clauses print bold.
+     *
+     * mergeDefinitions keeps a stored array in preference to the shipped one, so
+     * an install whose clause list was written before `bold` existed carried no
+     * weight at all and every clause came out plain — the shipped default never
+     * reached it. Only applied when nothing is bold yet, so a list where the
+     * emphasis has already been chosen is left exactly as it is.
+     */
+    id: 'bold-first-two-standard-clauses',
+    apply(d) {
+      if (!Array.isArray(d.defaultClauses) || d.defaultClauses.some((c) => c?.bold)) return;
+      d.defaultClauses = d.defaultClauses.map((c, i) => ({ ...c, bold: i < 2 }));
+    },
+  },
 ];
 
 export function applyDefinitionMigrations(stored) {
