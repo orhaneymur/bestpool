@@ -80,6 +80,33 @@ function asset(name) {
 
 const PAGE_WIDTH = { LETTER: 612, A4: 595.28 };
 
+const PNG_MAGIC = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+const JPEG_MAGIC = Buffer.from([0xff, 0xd8, 0xff]);
+
+/**
+ * A data URI pdfmake will actually accept, or null.
+ *
+ * The upload endpoint checks this too, but the renderer refuses to trust it:
+ * pdfmake throws on image data it cannot decode, and an image stored before that
+ * check existed would take down every export with an error that names a
+ * contract rather than the setting at fault. Printing without the signature is
+ * the better failure.
+ */
+function usableImageDataUri(value) {
+  const str = String(value || '');
+  if (!/^data:image\/(png|jpe?g);base64,/.test(str)) return null;
+  try {
+    const bytes = Buffer.from(str.slice(str.indexOf(',') + 1), 'base64');
+    const isPng = bytes.subarray(0, 8).equals(PNG_MAGIC);
+    const isJpeg = bytes.subarray(0, 3).equals(JPEG_MAGIC);
+    if (!isPng && !isJpeg) return null;
+    if (isPng && !bytes.subarray(-8).includes(Buffer.from('IEND'))) return null;
+    return str;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Steps the specification page is squeezed through until it fits one sheet.
  *
@@ -224,12 +251,51 @@ function makeTheme(def) {
     paddingBottom: () => pad,
   });
 
-  const sigLine = (label, width = Math.floor((contentW - 24) / 2) - 16) => ({
-    stack: [
-      { canvas: [{ type: 'line', x1: 0, y1: 0, x2: width, y2: 0, lineWidth: 0.6, lineColor: def.theme.ink }] },
-      { text: label, fontSize: fs(6.8), color: def.theme.muted, characterSpacing: 0.6, margin: [0, 2, 0, gap(4)] },
-    ],
-  });
+  const sigWidth = Math.floor((contentW - 24) / 2) - 16;
+
+  /**
+   * One ruled line in the acceptance block, optionally with something printed
+   * above it — a signature image, or a date already filled in.
+   *
+   * `boxHeight` reserves that space whether or not this particular line uses it.
+   * Both signature columns pass the same value, so the owner's rules stay level
+   * with the contractor's instead of riding up where the contractor has an image
+   * and the owner has blank paper. The fixed-height table row is what guarantees
+   * it: an image sized with `fit` renders shorter than its box whenever the
+   * aspect ratio says so, and stacking it directly would misalign the columns by
+   * exactly that difference.
+   */
+  const sigLine = (label, { width = sigWidth, value = '', image = null, boxHeight = 0 } = {}) => {
+    const above = boxHeight > 0
+      ? [{
+          table: {
+            widths: [width],
+            heights: [boxHeight],
+            body: [[
+              image
+                ? { image, fit: [width, boxHeight], alignment: 'left', border: [false, false, false, false] }
+                : {
+                    text: value,
+                    fontSize: fs(8),
+                    color: def.theme.ink,
+                    alignment: 'left',
+                    margin: [0, Math.max(0, boxHeight - fs(8) - 2), 0, 0],
+                    border: [false, false, false, false],
+                  },
+            ]],
+          },
+          layout: 'noBorders',
+        }]
+      : [];
+
+    return {
+      stack: [
+        ...above,
+        { canvas: [{ type: 'line', x1: 0, y1: 0, x2: width, y2: 0, lineWidth: 0.6, lineColor: def.theme.ink }] },
+        { text: label, fontSize: fs(6.8), color: def.theme.muted, characterSpacing: 0.6, margin: [0, 2, 0, gap(4)] },
+      ],
+    };
+  };
 
   // Spread the palette first: `theme.rule` is a colour string and would otherwise
   // shadow the `rule()` helper, which is exposed as `ruleColor` instead.
@@ -241,6 +307,7 @@ function makeTheme(def) {
     contentW,
     fs,
     gap,
+    sigWidth,
     pad,
     rule,
     centeredRule,
@@ -258,7 +325,9 @@ function scheduleColumn(T, schedules, seasonType, title, subtitle, labels) {
   const bodyRows = DAY_ORDER.map((day) => {
     const r = rows.find((x) => x.day_label === day);
     const open = r ? (r.is_closed ? labels.scheduleClosed : to12h(r.open_time) || '-') : '-';
-    const close = r ? (r.is_closed ? '—' : to12h(r.close_time) || '-') : '-';
+    // A closed day says so in both columns; a dash under CLOSE read as missing
+    // data rather than as "shut".
+    const close = r ? (r.is_closed ? labels.scheduleClosed : to12h(r.close_time) || '-') : '-';
     return [
       { text: DAY_EN[day], fontSize: T.fs(7.5), color: T.ink },
       { text: open, fontSize: T.fs(7.5), alignment: 'center', color: T.muted },
@@ -405,6 +474,16 @@ export async function buildQuotePdf(quote, setting = {}, options = {}) {
 
   const hidden = new Set(sanitizeHiddenFields(quote.hidden_fields));
   const show = (key) => !hidden.has(key);
+
+  /**
+   * The uploaded signature, as stored: a data URI.
+   *
+   * Anything that is not a PNG or JPEG data URI is ignored rather than handed to
+   * pdfmake, which throws on unrecognised image data — a bad upload would
+   * otherwise surface as "PDF export failed" with nothing pointing at the cause.
+   * Read once here because it does not vary with the layout scale.
+   */
+  const signatureAsset = usableImageDataUri(setting.signature_image);
 
   /**
    * Every piece of the document, laid out at one particular scale.
@@ -748,6 +827,19 @@ export async function buildQuotePdf(quote, setting = {}, options = {}) {
         : null,
     ]);
 
+    /**
+     * The contractor half of the acceptance block is filled in before the
+     * contract goes out: the company signs first, and the customer countersigns.
+     * The owner half stays blank for them to complete.
+     */
+    const signatureImage = show('spec.contractorSignature') ? signatureAsset : null;
+    const signatureBox = signatureImage ? def.branding.signatureHeight : 0;
+    // The date the contract was drawn up. A contract being previewed before its
+    // first save has no created_at yet, so it shows today.
+    const contractDate = dateEN(quote.created_at || new Date());
+    const dateBox = T.fs(8) + 4;
+    const signatoryName = (def.contractor.signatory || '').trim() || contractorName;
+
     addSection('spec.acceptance', def.sectionTitles.acceptance, [
       {
         text: generalTerms.length
@@ -770,10 +862,10 @@ export async function buildQuotePdf(quote, setting = {}, options = {}) {
                 characterSpacing: 1,
                 margin: [0, 0, 0, 8],
               },
-              T.sigLine('SIGNATURE'),
+              T.sigLine('SIGNATURE', { boxHeight: signatureBox }),
               T.sigLine('TITLE'),
               T.sigLine('COMPANY'),
-              T.sigLine('DATE'),
+              T.sigLine('DATE', { boxHeight: dateBox }),
             ],
           },
           {
@@ -787,10 +879,10 @@ export async function buildQuotePdf(quote, setting = {}, options = {}) {
                 characterSpacing: 1,
                 margin: [0, 0, 0, 8],
               },
-              T.sigLine('SIGNATURE'),
-              T.sigLine(`BY — ${contractorName.toUpperCase()}`),
+              T.sigLine('SIGNATURE', { boxHeight: signatureBox, image: signatureImage ? 'contractorSignature' : null }),
+              T.sigLine(`${def.labels.signatoryPrefix} ${signatoryName.toUpperCase()}`),
               T.sigLine('TITLE'),
-              T.sigLine('DATE'),
+              T.sigLine('DATE', { boxHeight: dateBox, value: contractDate }),
             ],
           },
         ],
@@ -1109,6 +1201,7 @@ export async function buildQuotePdf(quote, setting = {}, options = {}) {
       images: {
         ...(watermark ? { watermark } : {}),
         ...(shell.logo ? { coverLogo: shell.logo } : {}),
+        ...(signatureAsset ? { contractorSignature: signatureAsset } : {}),
       },
       // Drawn under the content on every page, centred, at low opacity so the
       // contract stays the thing you read.

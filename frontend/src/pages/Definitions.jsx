@@ -68,6 +68,7 @@ const LABEL_GROUPS = [
     ['holidaysPrefix', 'Public holidays prefix'],
     ['schoolNotePrefix', 'School calendar note prefix'],
     ['noComments', 'Empty additional comments'],
+    ['signatoryPrefix', 'Signatory line prefix', 'BY —'],
     ['signatureNote', 'Electronic signature note'],
   ]],
 ];
@@ -590,6 +591,20 @@ export default function Definitions() {
                   </span>
                 </span>
               </label>
+
+              <div className="space-y-1.5">
+                <Label>Authorised signatory</Label>
+                <Input
+                  disabled={readOnly}
+                  value={d.contractor.signatory ?? ''}
+                  onChange={(e) => set('contractor.signatory', e.target.value)}
+                  placeholder="Falls back to the company name"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Printed under the contractor signature line as “{d.labels.signatoryPrefix} {(d.contractor.signatory || '').toUpperCase() || 'COMPANY NAME'}”.
+                  Upload the matching signature image on the Settings page.
+                </p>
+              </div>
 
               <div className="space-y-1.5">
                 <Label>Where to apply it</Label>

@@ -84,24 +84,28 @@ export async function ensureSeed() {
       if (!s.rev_label) patch.rev_label = 'Rev 07/2026';
       if (s.company_email !== COMPANY_EMAIL) patch.company_email = COMPANY_EMAIL;
 
-      /**
-       * New PDF defaults reach an existing install through here, once each.
-       *
-       * `definitions.hidden` is the user's own choice, so a new default cannot
-       * simply be applied on every boot — it would undo their edits after each
-       * deploy. Each change is recorded in definitions.migrations and offered a
-       * single time.
-       */
-      const migrated = applyDefinitionMigrations(s.definitions);
-      if (migrated) {
-        patch.definitions = migrated.definitions;
-        console.log('[seed] Definition defaults applied:', migrated.applied.join(', '));
-      }
-
       if (Object.keys(patch).length) {
         await s.update(patch);
         console.log('[seed] Company settings updated:', Object.keys(patch).join(', '));
       }
+    }
+  }
+
+  /**
+   * New PDF defaults reach every install through here, once each.
+   *
+   * Runs for a fresh database and an established one alike, so the two end up
+   * with the same contract. `definitions.hidden` and the signatory are the
+   * user's own choices, so a new default cannot simply be applied on every boot
+   * — that would undo their edits after each deploy. Each change is recorded in
+   * definitions.migrations and offered a single time.
+   */
+  const settingsRow = await Setting.findByPk(1);
+  if (settingsRow) {
+    const migrated = applyDefinitionMigrations(settingsRow.definitions);
+    if (migrated) {
+      await settingsRow.update({ definitions: migrated.definitions });
+      console.log('[seed] Definition defaults applied:', migrated.applied.join(', '));
     }
   }
 

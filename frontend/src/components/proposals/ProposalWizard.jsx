@@ -54,6 +54,12 @@ export default function ProposalWizard({ id, initialCustomerId }) {
   // The company-wide contract wording. The preview renders from this so it shows
   // the same titles and sentences the PDF prints.
   const [definitions, setDefinitions] = useState(null);
+  // The company signature, so the preview shows the same acceptance block the
+  // PDF prints. Fetched on its own rather than with the whole settings row,
+  // which carries far more than the preview needs.
+  const [signatureImage, setSignatureImage] = useState(null);
+  // Set once the contract is saved, so the printed date matches the PDF's.
+  const [createdAt, setCreatedAt] = useState(null);
   const [hiddenFields, setHiddenFields] = useState([]);
   const [duplicating, setDuplicating] = useState(false);
   const { busyKey, download } = useDownload();
@@ -91,9 +97,10 @@ export default function ProposalWizard({ id, initialCustomerId }) {
   // starts from the company default; an existing one loads its own saved list.
   useEffect(() => {
     let cancelled = false;
-    Promise.all([api.get('/definitions/schema'), api.get('/definitions')])
-      .then(([schema, defs]) => {
+    Promise.all([api.get('/definitions/schema'), api.get('/definitions'), api.get('/settings/signature')])
+      .then(([schema, defs, sig]) => {
         if (cancelled) return;
+        setSignatureImage(sig.data?.image || null);
         setPdfBlocks(schema.data.blocks || []);
         setDefinitions(defs.data);
         const companyDefault = defs.data.hidden || [];
@@ -174,6 +181,7 @@ export default function ProposalWizard({ id, initialCustomerId }) {
     api.get(`/quotes/${id}`).then((r) => {
       const d = r.data;
       setQuoteNo(d.quote_no);
+      setCreatedAt(d.created_at || null);
       setQ({
         customer_id: d.customer_id,
         contract_template_id: d.contract_template_id || '',
@@ -332,6 +340,7 @@ export default function ProposalWizard({ id, initialCustomerId }) {
       }
       setSavedId(res.data.id);
       setQuoteNo(res.data.quote_no);
+      setCreatedAt(res.data.created_at || null);
       if (!editing && !id) nav(`/quotes/${res.data.id}`, { replace: true });
       return res.data;
     } catch (e) {
@@ -552,6 +561,8 @@ export default function ProposalWizard({ id, initialCustomerId }) {
             contractAmount={contractAmount}
             canExport={!!(savedId || id)}
             definitions={definitions}
+            signatureImage={signatureImage}
+            createdAt={createdAt}
             busyKind={busyKey ? busyKey.split('-')[0] : null}
             onPdf={() => exportFile('pdf')}
             onExcel={() => exportFile('excel')}
@@ -592,6 +603,8 @@ export default function ProposalWizard({ id, initialCustomerId }) {
               contractAmount={contractAmount}
               canExport={!!(savedId || id)}
               definitions={definitions}
+              signatureImage={signatureImage}
+              createdAt={createdAt}
               busyKind={busyKey ? busyKey.split('-')[0] : null}
               onPdf={() => exportFile('pdf')}
               onExcel={() => exportFile('excel')}

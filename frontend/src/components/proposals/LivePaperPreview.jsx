@@ -45,6 +45,10 @@ export default function LivePaperPreview({
    * heading on the Definitions page changes the preview and the PDF together.
    */
   definitions = null,
+  /** The uploaded contractor signature as a data URI, or null. */
+  signatureImage = null,
+  /** ISO date the contract was created; today for one that has not been saved. */
+  createdAt = null,
   /** 'pdf' | 'excel' | null — which export is currently building, if any. */
   busyKind = null,
 }) {
@@ -60,6 +64,8 @@ export default function LivePaperPreview({
     ? (definitions.contractor.label || '').trim().toUpperCase() || 'the CONTRACTOR'
     : 'the CONTRACTOR';
   const ownerWord = L.ownerParty || 'OWNER';
+  const signatoryName = (definitions?.contractor?.signatory || '').trim() || contractorWord;
+  const showSignature = show('spec.contractorSignature') && !!signatureImage;
 
   const normal = DAYS.map(([day, label]) => {
     const r = schedules.find((s) => s.season_type === 'normal' && s.day_label === day);
@@ -155,7 +161,7 @@ export default function LivePaperPreview({
                             {r?.is_closed ? L.scheduleClosed : formatTime12(r?.open_time)}
                           </td>
                           <td className="px-1 py-0.5 text-center">
-                            {r?.is_closed ? '—' : formatTime12(r?.close_time)}
+                            {r?.is_closed ? L.scheduleClosed : formatTime12(r?.close_time)}
                           </td>
                         </tr>
                       ))}
@@ -308,13 +314,39 @@ export default function LivePaperPreview({
         <div className="grid grid-cols-2 gap-6 pt-2">
           <div>
             <div className="font-semibold">{L.ownerColumn}</div>
-            <div className="mt-3 border-b border-slate-300 pb-1 text-slate-400">Signature</div>
-            <div className="mt-2 text-[9px] text-slate-400">Title · Company · Date</div>
+            {/* Matches the PDF, where the same box is reserved in both columns so
+                the two sets of rules stay level. */}
+            <div className="mt-2 h-10" />
+            <div className="border-b border-slate-400" />
+            <div className="mt-0.5 text-[8px] uppercase tracking-wide text-slate-400">Signature</div>
+            <div className="mt-3 border-b border-slate-400" />
+            <div className="mt-0.5 text-[8px] uppercase tracking-wide text-slate-400">Title</div>
+            <div className="mt-3 border-b border-slate-400" />
+            <div className="mt-0.5 text-[8px] uppercase tracking-wide text-slate-400">Company</div>
+            <div className="mt-3 h-4" />
+            <div className="border-b border-slate-400" />
+            <div className="mt-0.5 text-[8px] uppercase tracking-wide text-slate-400">Date</div>
           </div>
           <div>
             <div className="font-semibold">{L.contractorColumn}</div>
-            <div className="mt-3 border-b border-slate-300 pb-1 text-slate-400">Signature</div>
-            <div className="mt-2 text-[9px] text-slate-400">Title · Date</div>
+            <div className="mt-2 flex h-10 items-end">
+              {showSignature && (
+                <img src={signatureImage} alt="Contractor signature" className="max-h-10 max-w-full object-contain" />
+              )}
+            </div>
+            <div className="border-b border-slate-400" />
+            <div className="mt-0.5 text-[8px] uppercase tracking-wide text-slate-400">Signature</div>
+            <div className="mt-3 border-b border-slate-400" />
+            <div className="mt-0.5 text-[8px] uppercase tracking-wide text-slate-400">
+              {L.signatoryPrefix} {String(signatoryName).toUpperCase()}
+            </div>
+            <div className="mt-3 border-b border-slate-400" />
+            <div className="mt-0.5 text-[8px] uppercase tracking-wide text-slate-400">Title</div>
+            <div className="mt-3 flex h-4 items-end text-[9px] text-slate-700">
+              {fmtDate(createdAt || new Date().toISOString())}
+            </div>
+            <div className="border-b border-slate-400" />
+            <div className="mt-0.5 text-[8px] uppercase tracking-wide text-slate-400">Date</div>
           </div>
         </div>
       ),

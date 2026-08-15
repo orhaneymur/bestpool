@@ -16,6 +16,7 @@ const COLUMNS = [
   { table: 'quotes', column: 'school_reopens', ddl: 'DATE NULL' },
   { table: 'quotes', column: 'holiday_policy', ddl: 'JSON NULL' },
   { table: 'settings', column: 'definitions', ddl: 'JSON NULL' },
+  { table: 'settings', column: 'signature_image', ddl: 'LONGTEXT NULL' },
 ];
 
 async function columnExists(table, column) {

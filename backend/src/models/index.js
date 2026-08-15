@@ -193,6 +193,10 @@ export const Setting = sequelize.define('Setting', {
   tax_office: { type: DataTypes.STRING(120) },
   tax_no: { type: DataTypes.STRING(40) },
   logo_url: { type: DataTypes.STRING(300) },
+  // The authorised signatory's signature, as a PNG data URI. Kept in the
+  // database rather than on disk: pods are replaced on every deploy and an
+  // uploaded file written into the image would not survive one.
+  signature_image: { type: DataTypes.TEXT('long') },
   quote_prefix: { type: DataTypes.STRING(20), defaultValue: 'TEK' },
   default_vat_rate: { type: DataTypes.DECIMAL(5, 2), defaultValue: 20 },
   // "Tanımlamalar" modülü: PDF biçimi, etiketler, renkler, varsayılan gizli

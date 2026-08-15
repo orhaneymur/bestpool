@@ -59,6 +59,12 @@ export const PDF_BLOCKS = [
   { key: 'spec.earlyBird', group: 'Specification', label: 'Early bird discount' },
   { key: 'spec.installments', group: 'Specification', label: 'Payment due dates' },
   { key: 'spec.acceptance', group: 'Specification', label: 'Acceptance & signatures' },
+  {
+    key: 'spec.contractorSignature',
+    group: 'Specification',
+    label: '— Printed contractor signature',
+    hint: 'The signature image uploaded on the Settings page',
+  },
   { key: 'spec.signatureNote', group: 'Specification', label: 'Electronic signature note' },
 
   // --- Terms ---
@@ -157,6 +163,9 @@ export const DEFAULT_DEFINITIONS = {
     dueLabel: 'Due',
     noInstallments: 'No payment schedule defined.',
 
+    // --- Signatures ---
+    signatoryPrefix: 'BY —',
+
     // --- Inline prefixes ---
     holidaysPrefix: 'PUBLIC HOLIDAYS COVERED: ',
     schoolNotePrefix: 'NOTE (school / off-season calendar): ',
@@ -226,6 +235,12 @@ export const DEFAULT_DEFINITIONS = {
     replaceWord: true,
     scope: 'all',            // all | spec  (spec = specification page only, terms untouched)
     label: '',               // blank = fall back to settings.company_name
+    /**
+     * Who actually signs, printed under the contractor signature line. Blank
+     * falls back to the company name, which is what the contract said before
+     * there was anyone to name.
+     */
+    signatory: '',
   },
   numbering: {
     padding: 3,              // FSPM-2026-001
@@ -238,6 +253,14 @@ export const DEFAULT_DEFINITIONS = {
     // the whole point is that it must never compete with the contract text.
     backgroundWidth: 330,
     backgroundOpacity: 0.05,
+    /**
+     * The box the uploaded signature is fitted into, in points. The image keeps
+     * its aspect ratio inside it, and the box is reserved in both signature
+     * columns whether or not there is an image, so the two sets of rules stay
+     * level with each other.
+     */
+    signatureWidth: 150,
+    signatureHeight: 38,
   },
   /**
    * Blocks a brand-new contract starts with switched off.
@@ -284,6 +307,14 @@ const DEFINITION_MIGRATIONS = [
     id: 'hide-cover-email-and-initials',
     apply(d) {
       d.hidden = [...new Set([...d.hidden, 'cover.email', 'cover.initials'])];
+    },
+  },
+  {
+    // The authorised signatory, previously the company name. Editable on the
+    // Definitions page afterwards, like everything else here.
+    id: 'set-contractor-signatory',
+    apply(d) {
+      if (!d.contractor.signatory) d.contractor.signatory = 'Mustafa INAN';
     },
   },
 ];
@@ -383,6 +414,7 @@ export function validateDefinitions(input) {
   if (!['all', 'spec'].includes(d.contractor.scope)) d.contractor.scope = 'all';
   d.contractor.replaceWord = !!d.contractor.replaceWord;
   d.contractor.label = String(d.contractor.label ?? '').slice(0, 200);
+  d.contractor.signatory = String(d.contractor.signatory ?? '').trim().slice(0, 200);
 
   d.numbering.padding = clamp(Number(d.numbering.padding), 1, 6, 3);
   d.numbering.yearlyReset = !!d.numbering.yearlyReset;
@@ -392,6 +424,10 @@ export function validateDefinitions(input) {
   // Hard ceiling rather than a warning: above roughly 0.18 the watermark starts
   // fighting the body text, and an unreadable contract is not a preference.
   d.branding.backgroundOpacity = clamp(Number(d.branding.backgroundOpacity), 0, 0.18, 0.05);
+  // Bounded so an over-large signature cannot push the acceptance block onto a
+  // page of its own, which is exactly what the one-page fit works to avoid.
+  d.branding.signatureWidth = clamp(Number(d.branding.signatureWidth), 40, 260, 150);
+  d.branding.signatureHeight = clamp(Number(d.branding.signatureHeight), 14, 90, 38);
 
   return { definitions: d, errors };
 }
