@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowDown, ArrowUp, Eye, EyeOff, Loader2, Plus, RotateCcw, Save, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, Bold, Eye, EyeOff, Loader2, Plus, RotateCcw, Save, Trash2 } from 'lucide-react';
 import api from '@/api/client.js';
 import PageHeader from '@/components/layout/PageHeader.jsx';
 import { Button } from '@/components/ui/button.jsx';
@@ -195,7 +195,7 @@ export default function Definitions() {
     setClauses(next);
   };
   const addClause = () =>
-    setClauses([...clauses, { label: String.fromCharCode(65 + clauses.length), body: '' }]);
+    setClauses([...clauses, { label: String.fromCharCode(65 + clauses.length), body: '', bold: false }]);
 
   return (
     <div className="space-y-4 sm:space-y-5">
@@ -526,10 +526,23 @@ export default function Definitions() {
                     value={c.body ?? ''}
                     disabled={readOnly}
                     onChange={(e) => updateClause(i, { body: e.target.value })}
-                    className="flex w-full rounded-xl border border-input bg-transparent px-3 py-2 text-sm shadow-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/20 disabled:opacity-60"
+                    className={cn(
+                      'flex w-full rounded-xl border border-input bg-transparent px-3 py-2 text-sm shadow-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/20 disabled:opacity-60',
+                      c.bold && 'font-semibold'
+                    )}
                   />
                   {!readOnly && (
                     <div className="flex shrink-0 flex-col gap-1">
+                      <Button
+                        type="button"
+                        variant={c.bold ? 'accent' : 'ghost'}
+                        size="sm"
+                        aria-pressed={!!c.bold}
+                        title={c.bold ? 'Starts bold — click for normal weight' : 'Start this clause in bold'}
+                        onClick={() => updateClause(i, { bold: !c.bold })}
+                      >
+                        <Bold className="h-3.5 w-3.5" />
+                      </Button>
                       <Button type="button" variant="ghost" size="sm" onClick={() => moveClause(i, -1)} disabled={i === 0}>
                         <ArrowUp className="h-3.5 w-3.5" />
                       </Button>

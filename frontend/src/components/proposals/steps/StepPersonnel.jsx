@@ -191,7 +191,7 @@ export default function StepPersonnel({
       peak_weeks: Math.round(season?.weeks || 0),
       hours_per_week: Math.round(season?.weeklyStaffHours || 0),
     }));
-    setItems(buildBidLineItems(summary));
+    setItems(buildBidLineItems(summary, services));
   }
 
   function toggleHoliday(key) {
@@ -233,6 +233,24 @@ export default function StepPersonnel({
         />
       </div>
 
+      <Card>
+        <CardHeader className="flex flex-col gap-2 space-y-0 pb-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <CardTitle>Staffing figures on the PDF</CardTitle>
+            <CardDescription>
+              Each line prints on its own. Switch off the ones this customer should not see — the rest stay.
+            </CardDescription>
+          </div>
+        </CardHeader>
+        <CardContent className="flex flex-wrap gap-2">
+          <HideToggle k="spec.staffLifeguards" label="number of lifeguards" />
+          <HideToggle k="spec.staffOperatingDays" label="operating days" />
+          <HideToggle k="spec.staffDailyHours" label="daily hours" />
+          <HideToggle k="spec.staffWeeklyHours" label="weekly hours" />
+          <HideToggle k="spec.staffSeasonHours" label="seasonal hours" />
+        </CardContent>
+      </Card>
+
       <SeasonBreakdown season={season} holidayPolicy={holidayPolicy} onToggle={toggleHoliday} />
 
       <Card>
@@ -244,7 +262,7 @@ export default function StepPersonnel({
             {BID_RATES.profitPct}% profit, and {BID_RATES.salesTaxPct}% sales tax — calculated automatically.
           </CardDescription>
           </div>
-          <HideToggle k="spec.personnel" />
+          <HideToggle k="spec.personnel" label="staffing block" />
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
@@ -377,7 +395,7 @@ export default function StepPersonnel({
                 value={it.service_item_id || ''}
                 onChange={(e) => pickService(i, e.target.value)}
               >
-                <option value="">Manual</option>
+                <option value="">Custom / calculated</option>
                 {services.map((s) => (
                   <option key={s.id} value={s.id}>{s.name}</option>
                 ))}

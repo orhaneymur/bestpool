@@ -99,7 +99,13 @@ async function saveNotes(quoteId, notes, t) {
     .map((n, i) => {
       const body = (n?.body || '').trim();
       if (!body) return null;
-      return { quote_id: quoteId, label: n.label || null, body, sort_order: n.sort_order ?? i };
+      return {
+        quote_id: quoteId,
+        label: n.label || null,
+        body,
+        is_bold: !!n.is_bold,
+        sort_order: n.sort_order ?? i,
+      };
     })
     .filter(Boolean);
   if (rows.length) await QuoteNote.bulkCreate(rows, { transaction: t });

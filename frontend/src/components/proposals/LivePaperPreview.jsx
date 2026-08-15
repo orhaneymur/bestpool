@@ -174,19 +174,33 @@ export default function LivePaperPreview({
 
           {show('spec.personnel') && (
             <div className="mb-4 flex flex-wrap gap-x-4 gap-y-1 text-[10px]">
-              <span>
-                <strong>{L.staffLifeguards}:</strong> {Number(q.lifeguard_count || 0)}
-              </span>
-              <span>
-                <strong>{L.staffOperatingDays}:</strong>{' '}
-                {season ? `${season.openDays} of ${season.days} days` : '\u2014'}
-              </span>
-              <span>
-                <strong>{L.staffWeeklyHours}:</strong> {season ? `${season.weeklyStaffHours} Hrs/week` : '\u2014'}
-              </span>
-              <span>
-                <strong>{L.staffSeasonHours}:</strong> {season ? `${season.staffHours} Hrs/season` : '\u2014'}
-              </span>
+              {show('spec.staffLifeguards') && (
+                <span>
+                  <strong>{L.staffLifeguards}:</strong> {Number(q.lifeguard_count || 0)} Lifeguard(s)
+                </span>
+              )}
+              {show('spec.staffOperatingDays') && (
+                <span>
+                  <strong>{L.staffOperatingDays}:</strong>{' '}
+                  {season ? `${season.openDays} of ${season.days} days` : '—'}
+                </span>
+              )}
+              {show('spec.staffDailyHours') && (
+                <span>
+                  <strong>{L.staffDailyHours}:</strong>{' '}
+                  {season ? `${season.avgDailyHoursPerGuard} Hrs/day` : '—'}
+                </span>
+              )}
+              {show('spec.staffWeeklyHours') && (
+                <span>
+                  <strong>{L.staffWeeklyHours}:</strong> {season ? `${season.weeklyStaffHours} Hrs/week` : '—'}
+                </span>
+              )}
+              {show('spec.staffSeasonHours') && (
+                <span>
+                  <strong>{L.staffSeasonHours}:</strong> {season ? `${season.staffHours} Hrs/season` : '—'}
+                </span>
+              )}
             </div>
           )}
         </>
@@ -201,7 +215,7 @@ export default function LivePaperPreview({
       node: (
         <ul className="mb-4 list-none space-y-0.5">
           {(visibleNotes.length ? visibleNotes : [{ label: '', body: L.noComments }]).map((n, i) => (
-            <li key={i}>
+            <li key={i} className={n.is_bold ? 'font-semibold' : undefined}>
               <strong>{n.label ? `${n.label}. ` : ''}</strong>
               {n.body}
             </li>
@@ -216,9 +230,11 @@ export default function LivePaperPreview({
       title: S.compensation,
       node: (
         <>
-          <p className="mb-2 text-slate-600">
-            {fillTemplate(SENT.compensation, { owner: ownerWord, contractor: contractorWord })}
-          </p>
+          {show('spec.compensationIntro') && (
+            <p className="mb-2 text-slate-600">
+              {fillTemplate(SENT.compensation, { owner: ownerWord, contractor: contractorWord })}
+            </p>
+          )}
 
           {show('spec.items') && lineItems.length > 0 && (
             <div className="mb-3">
@@ -265,7 +281,7 @@ export default function LivePaperPreview({
             </div>
           )}
 
-          {Number(q.early_bird_discount) > 0 && show('spec.earlyBird') && (
+          {Number(q.early_bird_discount) > 0 && show('spec.earlyBird') && show('spec.earlyBirdNote') && (
             <p className="mb-2 text-[9px] italic text-slate-500">
               {fillTemplate(SENT.earlyBirdNote, {
                 contractor: contractorWord,

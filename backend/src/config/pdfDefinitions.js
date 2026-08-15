@@ -49,14 +49,26 @@ export const PDF_BLOCKS = [
   { key: 'spec.duration', group: 'Specification', label: 'Contract duration sentence' },
   { key: 'spec.schedule', group: 'Specification', label: 'Operating hours tables' },
   { key: 'spec.scheduleSchool', group: 'Specification', label: 'School / off-season hours column' },
-  { key: 'spec.personnel', group: 'Specification', label: 'Staffing hours' },
+  {
+    key: 'spec.personnel',
+    group: 'Specification',
+    label: 'Staffing figures',
+    hint: 'The whole block — switch off single rows below instead',
+  },
+  { key: 'spec.staffLifeguards', group: 'Specification', label: '— Number of lifeguards' },
+  { key: 'spec.staffOperatingDays', group: 'Specification', label: '— Operating days' },
+  { key: 'spec.staffDailyHours', group: 'Specification', label: '— Daily hours per guard' },
+  { key: 'spec.staffWeeklyHours', group: 'Specification', label: '— Weekly staffing hours' },
+  { key: 'spec.staffSeasonHours', group: 'Specification', label: '— Seasonal staffing hours' },
   { key: 'spec.holidays', group: 'Specification', label: 'Public holidays covered', hint: 'Lists the staffed US holidays' },
   { key: 'spec.scheduleNote', group: 'Specification', label: 'School calendar note' },
   { key: 'spec.comments', group: 'Specification', label: 'Additional comments' },
   { key: 'spec.compensation', group: 'Specification', label: 'Compensation schedule' },
+  { key: 'spec.compensationIntro', group: 'Specification', label: '— Payment sentence' },
   { key: 'spec.items', group: 'Specification', label: 'Services included table' },
   { key: 'spec.totals', group: 'Specification', label: 'Total contract price' },
   { key: 'spec.earlyBird', group: 'Specification', label: 'Early bird discount' },
+  { key: 'spec.earlyBirdNote', group: 'Specification', label: '— Early bird deadline note' },
   { key: 'spec.installments', group: 'Specification', label: 'Payment due dates' },
   { key: 'spec.acceptance', group: 'Specification', label: 'Acceptance & signatures' },
   {
@@ -199,28 +211,48 @@ export const DEFAULT_DEFINITIONS = {
    * already gone out.
    */
   defaultClauses: [
-    { label: 'A', body: 'Test kit restock included.' },
-    { label: 'B', body: 'First aid kit restock included.' },
-    { label: 'C', body: 'Cost for additional lifeguard hours (more than 48 hours notice): $35/hr.' },
-    { label: 'D', body: 'Cost for additional lifeguard hours (less than 48 hours notice): $55/hr.' },
+    { label: 'A', body: 'Test kit restock included.', bold: true },
+    { label: 'B', body: 'First aid kit restock included.', bold: true },
+    {
+      label: 'C',
+      body: 'Cost for additional lifeguard hours (more than 48 hours notice): $35/hr.',
+      bold: false,
+    },
+    {
+      label: 'D',
+      body: 'Cost for additional lifeguard hours (less than 48 hours notice): $55/hr.',
+      bold: false,
+    },
     {
       label: 'E',
       body: 'Upon contract execution, the CONTRACTOR will conduct two service visits per month during the off-season.',
+      bold: false,
     },
-    { label: 'F', body: 'The CONTRACTOR will schedule and attend all Health Department inspections.' },
-    { label: 'G', body: 'The CONTRACTOR will conduct random safety inspections and in-service training.' },
+    {
+      label: 'F',
+      body: 'The CONTRACTOR will schedule and attend all Health Department inspections.',
+      bold: false,
+    },
+    {
+      label: 'G',
+      body: 'The CONTRACTOR will conduct random safety inspections and in-service training.',
+      bold: false,
+    },
     {
       label: 'H',
       body: 'Contract includes pool opening and closing. This contract will expire once the pool winterization has been completed.',
+      bold: false,
     },
-    { label: 'I', body: 'Chemicals included for disinfectant and pH compliance.' },
+    { label: 'I', body: 'Chemicals included for disinfectant and pH compliance.', bold: false },
     {
       label: 'J',
       body: 'The CONTRACTOR will conduct a minimum of three (3) inspections per week during the regular pool season.',
+      bold: false,
     },
     {
       label: 'K',
       body: 'All lifeguards have current certifications in Lifeguarding, First Aid, CPR and AED issued by Ellis & Associates or American Red Cross.',
+      bold: false,
     },
   ],
   sectionTitles: {
@@ -403,6 +435,7 @@ export function validateDefinitions(input) {
     .map((c) => ({
       label: String(c?.label ?? '').trim().slice(0, 10),
       body: String(c?.body ?? '').trim().slice(0, 1000),
+      bold: !!c?.bold,
     }))
     .filter((c) => c.body)
     .slice(0, 40);

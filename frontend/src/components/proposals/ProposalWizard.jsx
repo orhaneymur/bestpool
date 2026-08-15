@@ -110,7 +110,7 @@ export default function ProposalWizard({ id, initialCustomerId }) {
           // The starting Additional Comments are company settings now, not a
           // constant in this bundle, so they arrive with the definitions.
           const clauses = Array.isArray(defs.data.defaultClauses) ? defs.data.defaultClauses : [];
-          setSpecialNotes(clauses.map((c) => ({ label: c.label || '', body: c.body || '' })));
+          setSpecialNotes(clauses.map((c) => ({ label: c.label || '', body: c.body || '', is_bold: !!c.bold })));
         }
       })
       .catch(() => {

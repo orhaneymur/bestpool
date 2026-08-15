@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { CalendarPlus, Equal, Plus, Trash2, Sparkles } from 'lucide-react';
+import { Bold, CalendarPlus, Equal, Plus, Trash2, Sparkles } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx';
 import { Input } from '@/components/ui/input.jsx';
 import { Label } from '@/components/ui/label.jsx';
@@ -98,18 +98,18 @@ export default function StepPayment({
 
   function addNote() {
     const nextLabel = String.fromCharCode(65 + specialNotes.length);
-    setSpecialNotes((a) => [...a, { label: nextLabel, body: '' }]);
+    setSpecialNotes((a) => [...a, { label: nextLabel, body: '', is_bold: false }]);
   }
 
   function loadStandardClauses() {
-    setSpecialNotes(defaultClauses.map((c) => ({ label: c.label || '', body: c.body || '' })));
+    setSpecialNotes(defaultClauses.map((c) => ({ label: c.label || '', body: c.body || '', is_bold: !!c.bold })));
   }
 
   function addPreset(clause) {
     setSpecialNotes((a) => {
       if (a.some((n) => n.body === clause.body)) return a;
       const label = String.fromCharCode(65 + a.length);
-      return [...a, { label: clause.label || label, body: clause.body }];
+      return [...a, { label: clause.label || label, body: clause.body, is_bold: !!clause.bold }];
     });
   }
 
@@ -125,7 +125,8 @@ export default function StepPayment({
           </div>
           <div className="flex flex-wrap gap-1.5">
             <HideToggle k="spec.totals" />
-            <HideToggle k="spec.earlyBird" />
+            <HideToggle k="spec.earlyBird" label="discounted price" />
+            <HideToggle k="spec.earlyBirdNote" label="deadline note" />
             <HideToggle k="spec.installments" />
           </div>
         </CardHeader>
@@ -329,6 +330,18 @@ export default function StepPayment({
                 placeholder="Clause text…"
                 className="min-h-[2.5rem] flex-1 rounded-xl border border-input bg-transparent px-3 py-2 text-sm shadow-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/20"
               />
+              <Button
+                type="button"
+                variant={n.is_bold ? 'accent' : 'ghost'}
+                size="icon"
+                title={n.is_bold ? 'Printed in bold — click for normal weight' : 'Print this clause in bold'}
+                aria-pressed={!!n.is_bold}
+                onClick={() =>
+                  setSpecialNotes((a) => a.map((x, idx) => (idx === i ? { ...x, is_bold: !x.is_bold } : x)))
+                }
+              >
+                <Bold className="h-4 w-4" />
+              </Button>
               <Button
                 type="button"
                 variant="ghost"

@@ -365,7 +365,15 @@ function scheduleColumn(T, schedules, seasonType, title, subtitle, labels) {
  * Staffing figures, all derived from the season calendar rather than from a
  * hand-typed hours-per-week multiplied by a rounded week count.
  */
-function personnelRows(T, lifeguards, season, seasonType = 'normal', labels = {}) {
+/**
+ * Every staffing figure is its own hideable row.
+ *
+ * They used to travel together under a single "staffing" switch, so hiding the
+ * hours also took the guard count with them — the one line most contracts want
+ * to keep. `show` decides each row on its own; if all five are off the caller
+ * drops the block entirely rather than printing an empty rule.
+ */
+function personnelRows(T, lifeguards, season, seasonType = 'normal', labels = {}, show = () => true) {
   const daily = season.avgDailyHoursPerGuard;
   // The configured week, not the season average — see scheduledWeekHours().
   const weekly = seasonType === 'okul' ? season.weeklyStaffHoursSchool : season.weeklyStaffHours;
@@ -374,17 +382,22 @@ function personnelRows(T, lifeguards, season, seasonType = 'normal', labels = {}
     { text: label, fontSize: T.fs(7.5), color: T.muted },
     { text: value, fontSize: T.fs(7.5), bold: true, color: T.ink, alignment: 'right' },
   ];
+
+  const body = [
+    show('spec.staffLifeguards') && row(labels.staffLifeguards, `${lifeguards} Lifeguard(s)`),
+    show('spec.staffOperatingDays') && row(labels.staffOperatingDays, `${season.openDays} of ${season.days} days`),
+    show('spec.staffDailyHours') && row(labels.staffDailyHours, `${daily} Hrs/day`),
+    show('spec.staffWeeklyHours') && row(labels.staffWeeklyHours, `${weekly} Hrs/week`),
+    show('spec.staffSeasonHours') && row(labels.staffSeasonHours, `${seasonal} Hrs/season`),
+  ].filter(Boolean);
+
+  if (!body.length) return { width: '*', text: '' };
+
   return {
     width: '*',
     table: {
       widths: ['*', 'auto'],
-      body: [
-        row(labels.staffLifeguards, `${lifeguards} Lifeguard(s)`),
-        row(labels.staffOperatingDays, `${season.openDays} of ${season.days} days`),
-        row(labels.staffDailyHours, `${daily} Hrs/day`),
-        row(labels.staffWeeklyHours, `${weekly} Hrs/week`),
-        row(labels.staffSeasonHours, `${seasonal} Hrs/season`),
-      ],
+      body,
     },
     layout: {
       hLineWidth: (i) => (i === 0 ? 0 : 0.35),
@@ -558,7 +571,12 @@ export async function buildQuotePdf(quote, setting = {}, options = {}) {
       ? notes.map((n) => ({
           text: [
             { text: `${n.label ? `${n.label}. ` : ''}`, bold: true },
-            { text: applyContractorLabel(n.body || '', useContractorName ? contractorName : '') },
+            {
+              text: applyContractorLabel(n.body || '', useContractorName ? contractorName : ''),
+              // Per clause, so the commercial terms can stand out from the
+              // boilerplate they sit among.
+              bold: !!n.is_bold,
+            },
           ],
           fontSize: T.fs(8),
           margin: [0, 0, 0, 1],
@@ -689,9 +707,9 @@ export async function buildQuotePdf(quote, setting = {}, options = {}) {
       show('spec.personnel')
         ? {
             columns: [
-              personnelRows(T, lifeguards, season, 'normal', def.labels),
+              personnelRows(T, lifeguards, season, 'normal', def.labels, show),
               show('spec.scheduleSchool')
-                ? personnelRows(T, lifeguards, season, 'okul', def.labels)
+                ? personnelRows(T, lifeguards, season, 'okul', def.labels, show)
                 : { width: '*', text: '' },
             ],
             columnGap: 18,
@@ -731,12 +749,14 @@ export async function buildQuotePdf(quote, setting = {}, options = {}) {
     addSection('spec.comments', def.sectionTitles.comments, commentLines);
 
     addSection('spec.compensation', def.sectionTitles.compensation, [
-      {
-        text: fillTemplate(def.sentences.compensation, { owner: ownerWord, contractor: contractorWord }),
-        fontSize: T.fs(8),
-        color: T.muted,
-        margin: [0, 0, 0, 3],
-      },
+      show('spec.compensationIntro')
+        ? {
+            text: fillTemplate(def.sentences.compensation, { owner: ownerWord, contractor: contractorWord }),
+            fontSize: T.fs(8),
+            color: T.muted,
+            margin: [0, 0, 0, 3],
+          }
+        : null,
       itemTable && show('spec.items')
         ? {
             text: def.labels.servicesIncluded,
@@ -789,7 +809,7 @@ export async function buildQuotePdf(quote, setting = {}, options = {}) {
                     : []),
                 ],
               },
-              showEarlyBird
+              showEarlyBird && show('spec.earlyBirdNote')
                 ? {
                     width: '48%',
                     text: fillTemplate(def.sentences.earlyBirdNote, {

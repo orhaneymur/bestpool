@@ -176,6 +176,9 @@ export const QuoteNote = sequelize.define('QuoteNote', {
   quote_id: { type: DataTypes.INTEGER, allowNull: false },
   label: { type: DataTypes.STRING(10) }, // A, B, C... (opsiyonel)
   body: { type: DataTypes.TEXT, allowNull: false },
+  // Prints the clause in bold, for the ones that carry the commercial terms
+  // rather than the boilerplate.
+  is_bold: { type: DataTypes.BOOLEAN, defaultValue: false },
   sort_order: { type: DataTypes.INTEGER, defaultValue: 0 },
 }, { tableName: 'quote_notes' });
 

@@ -98,6 +98,8 @@ export function computeBidSummary({
 
   return {
     countyLabel: countyRow?.label || '',
+    // Carried through so the generated lines can pick the right chemicals tier.
+    lifeguardCount: Number(lifeguardCount || 0),
     hourlyWage,
     weeklyPeakStaffHours,
     totalLifeguardHours: totalHours,
@@ -121,8 +123,31 @@ export function computeBidSummary({
 }
 
 /** Build quote line items from bid summary (for PDF / totals). */
-export function buildBidLineItems(bid) {
+/**
+ * Which catalogue service each calculated line corresponds to.
+ *
+ * Without this every generated line came back marked "Manual" in the wizard,
+ * even though most of them are priced straight off the service catalogue —
+ * which left no way to tell, at a glance, which row was which. Overhead, profit
+ * and sales tax have no catalogue entry because they are percentages of the
+ * rest; those stay unlinked, and honestly so.
+ */
+const CHEMICAL_CODE_BY_GUARDS = (guards) => {
+  const n = Number(guards || 0);
+  if (n <= 1) return 'CHM-1G';
+  if (n <= 3) return 'CHM-23G';
+  return 'CHM-4G';
+};
+
+export function buildBidLineItems(bid, services = []) {
   if (!bid || !bid.hourlyWage) return [];
+
+  const byCode = new Map(services.map((s) => [String(s.code || '').toUpperCase(), s]));
+  const link = (code) => {
+    const svc = code ? byCode.get(code.toUpperCase()) : null;
+    return svc ? { service_item_id: svc.id } : { service_item_id: null };
+  };
+
   const lines = [];
   if (bid.totalLifeguardHours > 0) {
     lines.push({
@@ -131,21 +156,22 @@ export function buildBidLineItems(bid) {
       unit: 'hour',
       unit_price: bid.hourlyWage,
       vat_rate: 0,
-      service_item_id: null,
+      ...link('LG-WAGE'),
     });
   }
+
   const fixed = [
-    ['Management', bid.expenses.management],
-    ['Drain and cleaning', bid.expenses.drainCleaning],
-    ['Chemicals', bid.expenses.chemicals],
-    ['Commission', bid.expenses.commission],
-    ['Insurance', bid.expenses.insurance],
-    ['Winterization', bid.expenses.winterization],
-    [`Overhead (${BID_RATES.overheadPct}%)`, bid.overhead],
-    [`Profit (${BID_RATES.profitPct}%)`, bid.profit],
-    [`Sales tax (${BID_RATES.salesTaxPct}%)`, bid.salesTax],
+    ['Management', bid.expenses.management, 'MGT-001'],
+    ['Drain and cleaning', bid.expenses.drainCleaning, 'DRN-001'],
+    ['Chemicals', bid.expenses.chemicals, CHEMICAL_CODE_BY_GUARDS(bid.lifeguardCount)],
+    ['Commission', bid.expenses.commission, 'COM-001'],
+    ['Insurance', bid.expenses.insurance, 'INS-001'],
+    ['Winterization', bid.expenses.winterization, 'WIN-001'],
+    [`Overhead (${BID_RATES.overheadPct}%)`, bid.overhead, null],
+    [`Profit (${BID_RATES.profitPct}%)`, bid.profit, null],
+    [`Sales tax (${BID_RATES.salesTaxPct}%)`, bid.salesTax, null],
   ];
-  for (const [description, amount] of fixed) {
+  for (const [description, amount, code] of fixed) {
     if (!amount) continue;
     lines.push({
       description,
@@ -153,7 +179,7 @@ export function buildBidLineItems(bid) {
       unit: 'season',
       unit_price: amount,
       vat_rate: 0,
-      service_item_id: null,
+      ...link(code),
     });
   }
   return lines;

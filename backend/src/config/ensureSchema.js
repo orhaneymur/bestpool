@@ -17,6 +17,7 @@ const COLUMNS = [
   { table: 'quotes', column: 'holiday_policy', ddl: 'JSON NULL' },
   { table: 'settings', column: 'definitions', ddl: 'JSON NULL' },
   { table: 'settings', column: 'signature_image', ddl: 'LONGTEXT NULL' },
+  { table: 'quote_notes', column: 'is_bold', ddl: 'TINYINT(1) NOT NULL DEFAULT 0' },
 ];
 
 async function columnExists(table, column) {
