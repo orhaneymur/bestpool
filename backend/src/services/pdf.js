@@ -267,7 +267,7 @@ function makeTheme(def) {
    */
   const sigLine = (
     label,
-    { width = sigWidth, value = '', image = null, imageFit = null, boxHeight = 0, overlap = 0 } = {}
+    { width = sigWidth, value = '', image = null, imageFit = null, boxHeight = 0, overlap = 0, rule: ruled = true } = {}
   ) => {
     const above = boxHeight > 0
       ? [{
@@ -305,7 +305,14 @@ function makeTheme(def) {
     return {
       stack: [
         ...above,
-        { canvas: [{ type: 'line', x1: 0, y1: 0, x2: width, y2: 0, lineWidth: 0.6, lineColor: def.theme.ink }] },
+        /**
+         * `rule: false` keeps the geometry and drops the ruled line, which is
+         * how one column reserves the height of a line the other column has and
+         * it does not — without inviting anyone to write on it.
+         */
+        ruled
+          ? { canvas: [{ type: 'line', x1: 0, y1: 0, x2: width, y2: 0, lineWidth: 0.6, lineColor: def.theme.ink }] }
+          : { canvas: [] },
         { text: label, fontSize: fs(6.8), color: def.theme.muted, characterSpacing: 0.6, margin: [0, 2, 0, gap(4)] },
       ],
     };
@@ -528,7 +535,10 @@ export async function buildQuotePdf(quote, setting = {}, options = {}) {
     const subtotal = Number(quote.subtotal || 0);
     const discountAmount = Number(quote.discount_amount || 0);
     const vatAmount = Number(quote.vat_amount || 0);
-    const contractAmount = Math.max(0, total - earlyBird);
+    // The second price on the page: what the owner pays if they execute by the
+    // deadline. It never reduces the total contract price, which is what the
+    // payment schedule is drawn from.
+    const earlyBirdPrice = Math.max(0, total - earlyBird);
     const lifeguards = Number(quote.lifeguard_count || 0);
     // Staffing figures come from the day-by-day season calendar, so the PDF can
     // never disagree with the invoice the customer was quoted.
@@ -800,7 +810,7 @@ export async function buildQuotePdf(quote, setting = {}, options = {}) {
                         {
                           text: [
                             { text: `${def.labels.earlyBirdPrice}   `, color: T.muted, fontSize: T.fs(8) },
-                            { text: money(contractAmount, cur), bold: true, fontSize: T.fs(11), color: T.primary },
+                            { text: money(earlyBirdPrice, cur), bold: true, fontSize: T.fs(11), color: T.primary },
                           ],
                           margin: [0, 0, 0, 2],
                         },
@@ -901,8 +911,14 @@ export async function buildQuotePdf(quote, setting = {}, options = {}) {
                 characterSpacing: 1,
                 margin: [0, 0, 0, 8],
               },
-              T.sigLine('TITLE'),
-              T.sigLine('COMPANY'),
+              /**
+               * The owner signs without a title line. What that line occupied is
+               * still reserved — a caption-height blank at the top, and the same
+               * box above the company rule that the contractor's printed title
+               * sits in — so every rule below stays level across the columns.
+               */
+              T.sigLine('', { rule: false }),
+              T.sigLine('COMPANY', { boxHeight: dateBox }),
               T.sigLine('DATE', { boxHeight: dateBox }),
               T.sigLine('SIGNATURE', { boxHeight: signatureBox, overlap: signatureOverlap }),
             ],
@@ -919,7 +935,7 @@ export async function buildQuotePdf(quote, setting = {}, options = {}) {
                 margin: [0, 0, 0, 8],
               },
               T.sigLine(`${def.labels.signatoryPrefix} ${signatoryName.toUpperCase()}`),
-              T.sigLine('TITLE'),
+              T.sigLine('TITLE', { boxHeight: dateBox, value: def.labels.contractorTitle }),
               T.sigLine('DATE', { boxHeight: dateBox, value: contractDate }),
               /**
                * Last, because signing is the last thing anyone does — and

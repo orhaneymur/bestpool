@@ -67,13 +67,21 @@ export async function buildQuoteExcel(quote, setting) {
 
   r += 1;
   const earlyBird = Number(quote.early_bird_discount || 0);
-  const contractAmount = Number(quote.total || 0) - earlyBird;
+  // The early bird is a second price, not a deduction: the contract amount, and
+  // the payment schedule drawn from it, stay at the full total.
+  const contractAmount = Number(quote.total || 0);
+  const earlyBirdPrice = contractAmount - earlyBird;
   const totals = [
     ['Subtotal', quote.subtotal],
     ['Discount', -Number(quote.discount_amount || 0)],
     ['Tax', quote.vat_amount],
     ['Total Contract Price', quote.total],
-    ...(earlyBird > 0 ? [['Early Bird Discount', -earlyBird]] : []),
+    ...(earlyBird > 0
+      ? [
+          ['Early Bird Discount', -earlyBird],
+          ['Early Bird Price', earlyBirdPrice],
+        ]
+      : []),
     ['CONTRACT AMOUNT', contractAmount],
   ];
   totals.forEach(([label, val], idx) => {

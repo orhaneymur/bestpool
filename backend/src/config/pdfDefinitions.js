@@ -177,6 +177,8 @@ export const DEFAULT_DEFINITIONS = {
 
     // --- Signatures ---
     signatoryPrefix: 'BY —',
+    // Printed above the contractor's title rule; the owner has no title line.
+    contractorTitle: 'President',
 
     // --- Inline prefixes ---
     holidaysPrefix: 'PUBLIC HOLIDAYS COVERED: ',

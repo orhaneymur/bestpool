@@ -216,7 +216,13 @@ export default function ProposalWizard({ id, initialCustomerId }) {
     () => computeTotals(items, q.discount_rate, q.discount_amount),
     [items, q.discount_rate, q.discount_amount]
   );
-  const contractAmount = round2(totals.total - Number(q.early_bird_discount || 0));
+  /**
+   * What the owner owes, and what the payment schedule divides: the total,
+   * whole. The early bird is a second price they can earn by paying by the
+   * deadline — it is quoted alongside the total rather than taken off it.
+   */
+  const contractAmount = round2(totals.total);
+  const earlyBirdPrice = round2(totals.total - Number(q.early_bird_discount || 0));
   const installmentsSum = round2(installments.reduce((s, x) => s + Number(x.amount || 0), 0));
   const totalHours = Number(q.lifeguard_count || 0) * Number(q.hours_per_week || 0);
   const weeks = weeksBetween(q.season_start, q.season_end);
@@ -488,6 +494,7 @@ export default function ProposalWizard({ id, initialCustomerId }) {
                   services={services}
                   totals={totals}
                   contractAmount={contractAmount}
+                  earlyBirdPrice={earlyBirdPrice}
                   totalHours={totalHours}
                   weeks={weeks}
                   bid={bid}
@@ -559,7 +566,7 @@ export default function ProposalWizard({ id, initialCustomerId }) {
             installments={installments}
             items={items}
             totals={totals}
-            contractAmount={contractAmount}
+            earlyBirdPrice={earlyBirdPrice}
             canExport={!!(savedId || id)}
             definitions={definitions}
             signatureImage={signatureImage}
@@ -601,7 +608,7 @@ export default function ProposalWizard({ id, initialCustomerId }) {
               installments={installments}
               items={items}
               totals={totals}
-              contractAmount={contractAmount}
+              earlyBirdPrice={earlyBirdPrice}
               canExport={!!(savedId || id)}
               definitions={definitions}
               signatureImage={signatureImage}

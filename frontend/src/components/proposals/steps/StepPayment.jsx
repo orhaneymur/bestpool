@@ -38,7 +38,9 @@ export default function StepPayment({
         service_item_id: null,
       },
     ]);
-    setQ((prev) => ({ ...prev, early_bird_discount: 0, discount_rate: 0, discount_amount: 0 }));
+    // The early bird is left alone: it is a second price, not a deduction from
+    // the total being typed here.
+    setQ((prev) => ({ ...prev, discount_rate: 0, discount_amount: 0 }));
     const y = q.season_start
       ? new Date(q.season_start).getFullYear()
       : new Date().getFullYear();
@@ -157,7 +159,7 @@ export default function StepPayment({
               </p>
             </div>
             <div className="space-y-1.5">
-              <Label>Early bird discount ($ off total)</Label>
+              <Label>Early bird discount ($ off if paid by the deadline)</Label>
               <Input
                 type="number"
                 step="0.01"

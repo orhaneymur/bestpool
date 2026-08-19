@@ -32,7 +32,7 @@ export default function LivePaperPreview({
   installments,
   items = [],
   totals,
-  contractAmount,
+  earlyBirdPrice,
   onPdf,
   onExcel,
   canExport,
@@ -274,7 +274,7 @@ export default function LivePaperPreview({
                 <div>
                   <span className="text-slate-500">{L.earlyBirdPrice}: </span>
                   <strong>
-                    <Money n={contractAmount} cur={q.currency} />
+                    <Money n={earlyBirdPrice} cur={q.currency} />
                   </strong>
                 </div>
               )}
@@ -332,9 +332,11 @@ export default function LivePaperPreview({
               each, exactly as the PDF lays it out. */}
           <div>
             <div className="font-semibold">{L.ownerColumn}</div>
-            <div className="mt-3 border-b border-slate-400" />
-            <div className="mt-0.5 text-[8px] uppercase tracking-wide text-slate-400">Title</div>
-            <div className="mt-3 border-b border-slate-400" />
+            {/* No title line for the owner — just the space it occupied, so
+                every rule below stays level with the contractor's. */}
+            <div className="mt-0.5 text-[8px]">&nbsp;</div>
+            <div className="mt-3 h-4" />
+            <div className="border-b border-slate-400" />
             <div className="mt-0.5 text-[8px] uppercase tracking-wide text-slate-400">Company</div>
             <div className="mt-3 h-4" />
             <div className="border-b border-slate-400" />
@@ -349,7 +351,10 @@ export default function LivePaperPreview({
             <div className="mt-0.5 text-[8px] uppercase tracking-wide text-slate-400">
               {L.signatoryPrefix} {String(signatoryName).toUpperCase()}
             </div>
-            <div className="mt-3 border-b border-slate-400" />
+            <div className="mt-3 flex h-4 items-end text-[9px] text-slate-700">
+              {L.contractorTitle}
+            </div>
+            <div className="border-b border-slate-400" />
             <div className="mt-0.5 text-[8px] uppercase tracking-wide text-slate-400">Title</div>
             <div className="mt-3 flex h-4 items-end text-[9px] text-slate-700">
               {fmtDate(createdAt || new Date().toISOString())}

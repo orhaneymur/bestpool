@@ -31,6 +31,7 @@ const LABEL_GROUPS = [
   ['Parties', [
     ['ownerColumn', 'Signature column — owner'],
     ['contractorColumn', 'Signature column — contractor'],
+    ['contractorTitle', 'Signature column — contractor title', 'President'],
     ['ownerParty', 'Owner party word', 'OWNER'],
     ['initials', 'Initials line'],
     ['facilityHeading', 'Property table — facility column'],

@@ -157,7 +157,7 @@ function SeasonBreakdown({ season, holidayPolicy, onToggle }) {
 
 
 export default function StepPersonnel({
-  q, setQ, items, setItems, services, totals, contractAmount, totalHours, weeks, bid,
+  q, setQ, items, setItems, services, totals, contractAmount, earlyBirdPrice, totalHours, weeks, bid,
   season, holidayPolicy = {}, setHolidayPolicy,
 }) {
   function updateItem(i, patch) {
@@ -465,12 +465,20 @@ export default function StepPersonnel({
                   onChange={(e) => setQ({ ...q, early_bird_discount: Number(e.target.value) })}
                 />
               </span>
-              <span className="font-medium">- {fmtMoney(q.early_bird_discount, q.currency)}</span>
+              <span className="font-medium">{fmtMoney(q.early_bird_discount, q.currency)}</span>
             </div>
             <div className="flex justify-between rounded-xl bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground">
               <span>Contract price</span>
               <span>{fmtMoney(contractAmount, q.currency)}</span>
             </div>
+            {/* The early bird never comes off the contract price — it is a second
+                price, earned by paying before the deadline. */}
+            {Number(q.early_bird_discount) > 0 && (
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>Early bird price</span>
+                <span className="font-medium">{fmtMoney(earlyBirdPrice, q.currency)}</span>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
