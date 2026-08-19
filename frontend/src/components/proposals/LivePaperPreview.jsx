@@ -64,7 +64,19 @@ export default function LivePaperPreview({
     ? (definitions.contractor.label || '').trim().toUpperCase() || 'the CONTRACTOR'
     : 'the CONTRACTOR';
   const ownerWord = L.ownerParty || 'OWNER';
-  const signatoryName = (definitions?.contractor?.signatory || '').trim() || contractorWord;
+  /**
+   * "Mustafa INAN, President" is a name and a title, and each has its own rule
+   * in the acceptance block — so a title typed into the name setting moves to
+   * the title line rather than printing twice. Mirrors splitSignatory() in the
+   * PDF renderer.
+   */
+  const signatory = String(definitions?.contractor?.signatory ?? '').trim();
+  const signatoryComma = signatory.indexOf(',');
+  const signatoryName =
+    (signatoryComma < 0 ? signatory : signatory.slice(0, signatoryComma).trim()) || contractorWord;
+  const signatoryTitle =
+    (signatoryComma < 0 ? '' : signatory.slice(signatoryComma + 1).trim().replace(/[\s\-–—:.]+$/, '')) ||
+    L.contractorTitle;
   /**
    * "BY" as a caption under its own rule: the name is printed above the line, so
    * a prefix saved for the old run-in form ("BY —") loses its trailing dash here
@@ -361,7 +373,7 @@ export default function LivePaperPreview({
             <div className="border-b border-slate-400" />
             <div className="mt-0.5 text-[8px] uppercase tracking-wide text-slate-400">{byLabel}</div>
             <div className="mt-3 flex h-4 items-end text-[9px] text-slate-700">
-              {L.contractorTitle}
+              {signatoryTitle}
             </div>
             <div className="border-b border-slate-400" />
             <div className="mt-0.5 text-[8px] uppercase tracking-wide text-slate-400">Title</div>

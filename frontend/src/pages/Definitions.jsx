@@ -630,7 +630,7 @@ export default function Definitions() {
                   disabled={readOnly}
                   value={d.contractor.signatory ?? ''}
                   onChange={(e) => set('contractor.signatory', e.target.value)}
-                  placeholder="Falls back to the company name"
+                  placeholder="Name only — the title has its own line"
                 />
                 <p className="text-xs text-muted-foreground">
                   Printed above the first contractor rule as “{(d.contractor.signatory || '').toUpperCase() || 'COMPANY NAME'}”, with “{d.labels.signatoryPrefix}” as the caption beneath it.

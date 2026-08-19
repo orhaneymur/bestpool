@@ -122,6 +122,21 @@ function trimTrailingSeparators(text) {
 }
 
 /**
+ * "Mustafa INAN, President" as a name and a title.
+ *
+ * The signatory used to print as one run of text, so a title typed after the
+ * name came out on the same line — and now that the name and the title have a
+ * rule each, it would print twice over. Splitting at the comma puts each half
+ * where it belongs; a name with no comma keeps the configured title.
+ */
+function splitSignatory(text) {
+  const raw = String(text ?? '').trim();
+  const comma = raw.indexOf(',');
+  if (comma < 0) return { name: raw, title: '' };
+  return { name: raw.slice(0, comma).trim(), title: trimTrailingSeparators(raw.slice(comma + 1)) };
+}
+
+/**
  * The pixel size of a PNG or JPEG data URI, or null when it cannot be read.
  *
  * The acceptance block needs the aspect ratio to sit a signature exactly on its
@@ -972,7 +987,13 @@ export async function buildQuotePdf(quote, setting = {}, options = {}) {
     // first save has no created_at yet, so it shows today.
     const contractDate = dateEN(quote.created_at || new Date());
     const dateBox = T.fs(8) + 4;
-    const signatoryName = (def.contractor.signatory || '').trim() || contractorName;
+    /**
+     * The name goes on the BY rule and the title on the TITLE rule, whichever of
+     * the two settings it was typed into.
+     */
+    const signatory = splitSignatory(def.contractor.signatory);
+    const signatoryName = signatory.name || contractorName;
+    const signatoryTitle = signatory.title || def.labels.contractorTitle;
     /**
      * The signatory's name is printed above its rule, like the date, so "BY"
      * stays a caption under the line instead of running into the name — and the
@@ -1027,7 +1048,7 @@ export async function buildQuotePdf(quote, setting = {}, options = {}) {
                 margin: [0, 0, 0, 8],
               },
               T.sigLine(byLabel, { boxHeight: dateBox, value: signatoryName.toUpperCase() }),
-              T.sigLine('TITLE', { boxHeight: dateBox, value: def.labels.contractorTitle }),
+              T.sigLine('TITLE', { boxHeight: dateBox, value: signatoryTitle }),
               T.sigLine('DATE', { boxHeight: dateBox, value: contractDate }),
               /**
                * Last, because signing is the last thing anyone does — and
