@@ -69,7 +69,7 @@ const LABEL_GROUPS = [
     ['holidaysPrefix', 'Public holidays prefix'],
     ['schoolNotePrefix', 'School calendar note prefix'],
     ['noComments', 'Empty additional comments'],
-    ['signatoryPrefix', 'Signatory line prefix', 'BY —'],
+    ['signatoryPrefix', 'Signatory line caption', 'BY'],
     ['signatureNote', 'Electronic signature note'],
   ]],
 ];
@@ -633,7 +633,7 @@ export default function Definitions() {
                   placeholder="Falls back to the company name"
                 />
                 <p className="text-xs text-muted-foreground">
-                  Printed under the contractor signature line as “{d.labels.signatoryPrefix} {(d.contractor.signatory || '').toUpperCase() || 'COMPANY NAME'}”.
+                  Printed above the first contractor rule as “{(d.contractor.signatory || '').toUpperCase() || 'COMPANY NAME'}”, with “{d.labels.signatoryPrefix}” as the caption beneath it.
                   Upload the matching signature image on the Settings page.
                 </p>
               </div>

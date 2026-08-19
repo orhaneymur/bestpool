@@ -108,6 +108,60 @@ function usableImageDataUri(value) {
 }
 
 /**
+ * "BY —" as typed for a run-in name, cut back to the caption "BY".
+ *
+ * The signatory's name now prints above its rule rather than beside the prefix,
+ * so the dash that used to join them would sit under the line pointing at
+ * nothing. Applied at render time because the prefix is a saved setting: an
+ * install that never reopens the Definitions page still reads right.
+ */
+function trimTrailingSeparators(text) {
+  let out = String(text ?? '').trim();
+  while (out.length && ' -–—:.'.includes(out[out.length - 1])) out = out.slice(0, -1).trim();
+  return out;
+}
+
+/**
+ * The pixel size of a PNG or JPEG data URI, or null when it cannot be read.
+ *
+ * The acceptance block needs the aspect ratio to sit a signature exactly on its
+ * rule: `fit` renders the image shorter than the box it is given whenever the
+ * proportions say so, and without knowing by how much the ink floats above the
+ * line by an amount that changes with every upload.
+ */
+function imagePixelSize(dataUri) {
+  try {
+    const bytes = Buffer.from(String(dataUri).slice(String(dataUri).indexOf(',') + 1), 'base64');
+    if (bytes.subarray(0, 8).equals(PNG_MAGIC)) {
+      // IHDR is the first chunk, and its width/height lead its payload.
+      return { width: bytes.readUInt32BE(16), height: bytes.readUInt32BE(20) };
+    }
+    if (bytes.subarray(0, 3).equals(JPEG_MAGIC)) {
+      let i = 2;
+      while (i + 9 < bytes.length) {
+        if (bytes[i] !== 0xff) {
+          i += 1;
+          continue;
+        }
+        const marker = bytes[i + 1];
+        // SOF0-SOF15 carry the frame size; DHT/DAC/RST/SOS never do.
+        if (marker >= 0xc0 && marker <= 0xcf && ![0xc4, 0xc8, 0xcc].includes(marker)) {
+          return { height: bytes.readUInt16BE(i + 5), width: bytes.readUInt16BE(i + 7) };
+        }
+        if (marker === 0xd8 || (marker >= 0xd0 && marker <= 0xd9)) {
+          i += 2;
+          continue;
+        }
+        i += 2 + bytes.readUInt16BE(i + 2);
+      }
+    }
+  } catch {
+    /* falls through to null: the signature still prints, just box-aligned */
+  }
+  return null;
+}
+
+/**
  * Steps the specification page is squeezed through until it fits one sheet.
  *
  * The first entry is "leave the customer's settings alone", so a contract that
@@ -127,6 +181,8 @@ const FIT_STEPS = [
   { scale: 0.84, spacing: 0.4, density: 'compact' },
   { scale: 0.8, spacing: 0.3, density: 'compact' },
   { scale: 0.76, spacing: 0.25, density: 'compact' },
+  { scale: 0.72, spacing: 0.2, density: 'compact' },
+  { scale: 0.68, spacing: 0.15, density: 'compact' },
 ];
 
 const DAY_EN = {
@@ -267,7 +323,15 @@ function makeTheme(def) {
    */
   const sigLine = (
     label,
-    { width = sigWidth, value = '', image = null, imageFit = null, boxHeight = 0, overlap = 0, rule: ruled = true } = {}
+    {
+      width = sigWidth,
+      value = '',
+      image = null,
+      imageFit = null,
+      boxHeight = 0,
+      overlap = 0,
+      rule: ruled = true,
+    } = {}
   ) => {
     const above = boxHeight > 0
       ? [{
@@ -877,17 +941,44 @@ export async function buildQuotePdf(quote, setting = {}, options = {}) {
      * The owner half stays blank for them to complete.
      */
     const signatureImage = show('spec.contractorSignature') ? signatureAsset : null;
-    const signatureBox = signatureImage ? def.branding.signatureHeight : 0;
     // Never wider than the column it sits in, however the setting is typed.
     const signatureFitWidth = Math.min(def.branding.signatureWidth, T.sigWidth);
-    // How far the ink drops onto the rule. A third of the box reads as a pen
-    // stroke crossing the line; much more and the descenders fall off it.
-    const signatureOverlap = signatureImage ? Math.round(def.branding.signatureHeight / 3) : 0;
+    /**
+     * The size the signature actually prints at, measured rather than assumed.
+     *
+     * `fit` scales an upload to whichever of width or height binds first, so a
+     * wide signature comes out well short of the height it was given. Reserving
+     * the full height regardless left a band of blank paper above the ink — the
+     * signature hung in mid-air, and the specification paid for space nothing
+     * was drawn in. The box is the ink, so it rests on its rule at any aspect
+     * ratio. An unreadable file falls back to the configured box.
+     */
+    const signatureInk = (() => {
+      if (!signatureImage) return null;
+      const maxHeight = def.branding.signatureHeight;
+      const px = imagePixelSize(signatureImage);
+      if (!px?.width || !px?.height) return { width: signatureFitWidth, height: maxHeight };
+      const scale = Math.min(signatureFitWidth / px.width, maxHeight / px.height);
+      return { width: Math.round(px.width * scale), height: Math.max(8, Math.round(px.height * scale)) };
+    })();
+    const signatureBox = signatureInk ? signatureInk.height : 0;
+    /**
+     * How far the ink crosses the rule. Just enough to read as a pen stroke over
+     * the line rather than a stamp below it — the third of the box this used to
+     * drop pushed the signature down across its own caption.
+     */
+    const signatureOverlap = signatureImage ? 4 : 0;
     // The date the contract was drawn up. A contract being previewed before its
     // first save has no created_at yet, so it shows today.
     const contractDate = dateEN(quote.created_at || new Date());
     const dateBox = T.fs(8) + 4;
     const signatoryName = (def.contractor.signatory || '').trim() || contractorName;
+    /**
+     * The signatory's name is printed above its rule, like the date, so "BY"
+     * stays a caption under the line instead of running into the name — and the
+     * title reads as the title, on its own line.
+     */
+    const byLabel = trimTrailingSeparators(def.labels.signatoryPrefix) || 'BY';
 
     addSection('spec.acceptance', def.sectionTitles.acceptance, [
       {
@@ -912,12 +1003,13 @@ export async function buildQuotePdf(quote, setting = {}, options = {}) {
                 margin: [0, 0, 0, 8],
               },
               /**
-               * The owner signs without a title line. What that line occupied is
-               * still reserved — a caption-height blank at the top, and the same
-               * box above the company rule that the contractor's printed title
-               * sits in — so every rule below stays level across the columns.
+               * The owner signs without a title line, so the row the contractor
+               * prints their name on is reserved here and left unruled. Every
+               * row below then faces its opposite number at the same height:
+               * company against title, date against date, signature against
+               * signature.
                */
-              T.sigLine('', { rule: false }),
+              T.sigLine('', { boxHeight: dateBox, rule: false }),
               T.sigLine('COMPANY', { boxHeight: dateBox }),
               T.sigLine('DATE', { boxHeight: dateBox }),
               T.sigLine('SIGNATURE', { boxHeight: signatureBox, overlap: signatureOverlap }),
@@ -934,7 +1026,7 @@ export async function buildQuotePdf(quote, setting = {}, options = {}) {
                 characterSpacing: 1,
                 margin: [0, 0, 0, 8],
               },
-              T.sigLine(`${def.labels.signatoryPrefix} ${signatoryName.toUpperCase()}`),
+              T.sigLine(byLabel, { boxHeight: dateBox, value: signatoryName.toUpperCase() }),
               T.sigLine('TITLE', { boxHeight: dateBox, value: def.labels.contractorTitle }),
               T.sigLine('DATE', { boxHeight: dateBox, value: contractDate }),
               /**
@@ -946,7 +1038,7 @@ export async function buildQuotePdf(quote, setting = {}, options = {}) {
                 boxHeight: signatureBox,
                 overlap: signatureOverlap,
                 image: signatureImage ? 'contractorSignature' : null,
-                imageFit: [signatureFitWidth, def.branding.signatureHeight],
+                imageFit: signatureInk ? [signatureInk.width, signatureInk.height] : null,
               }),
             ],
           },

@@ -119,7 +119,7 @@ export function sanitizeHiddenFields(list) {
 
 export const DEFAULT_DEFINITIONS = {
   page: {
-    size: 'LETTER',          // LETTER | A4
+    size: 'A4',              // LETTER | A4
     margin: 40,              // pt, left/right
     density: 'compact',      // compact | comfortable — drives paddings and leading
     fontScale: 1,            // 0.85 – 1.25
@@ -176,7 +176,7 @@ export const DEFAULT_DEFINITIONS = {
     noInstallments: 'No payment schedule defined.',
 
     // --- Signatures ---
-    signatoryPrefix: 'BY —',
+    signatoryPrefix: 'BY',
     // Printed above the contractor's title rule; the owner has no title line.
     contractorTitle: 'President',
 
@@ -364,6 +364,30 @@ const DEFINITION_MIGRATIONS = [
   },
   {
     /**
+     * The contract prints on A4.
+     *
+     * The shipped default was US Letter, which is both wider and shorter, so
+     * pages laid out for A4 paper came out stretched across the line and the
+     * specification lost the height it needs to keep the acceptance block with
+     * the sections it belongs to. Switchable back on the Definitions page.
+     */
+    id: 'page-size-a4',
+    apply(d) {
+      d.page.size = 'A4';
+    },
+  },
+  {
+    /**
+     * The signatory line prints the name above the rule, "BY" beneath it, so a
+     * prefix saved for the old run-in form loses its trailing dash.
+     */
+    id: 'signatory-prefix-caption',
+    apply(d) {
+      d.labels.signatoryPrefix = 'BY';
+    },
+  },
+  {
+    /**
      * The first two standard clauses print bold.
      *
      * mergeDefinitions keeps a stored array in preference to the shipped one, so
@@ -434,7 +458,7 @@ export function validateDefinitions(input) {
   const d = mergeDefinitions(input);
   const errors = [];
 
-  if (!['LETTER', 'A4'].includes(d.page.size)) d.page.size = 'LETTER';
+  if (!['LETTER', 'A4'].includes(d.page.size)) d.page.size = 'A4';
   if (!['compact', 'comfortable'].includes(d.page.density)) d.page.density = 'compact';
   d.page.margin = clamp(Number(d.page.margin), 18, 90, 40);
   d.page.fontScale = clamp(Number(d.page.fontScale), 0.85, 1.25, 1);

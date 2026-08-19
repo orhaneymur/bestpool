@@ -65,6 +65,12 @@ export default function LivePaperPreview({
     : 'the CONTRACTOR';
   const ownerWord = L.ownerParty || 'OWNER';
   const signatoryName = (definitions?.contractor?.signatory || '').trim() || contractorWord;
+  /**
+   * "BY" as a caption under its own rule: the name is printed above the line, so
+   * a prefix saved for the old run-in form ("BY —") loses its trailing dash here
+   * exactly as it does in the PDF.
+   */
+  const byLabel = String(L.signatoryPrefix ?? 'BY').trim().replace(/[\s\-–—:.]+$/, '') || 'BY';
   const showSignature = show('spec.contractorSignature') && !!signatureImage;
 
   const normal = DAYS.map(([day, label]) => {
@@ -332,8 +338,10 @@ export default function LivePaperPreview({
               each, exactly as the PDF lays it out. */}
           <div>
             <div className="font-semibold">{L.ownerColumn}</div>
-            {/* No title line for the owner — just the space it occupied, so
-                every rule below stays level with the contractor's. */}
+            {/* The owner has no title line: the row the contractor prints their
+                name on is reserved here and left unruled, so every rule below
+                faces its opposite number at the same height. */}
+            <div className="mt-3 h-4" />
             <div className="mt-0.5 text-[8px]">&nbsp;</div>
             <div className="mt-3 h-4" />
             <div className="border-b border-slate-400" />
@@ -341,16 +349,17 @@ export default function LivePaperPreview({
             <div className="mt-3 h-4" />
             <div className="border-b border-slate-400" />
             <div className="mt-0.5 text-[8px] uppercase tracking-wide text-slate-400">Date</div>
-            <div className="mt-3 h-11" />
+            <div className="mt-3 h-9" />
             <div className="border-b border-slate-400" />
             <div className="mt-0.5 text-[8px] uppercase tracking-wide text-slate-400">Signature</div>
           </div>
           <div>
             <div className="font-semibold">{L.contractorColumn}</div>
-            <div className="mt-3 border-b border-slate-400" />
-            <div className="mt-0.5 text-[8px] uppercase tracking-wide text-slate-400">
-              {L.signatoryPrefix} {String(signatoryName).toUpperCase()}
+            <div className="mt-3 flex h-4 items-end text-[9px] text-slate-700">
+              {String(signatoryName).toUpperCase()}
             </div>
+            <div className="border-b border-slate-400" />
+            <div className="mt-0.5 text-[8px] uppercase tracking-wide text-slate-400">{byLabel}</div>
             <div className="mt-3 flex h-4 items-end text-[9px] text-slate-700">
               {L.contractorTitle}
             </div>
@@ -361,13 +370,14 @@ export default function LivePaperPreview({
             </div>
             <div className="border-b border-slate-400" />
             <div className="mt-0.5 text-[8px] uppercase tracking-wide text-slate-400">Date</div>
-            {/* -mb-3 drops the ink onto the rule the way the PDF does. */}
-            <div className="mt-3 flex h-11 items-end overflow-visible">
+            {/* The ink rests on the rule and crosses it slightly, as in the PDF:
+                no band of blank paper reserved above it. */}
+            <div className="mt-3 flex h-9 items-end overflow-visible">
               {showSignature && (
                 <img
                   src={signatureImage}
                   alt="Contractor signature"
-                  className="-mb-3 max-h-11 max-w-full object-contain object-left"
+                  className="-mb-1 max-h-9 max-w-full object-contain object-left"
                 />
               )}
             </div>
@@ -425,7 +435,7 @@ export default function LivePaperPreview({
       </div>
 
       <div className="relative flex-1 overflow-auto rounded-2xl bg-gradient-to-b from-slate-200/80 to-slate-300/50 p-3 sm:p-6">
-        <div className="mx-auto min-h-[560px] max-w-[520px] origin-top rounded-[2px] bg-white px-4 py-6 text-[10.5px] leading-relaxed text-slate-800 shadow-paper ring-1 ring-black/5 transition-transform duration-300 sm:min-h-[720px] sm:px-7 sm:py-8">
+        <div className="mx-auto min-h-[560px] max-w-[520px] origin-top rounded-[2px] bg-white px-4 py-6 text-[10.5px] leading-relaxed text-slate-800 shadow-paper ring-1 ring-black/5 transition-transform duration-300 sm:min-h-[735px] sm:px-7 sm:py-8">
           {show('spec.header') && (
             <div className="mb-5 text-center">
               {show('cover.logo') && (
