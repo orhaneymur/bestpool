@@ -17,6 +17,14 @@ const COLUMNS = [
   { table: 'quotes', column: 'holiday_policy', ddl: 'JSON NULL' },
   { table: 'settings', column: 'definitions', ddl: 'JSON NULL' },
   { table: 'settings', column: 'signature_image', ddl: 'LONGTEXT NULL' },
+  { table: 'settings', column: 'smtp_host', ddl: 'VARCHAR(160) NULL' },
+  { table: 'settings', column: 'smtp_port', ddl: 'INT NULL' },
+  { table: 'settings', column: 'smtp_secure', ddl: 'TINYINT(1) NOT NULL DEFAULT 0' },
+  { table: 'settings', column: 'smtp_user', ddl: 'VARCHAR(160) NULL' },
+  { table: 'settings', column: 'smtp_pass', ddl: 'VARCHAR(255) NULL' },
+  { table: 'settings', column: 'smtp_from_email', ddl: 'VARCHAR(160) NULL' },
+  { table: 'settings', column: 'smtp_from_name', ddl: 'VARCHAR(200) NULL' },
+  { table: 'settings', column: 'smtp_reply_to', ddl: 'VARCHAR(160) NULL' },
   { table: 'quote_notes', column: 'is_bold', ddl: 'TINYINT(1) NOT NULL DEFAULT 0' },
 ];
 

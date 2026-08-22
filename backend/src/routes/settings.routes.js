@@ -2,6 +2,7 @@ import { Router } from '../middleware/asyncRouter.js';
 import { Setting } from '../models/index.js';
 import { auth } from '../middleware/auth.js';
 import { DEFAULT_TAGLINE } from '../services/pdf.js';
+import { resolveSmtp, sendTestEmail, verifySmtp } from '../services/mail.js';
 
 const router = Router();
 router.use(auth());
@@ -20,8 +21,21 @@ async function getOrCreate() {
   return s;
 }
 
+/**
+ * The settings row as the browser is allowed to see it.
+ *
+ * The mail password is write-only. Sending it back would put the mailbox
+ * credential into every settings page load, in the browser's memory and in
+ * anything that logs a response body — for no gain, because the form only ever
+ * needs to know whether one is stored, not what it is.
+ */
+function publicSetting(row) {
+  const { smtp_pass, ...rest } = row.toJSON ? row.toJSON() : row;
+  return { ...rest, smtp_pass_set: !!smtp_pass };
+}
+
 router.get('/', async (_req, res) => {
-  res.json(await getOrCreate());
+  res.json(publicSetting(await getOrCreate()));
 });
 
 /**
@@ -34,6 +48,10 @@ const EDITABLE = [
   'company_email', 'company_website', 'company_tagline', 'rev_label',
   'tax_office', 'tax_no', 'logo_url', 'quote_prefix', 'default_vat_rate',
   'signature_image',
+  'smtp_host', 'smtp_port', 'smtp_secure', 'smtp_user',
+  'smtp_from_email', 'smtp_from_name', 'smtp_reply_to',
+  // smtp_pass is handled separately below: absent means "leave it alone", which
+  // is what every save from a form that never received it has to mean.
 ];
 
 /**
@@ -97,6 +115,8 @@ router.put('/', auth(['admin']), async (req, res) => {
     company_name: 200, company_address: 2000, company_phone: 60, company_fax: 60,
     company_email: 160, company_website: 160, company_tagline: 200, rev_label: 40,
     tax_office: 120, tax_no: 40, logo_url: 300,
+    smtp_host: 160, smtp_user: 160, smtp_from_email: 160, smtp_from_name: 200,
+    smtp_reply_to: 160,
   };
   for (const key of EDITABLE) {
     if (!Object.prototype.hasOwnProperty.call(body, key)) continue;
@@ -117,8 +137,64 @@ router.put('/', auth(['admin']), async (req, res) => {
     const n = Number(patch.default_vat_rate);
     patch.default_vat_rate = Number.isFinite(n) ? Math.min(100, Math.max(0, n)) : 0;
   }
+  if (patch.smtp_port !== undefined) {
+    const n = Number(patch.smtp_port);
+    patch.smtp_port = Number.isFinite(n) && n > 0 ? Math.min(65535, Math.round(n)) : null;
+  }
+  if (patch.smtp_secure !== undefined) patch.smtp_secure = !!patch.smtp_secure;
+
+  /**
+   * The mail password.
+   *
+   * Absent means the form never had it and nothing should change — which is the
+   * ordinary case, since it is never sent to the browser. An empty string is a
+   * deliberate "forget it", and clears the stored one.
+   */
+  if (Object.prototype.hasOwnProperty.call(body, 'smtp_pass')) {
+    const pass = body.smtp_pass == null ? '' : String(body.smtp_pass);
+    if (pass !== '') patch.smtp_pass = pass.slice(0, 255);
+    else if (body.smtp_pass === '') patch.smtp_pass = null;
+  }
+
   await s.update(patch);
-  res.json(s);
+  res.json(publicSetting(s));
+});
+
+/**
+ * Proves the mail account works, from the screen where it is entered.
+ *
+ * `check` authenticates and stops there; `send` posts a short message. A wrong
+ * password should surface here rather than on the contract somebody was trying
+ * to send a customer — nodemailer's own errors are passed through, because
+ * "Invalid login" and "getaddrinfo ENOTFOUND" say more than anything generic
+ * this could put in their place.
+ */
+router.post('/smtp-test', auth(['admin']), async (req, res) => {
+  const s = await getOrCreate();
+  const setting = s.toJSON();
+  const mode = req.body?.mode === 'send' ? 'send' : 'check';
+
+  try {
+    if (mode === 'check') {
+      return res.json({ ok: true, mode, ...(await verifySmtp(setting)) });
+    }
+    return res.json({ ok: true, mode, ...(await sendTestEmail(setting, req.body?.to)) });
+  } catch (err) {
+    const status = err.code === 'SMTP_NOT_CONFIGURED' || err.code === 'NO_RECIPIENT' ? 400 : 502;
+    return res.status(status).json({ error: err.message || 'The mail server refused the connection.' });
+  }
+});
+
+/**
+ * What the server would use to send, with nothing secret in it.
+ *
+ * Answers "which account is actually going out?" — the fields fall back to the
+ * pod's environment one at a time, so the stored settings alone do not tell you.
+ */
+router.get('/smtp', auth(['admin']), async (_req, res) => {
+  const s = await getOrCreate();
+  const { pass, ...rest } = resolveSmtp(s.toJSON());
+  res.json({ ...rest, configured: !!pass });
 });
 
 /**

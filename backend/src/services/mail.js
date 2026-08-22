@@ -17,7 +17,7 @@ function dateEN(d) {
 export function buildProposalEmail(quote, setting = {}) {
   const customerName = quote.Customer?.name || 'Valued Customer';
   const company = setting.company_name || 'Four Seasons Pool Management';
-  const fromEmail = setting.company_email || COMPANY_MAIL;
+  const fromEmail = setting.smtp_from_email || setting.company_email || COMPANY_MAIL;
   const facility = quote.facility_name || customerName;
   const season =
     quote.season_start || quote.season_end
@@ -96,26 +96,94 @@ function escapeHtml(s) {
     .replace(/"/g, '&quot;');
 }
 
-function getTransport() {
-  const host = process.env.SMTP_HOST || 'smtp.gmail.com';
-  const port = Number(process.env.SMTP_PORT || 587);
-  const user = process.env.SMTP_USER || COMPANY_MAIL;
-  const pass = process.env.SMTP_PASS || process.env.SMTP_PASSWORD || '';
+/**
+ * The mail account, resolved from the Settings screen first and the pod's
+ * environment second.
+ *
+ * It used to be the environment only, which meant changing the mailbox
+ * proposals are sent from needed a redeploy by whoever had shell access. An
+ * install already configured through SMTP_* keeps working with nothing entered:
+ * every field falls back, one at a time.
+ */
+export function resolveSmtp(setting = {}) {
+  const host = setting.smtp_host?.trim() || process.env.SMTP_HOST || 'smtp.gmail.com';
+  const port = Number(setting.smtp_port || process.env.SMTP_PORT || 587);
+  const user = setting.smtp_user?.trim() || process.env.SMTP_USER || COMPANY_MAIL;
+  const pass = setting.smtp_pass || process.env.SMTP_PASS || process.env.SMTP_PASSWORD || '';
+  /**
+   * Implicit TLS wraps the whole connection; STARTTLS upgrades a plain one.
+   *
+   * 465 means the first and 587/25 the second — always, and getting it wrong
+   * does not fail, it hangs until the socket times out. So the well-known ports
+   * decide, and the stored toggle is only consulted for a mail server on some
+   * other port, where nobody can infer it.
+   */
+  const secure = port === 465 ? true : port === 587 || port === 25 ? false : !!setting.smtp_secure;
 
-  if (!pass) {
+  const fromEmail = setting.smtp_from_email?.trim() || setting.company_email?.trim() || user;
+  const fromName = setting.smtp_from_name?.trim() || setting.company_name?.trim() || 'Four Seasons Pool Management';
+  const replyTo = setting.smtp_reply_to?.trim() || fromEmail;
+
+  return { host, port, secure, user, pass, fromEmail, fromName, replyTo };
+}
+
+function getTransport(setting = {}) {
+  const smtp = resolveSmtp(setting);
+
+  if (!smtp.pass) {
     const err = new Error(
-      'Email is not configured. Set SMTP_PASS (Gmail App Password) for orhaneymur@gmail.com on the server.'
+      'Email is not configured. Enter the SMTP host, username and password under Settings → Email (SMTP).'
     );
     err.code = 'SMTP_NOT_CONFIGURED';
     throw err;
   }
 
-  return nodemailer.createTransport({
-    host,
-    port,
-    secure: port === 465,
-    auth: { user, pass },
+  return {
+    smtp,
+    transporter: nodemailer.createTransport({
+      host: smtp.host,
+      port: smtp.port,
+      secure: smtp.secure,
+      auth: { user: smtp.user, pass: smtp.pass },
+    }),
+  };
+}
+
+/**
+ * Opens a connection and authenticates, without sending anything.
+ *
+ * A wrong password should be discovered while somebody is looking at the
+ * settings form, not on the contract they were trying to send to a customer.
+ */
+export async function verifySmtp(setting = {}) {
+  const { smtp, transporter } = getTransport(setting);
+  await transporter.verify();
+  return { host: smtp.host, port: smtp.port, secure: smtp.secure, user: smtp.user, from: smtp.fromEmail };
+}
+
+/** Sends a short message to prove the account really delivers. */
+export async function sendTestEmail(setting = {}, to) {
+  const { smtp, transporter } = getTransport(setting);
+  const recipient = String(to || '').trim() || smtp.fromEmail;
+  if (!recipient) {
+    const err = new Error('Enter an address to send the test to.');
+    err.code = 'NO_RECIPIENT';
+    throw err;
+  }
+
+  const info = await transporter.sendMail({
+    from: `"${smtp.fromName}" <${smtp.fromEmail}>`,
+    to: recipient,
+    replyTo: smtp.replyTo,
+    subject: 'Test message from your contract system',
+    text: `This is a test message.
+
+If you are reading it, ${smtp.fromEmail} can send proposals from ${smtp.host}.
+
+${smtp.fromName}`,
   });
+
+  return { messageId: info.messageId, to: recipient, from: smtp.fromEmail };
 }
 
 export async function sendProposalEmail(quote, setting, overrides = {}) {
@@ -136,11 +204,14 @@ export async function sendProposalEmail(quote, setting, overrides = {}) {
   const pdfBuffer = await renderDocument('pdf', quote, setting || {});
   const filename = `${quote.quote_no || 'proposal'}.pdf`;
 
-  const transporter = getTransport();
+  const { smtp, transporter } = getTransport(setting || {});
   const info = await transporter.sendMail({
-    from: draft.from,
+    // The account that authenticated, not a hard-coded address: most providers
+    // reject a From they do not own, and the reply should come back to the
+    // mailbox the proposal went out from.
+    from: `"${smtp.fromName}" <${smtp.fromEmail}>`,
     to,
-    replyTo: COMPANY_MAIL,
+    replyTo: smtp.replyTo,
     subject,
     text,
     html,

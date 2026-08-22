@@ -200,6 +200,28 @@ export const Setting = sequelize.define('Setting', {
   // database rather than on disk: pods are replaced on every deploy and an
   // uploaded file written into the image would not survive one.
   signature_image: { type: DataTypes.TEXT('long') },
+  /**
+   * Outgoing mail, configured from the Settings screen rather than from the
+   * server's environment.
+   *
+   * The SMTP account used to live only in SMTP_HOST/SMTP_USER/SMTP_PASS on the
+   * pod, so changing the mailbox a proposal is sent from meant a redeploy by
+   * whoever had shell access. Blank falls back to the environment, so an install
+   * already configured that way keeps working untouched.
+   *
+   * `smtp_pass` is write-only: it is never returned by the API — see
+   * publicSetting() in routes/settings.routes.js.
+   */
+  smtp_host: { type: DataTypes.STRING(160) },
+  smtp_port: { type: DataTypes.INTEGER },
+  // TLS from the first byte (port 465). Off means STARTTLS, which is port 587.
+  smtp_secure: { type: DataTypes.BOOLEAN, defaultValue: false },
+  smtp_user: { type: DataTypes.STRING(160) },
+  smtp_pass: { type: DataTypes.STRING(255) },
+  // Blank falls back to company_email, which is what the contract already prints.
+  smtp_from_email: { type: DataTypes.STRING(160) },
+  smtp_from_name: { type: DataTypes.STRING(200) },
+  smtp_reply_to: { type: DataTypes.STRING(160) },
   quote_prefix: { type: DataTypes.STRING(20), defaultValue: 'TEK' },
   default_vat_rate: { type: DataTypes.DECIMAL(5, 2), defaultValue: 20 },
   // "Tanımlamalar" modülü: PDF biçimi, etiketler, renkler, varsayılan gizli
