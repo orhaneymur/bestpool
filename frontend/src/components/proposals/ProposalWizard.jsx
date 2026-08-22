@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowLeft, ArrowRight, Save, Loader2, Eye, X, Copy, Mail } from 'lucide-react';
@@ -371,6 +371,45 @@ export default function ProposalWizard({ id, initialCustomerId }) {
    * which reads the form — showed it. Toggling a clause to bold and pressing
    * Review PDF produced a contract without it, and nothing said why.
    */
+  /**
+   * A hidden block is saved the moment it is toggled, not at the next Save.
+   *
+   * The eye buttons only changed local state, and the live preview reads that
+   * state — so hiding something looked as though it had worked while the
+   * server still had the old list. Downloading from the contracts list, which
+   * goes straight to the server, then printed the block that had visibly been
+   * switched off. A contract that has not been saved yet has nothing to patch;
+   * its list travels with the first save.
+   */
+  /**
+   * What the eye buttons show, which is what the PDF will do.
+   *
+   * The renderer takes the cover from the company settings as well as from this
+   * contract's own list — a title page is presentation, and switching a block
+   * off under Definitions means "stop printing it on covers". Showing those
+   * blocks here as still printed would be a lie the downloaded PDF corrects.
+   */
+  const effectiveHidden = useMemo(() => {
+    const set = new Set(hiddenFields);
+    for (const key of companyHidden) if (key.startsWith('cover.')) set.add(key);
+    return [...set];
+  }, [hiddenFields, companyHidden]);
+
+  const applyHidden = useCallback(
+    (next) => {
+      setHiddenFields(next);
+      const target = savedId || id;
+      if (!target) return;
+      api.patch(`/quotes/${target}/visibility`, { hidden_fields: next }).catch(() => {
+        // The next Save carries the same list, so a failure here is recoverable
+        // and not worth interrupting the form for.
+      });
+    },
+    // Stable between renders, so the visibility context does not rebuild — and
+    // with it the live preview — on every keystroke in the form.
+    [savedId, id]
+  );
+
   async function exportFile(kind) {
     const saved = await save();
     if (!saved) return;
@@ -381,7 +420,7 @@ export default function ProposalWizard({ id, initialCustomerId }) {
   }
 
   return (
-    <VisibilityProvider hidden={hiddenFields} setHidden={setHiddenFields} blocks={pdfBlocks}>
+    <VisibilityProvider hidden={effectiveHidden} setHidden={applyHidden} blocks={pdfBlocks}>
     <div className="space-y-5">
       {/* Header */}
       <div className="flex flex-wrap items-start justify-between gap-3">

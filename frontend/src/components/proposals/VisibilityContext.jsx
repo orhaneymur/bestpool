@@ -24,13 +24,17 @@ export function VisibilityProvider({ hidden, setHidden, blocks, children }) {
       hidden: hidden || [],
       blocks: blocks || [],
       isHidden: (key) => set.has(key),
-      toggle: (key) =>
-        setHidden((prev) => {
-          const next = new Set(prev || []);
-          if (next.has(key)) next.delete(key);
-          else next.add(key);
-          return [...next];
-        }),
+      /**
+       * Hands the finished list to the owner rather than an updater function,
+       * so it can be written straight to the server. An updater would only be
+       * run inside setState, which is no place to start a request from.
+       */
+      toggle: (key) => {
+        const next = new Set(set);
+        if (next.has(key)) next.delete(key);
+        else next.add(key);
+        setHidden([...next]);
+      },
     };
   }, [hidden, setHidden, blocks]);
 

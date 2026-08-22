@@ -535,7 +535,9 @@ export default function Definitions() {
             {wordSections.length === 0 && (
               <Card>
                 <CardContent className="p-8 text-center text-sm text-muted-foreground">
-                  Nothing matches “{wordSearch.trim()}”.
+                  {wordSearch.trim()
+                    ? `Nothing matches “${wordSearch.trim()}”.`
+                    : 'The server did not send a field map. It is running a version older than this screen — deploy the API to match.'}
                 </CardContent>
               </Card>
             )}

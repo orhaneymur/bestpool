@@ -586,6 +586,22 @@ export async function buildQuotePdf(quote, setting = {}, options = {}) {
     : mergeDefinitions(setting.definitions);
 
   const hidden = new Set(sanitizeHiddenFields(quote.hidden_fields));
+  /**
+   * The cover follows the company settings; the contract owns everything else.
+   *
+   * A contract copies `definitions.hidden` once, at creation, so that changing a
+   * company default can never rewrite paperwork already signed and sent. That is
+   * right for the terms — and wrong for the title page, which is presentation:
+   * switching the customer's name off under Definitions plainly means "stop
+   * printing it on covers", and having to reopen every existing contract to say
+   * it again is not what anybody meant by it.
+   *
+   * The two lists are unioned rather than swapped, so a cover block hidden on a
+   * single contract stays hidden whatever the company default says.
+   */
+  for (const key of sanitizeHiddenFields(baseDef.hidden)) {
+    if (key.startsWith('cover.')) hidden.add(key);
+  }
   const show = (key) => !hidden.has(key);
 
   /**
