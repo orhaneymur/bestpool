@@ -4,6 +4,7 @@ import { auth } from '../middleware/auth.js';
 import {
   PDF_BLOCKS,
   DEFAULT_DEFINITIONS,
+  describeDefinitionFields,
   mergeDefinitions,
   validateDefinitions,
 } from '../config/pdfDefinitions.js';
@@ -17,7 +18,7 @@ router.use(auth());
  * it appear in the UI without touching React.
  */
 router.get('/schema', (_req, res) => {
-  res.json({ blocks: PDF_BLOCKS, defaults: DEFAULT_DEFINITIONS });
+  res.json({ blocks: PDF_BLOCKS, defaults: DEFAULT_DEFINITIONS, sections: describeDefinitionFields() });
 });
 
 router.get('/', async (_req, res) => {

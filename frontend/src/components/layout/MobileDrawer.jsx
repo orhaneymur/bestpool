@@ -4,8 +4,6 @@ import {
   LayoutDashboard,
   FilePlus2,
   FileText,
-  FileClock,
-  FileCheck2,
   Users,
   ClipboardList,
   FolderOpen,
@@ -23,9 +21,13 @@ import { APP_VERSION, APP_BUILD, APP_LABEL } from '@/version.js';
 const links = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
   { to: '/quotes/new', label: 'New Contract', icon: FilePlus2 },
-  { to: '/quotes', label: 'Existing Contracts', icon: FileText, end: true },
-  { to: '/quotes?status=taslak', label: 'Saved Drafts', icon: FileClock },
-  { to: '/quotes?status=kabul', label: 'Completed Contracts', icon: FileCheck2 },
+  /**
+   * One entry, not three. Existing / Saved / Completed were three names for the
+   * same screen with a different query string, so the sidebar listed one page
+   * three times and none of them looked like the others. The statuses are tabs
+   * inside the page now.
+   */
+  { to: '/quotes', label: 'Contracts', icon: FileText, end: true },
   { to: '/customers', label: 'Customers', icon: Users },
   { to: '/services', label: 'Services', icon: ClipboardList },
   { to: '/templates', label: 'Templates', icon: FolderOpen },

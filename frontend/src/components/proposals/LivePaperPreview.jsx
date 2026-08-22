@@ -83,6 +83,18 @@ export default function LivePaperPreview({
    * exactly as it does in the PDF.
    */
   const byLabel = String(L.signatoryPrefix ?? 'BY').trim().replace(/[\s\-–—:.]+$/, '') || 'BY';
+  /**
+   * The other three captions under the acceptance rules, editable on the
+   * Definitions page like the rest. The customer's first rule asks for a name
+   * rather than a company, so whoever signs writes their own name or the
+   * business they sign for.
+   */
+  const caption = (value, fallback) =>
+    String(value ?? fallback).trim().replace(/[\s\-–—:.]+$/, '') || fallback;
+  const ownerByLabel = caption(L.ownerBy, 'BY');
+  const titleLabel = caption(L.titleCaption, 'TITLE');
+  const dateLabel = caption(L.dateCaption, 'DATE');
+  const signatureLabel = caption(L.signatureCaption, 'SIGNATURE');
   const showSignature = show('spec.contractorSignature') && !!signatureImage;
 
   const normal = DAYS.map(([day, label]) => {
@@ -342,9 +354,28 @@ export default function LivePaperPreview({
   }
 
   if (show('spec.acceptance')) {
+    /**
+     * The same sentence the PDF prints, filled from the same definitions.
+     *
+     * It counts sections, not pages: `sections` holds the ones printed before
+     * this one, so the range renumbers with them when a section is hidden.
+     * The preview always shows the with-terms wording — the terms pages are not
+     * part of what it draws.
+     */
+    const lastSectionNo = sections.length + 1;
+    const acceptanceIntro = fillTemplate(SENT.acceptance, {
+      firstSection: 1,
+      lastSection: lastSectionNo,
+      sectionCount: lastSectionNo,
+      contractor: contractorWord,
+      owner: ownerWord,
+    });
+
     sections.push({
       title: S.acceptance,
       node: (
+        <>
+        {acceptanceIntro && <p className="pt-1 text-[9px] text-slate-500">{acceptanceIntro}</p>}
         <div className="grid grid-cols-2 gap-6 pt-2">
           {/* Signature last in both columns, and the same height reserved on
               each, exactly as the PDF lays it out. */}
@@ -357,13 +388,13 @@ export default function LivePaperPreview({
             <div className="mt-0.5 text-[8px]">&nbsp;</div>
             <div className="mt-3 h-4" />
             <div className="border-b border-slate-400" />
-            <div className="mt-0.5 text-[8px] uppercase tracking-wide text-slate-400">Company</div>
+            <div className="mt-0.5 text-[8px] uppercase tracking-wide text-slate-400">{ownerByLabel}</div>
             <div className="mt-3 h-4" />
             <div className="border-b border-slate-400" />
-            <div className="mt-0.5 text-[8px] uppercase tracking-wide text-slate-400">Date</div>
+            <div className="mt-0.5 text-[8px] uppercase tracking-wide text-slate-400">{dateLabel}</div>
             <div className="mt-3 h-9" />
             <div className="border-b border-slate-400" />
-            <div className="mt-0.5 text-[8px] uppercase tracking-wide text-slate-400">Signature</div>
+            <div className="mt-0.5 text-[8px] uppercase tracking-wide text-slate-400">{signatureLabel}</div>
           </div>
           <div>
             <div className="font-semibold">{L.contractorColumn}</div>
@@ -376,12 +407,12 @@ export default function LivePaperPreview({
               {signatoryTitle}
             </div>
             <div className="border-b border-slate-400" />
-            <div className="mt-0.5 text-[8px] uppercase tracking-wide text-slate-400">Title</div>
+            <div className="mt-0.5 text-[8px] uppercase tracking-wide text-slate-400">{titleLabel}</div>
             <div className="mt-3 flex h-4 items-end text-[9px] text-slate-700">
               {fmtDate(createdAt || new Date().toISOString())}
             </div>
             <div className="border-b border-slate-400" />
-            <div className="mt-0.5 text-[8px] uppercase tracking-wide text-slate-400">Date</div>
+            <div className="mt-0.5 text-[8px] uppercase tracking-wide text-slate-400">{dateLabel}</div>
             {/* The ink rests on the rule and crosses it slightly, as in the PDF:
                 no band of blank paper reserved above it. */}
             <div className="mt-3 flex h-9 items-end overflow-visible">
@@ -394,9 +425,10 @@ export default function LivePaperPreview({
               )}
             </div>
             <div className="border-b border-slate-400" />
-            <div className="mt-0.5 text-[8px] uppercase tracking-wide text-slate-400">Signature</div>
+            <div className="mt-0.5 text-[8px] uppercase tracking-wide text-slate-400">{signatureLabel}</div>
           </div>
         </div>
+        </>
       ),
     });
   }

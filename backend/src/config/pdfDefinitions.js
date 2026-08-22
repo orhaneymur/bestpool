@@ -179,6 +179,19 @@ export const DEFAULT_DEFINITIONS = {
     signatoryPrefix: 'BY',
     // Printed above the contractor's title rule; the owner has no title line.
     contractorTitle: 'President',
+    /**
+     * The captions under the four acceptance rules.
+     *
+     * The owner's first rule used to be captioned COMPANY, which asked for one
+     * particular thing. Most of the people who sign are signing for themselves,
+     * so it asks for a name now — "BY", the same caption the contractor's own
+     * name rule carries — and whoever signs writes a company or a person there
+     * as they please. All four are editable, like every other word on the page.
+     */
+    ownerBy: 'BY',
+    titleCaption: 'TITLE',
+    dateCaption: 'DATE',
+    signatureCaption: 'SIGNATURE',
 
     // --- Inline prefixes ---
     holidaysPrefix: 'PUBLIC HOLIDAYS COVERED: ',
@@ -202,6 +215,22 @@ export const DEFAULT_DEFINITIONS = {
     // {deadline}
     earlyBirdNote:
       'Note: In order for the “Early Bird Discount” to be honored the executed contract must be received by {contractor} no later than {deadline}. If applicable, the discount will be applied to the last Installment payment.',
+    /**
+     * The line that opens the Acceptance section, which says what the customer
+     * is signing.
+     *
+     * It counts sections, not sheets of paper: the specification is one page
+     * carrying sections {firstSection}–{lastSection}, and the cover and the
+     * Terms and Conditions are the other pages of the same document. Both
+     * versions are editable, and the numbers are substituted at render time so
+     * hiding a section renumbers the sentence with it.
+     *
+     * {firstSection}, {lastSection}, {sectionCount}
+     */
+    acceptance:
+      'This Contract consists of the Specification page (sections {firstSection}–{lastSection}) and the attached Terms and Conditions.',
+    // The same sentence for a contract printed without the terms pages.
+    acceptanceNoTerms: 'This Contract consists of the Specification page (sections {firstSection}–{lastSection}).',
   },
 
   /**
@@ -314,6 +343,238 @@ export const DEFAULT_DEFINITIONS = {
    */
   migrations: [],
 };
+
+/**
+ * How the editable wording is laid out on the Definitions screen.
+ *
+ * The screen used to carry its own hand-written list of which key belongs under
+ * which heading, so a word added here stayed invisible until somebody remembered
+ * to add it there too — and a few never were. The order below is the order the
+ * contract prints in, and describeDefinitionFields() guarantees that every key
+ * in `labels`, `sentences` and `sectionTitles` reaches the screen whether or not
+ * it is listed here.
+ *
+ * `group` is the definitions object the key lives in, `kind` is the input the
+ * screen renders ('text' or 'multiline'), and `placeholders` are the `{name}`
+ * slots that sentence understands.
+ */
+export const DEFINITION_SECTIONS = [
+  {
+    id: 'cover',
+    title: 'Cover page',
+    description: 'The title sheet, before the specification starts.',
+    fields: [
+      { group: 'labels', key: 'titleLine1', label: 'Agreement title — first line' },
+      { group: 'labels', key: 'titleLine2', label: 'Agreement title — second line' },
+      {
+        group: 'labels',
+        key: 'contractPrefix',
+        label: 'Contract number caption',
+        hint: 'Printed before the contract number, e.g. “Contract :”',
+      },
+    ],
+  },
+  {
+    id: 'specHeader',
+    title: 'Specification header',
+    description: 'The band at the top of the specification page.',
+    fields: [{ group: 'labels', key: 'specTitle', label: 'Specification page title' }],
+  },
+  {
+    id: 'property',
+    title: 'Section — Property Information',
+    description: 'Section numbers are assigned automatically: hide a section and the rest renumber.',
+    fields: [
+      { group: 'sectionTitles', key: 'property', label: 'Section title' },
+      { group: 'labels', key: 'facilityHeading', label: 'Column heading — facility name and address' },
+      { group: 'labels', key: 'ownerHeading', label: 'Column heading — facility owner / agent' },
+    ],
+  },
+  {
+    id: 'duration',
+    title: 'Section — Duration and Operating Schedule',
+    description: 'The opening sentence and the two hours-of-operation tables.',
+    fields: [
+      { group: 'sectionTitles', key: 'duration', label: 'Section title' },
+      {
+        group: 'sentences',
+        key: 'duration',
+        label: 'Contract duration sentence',
+        kind: 'multiline',
+        placeholders: ['contractor', 'owner', 'start', 'end', 'seasonSummary'],
+      },
+      { group: 'labels', key: 'normalSeason', label: 'Normal / season hours heading' },
+      { group: 'labels', key: 'schoolSeason', label: 'School / off-season hours heading' },
+      { group: 'labels', key: 'schoolSeasonNote', label: 'School / off-season note', kind: 'multiline' },
+      { group: 'labels', key: 'scheduleDay', label: 'Table column — day' },
+      { group: 'labels', key: 'scheduleOpen', label: 'Table column — open' },
+      { group: 'labels', key: 'scheduleClose', label: 'Table column — close' },
+      { group: 'labels', key: 'scheduleClosed', label: 'Wording for a closed day' },
+      { group: 'labels', key: 'holidaysPrefix', label: 'Public holidays line prefix' },
+      { group: 'labels', key: 'schoolNotePrefix', label: 'School calendar note prefix' },
+    ],
+  },
+  {
+    id: 'personnel',
+    title: 'Staffing figures',
+    description:
+      'The row captions under the operating schedule. Each row can also be switched off on the PDF blocks tab.',
+    fields: [
+      { group: 'labels', key: 'staffLifeguards', label: 'Number of lifeguards' },
+      { group: 'labels', key: 'staffOperatingDays', label: 'Operating days' },
+      { group: 'labels', key: 'staffDailyHours', label: 'Daily hours per guard' },
+      { group: 'labels', key: 'staffWeeklyHours', label: 'Weekly staffing hours' },
+      { group: 'labels', key: 'staffSeasonHours', label: 'Seasonal staffing hours' },
+    ],
+  },
+  {
+    id: 'comments',
+    title: 'Section — Additional Comments',
+    description: 'The clauses themselves live on the Standard clauses tab.',
+    fields: [
+      { group: 'sectionTitles', key: 'comments', label: 'Section title' },
+      { group: 'labels', key: 'noComments', label: 'Wording when there are no comments' },
+    ],
+  },
+  {
+    id: 'compensation',
+    title: 'Section — Compensation Schedule',
+    description: 'The services table, the totals and the payment dates.',
+    fields: [
+      { group: 'sectionTitles', key: 'compensation', label: 'Section title' },
+      {
+        group: 'sentences',
+        key: 'compensation',
+        label: 'Payment sentence',
+        kind: 'multiline',
+        placeholders: ['contractor', 'owner'],
+      },
+      { group: 'labels', key: 'servicesIncluded', label: 'Services table heading' },
+      { group: 'labels', key: 'itemsDescription', label: 'Table column — description' },
+      { group: 'labels', key: 'itemsQty', label: 'Table column — quantity' },
+      { group: 'labels', key: 'itemsUnit', label: 'Table column — unit' },
+      { group: 'labels', key: 'itemsUnitPrice', label: 'Table column — unit price' },
+      { group: 'labels', key: 'itemsAmount', label: 'Table column — amount' },
+      { group: 'labels', key: 'totalPrice', label: 'Total contract price caption' },
+      { group: 'labels', key: 'earlyBirdPrice', label: 'Early bird price caption' },
+      {
+        group: 'sentences',
+        key: 'earlyBirdNote',
+        label: 'Early bird deadline note',
+        kind: 'multiline',
+        placeholders: ['contractor', 'owner', 'deadline'],
+      },
+      { group: 'labels', key: 'dueLabel', label: 'Payment due prefix' },
+      { group: 'labels', key: 'noInstallments', label: 'Wording for an empty payment schedule' },
+    ],
+  },
+  {
+    id: 'acceptance',
+    title: 'Section — Acceptance of Proposal',
+    description:
+      'The signature block. The opening sentence counts sections, not sheets of paper: the specification is the one page carrying them, and the cover and the terms are the rest of the document.',
+    fields: [
+      { group: 'sectionTitles', key: 'acceptance', label: 'Section title' },
+      {
+        group: 'sentences',
+        key: 'acceptance',
+        label: 'Opening sentence — with terms and conditions',
+        kind: 'multiline',
+        placeholders: ['firstSection', 'lastSection', 'sectionCount'],
+      },
+      {
+        group: 'sentences',
+        key: 'acceptanceNoTerms',
+        label: 'Opening sentence — when the terms pages are switched off',
+        kind: 'multiline',
+        placeholders: ['firstSection', 'lastSection', 'sectionCount'],
+      },
+      { group: 'labels', key: 'ownerColumn', label: 'Left column heading — the customer' },
+      { group: 'labels', key: 'contractorColumn', label: 'Right column heading — the company' },
+      {
+        group: 'labels',
+        key: 'ownerBy',
+        label: 'Customer caption — name rule',
+        hint: 'Under the customer’s first rule. “BY” leaves them free to write a company or their own name.',
+      },
+      { group: 'labels', key: 'signatoryPrefix', label: 'Company caption — name rule' },
+      { group: 'labels', key: 'titleCaption', label: 'Caption — title rule' },
+      { group: 'labels', key: 'dateCaption', label: 'Caption — date rule' },
+      { group: 'labels', key: 'signatureCaption', label: 'Caption — signature rule' },
+      {
+        group: 'labels',
+        key: 'contractorTitle',
+        label: 'Company signatory’s title',
+        hint: 'Used unless the Parties tab already carries a title after the name.',
+      },
+      { group: 'labels', key: 'signatureNote', label: 'Electronic signature note', kind: 'multiline' },
+    ],
+  },
+  {
+    id: 'furniture',
+    title: 'Parties and page furniture',
+    description: 'Words that appear throughout the contract rather than in one section.',
+    fields: [
+      {
+        group: 'labels',
+        key: 'ownerParty',
+        label: 'Owner party word',
+        hint: 'Substituted for {owner} in the sentences above',
+      },
+      { group: 'labels', key: 'initials', label: 'Initials line', hint: 'Printed in the page footer' },
+    ],
+  },
+];
+
+/** 'staffLifeguards' → 'Staff lifeguards' — a readable last resort for a key nobody has described. */
+function humaniseKey(key) {
+  const words = String(key)
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .toLowerCase();
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
+/** The definitions objects that hold editable text. */
+const TEXT_GROUPS = ['sectionTitles', 'sentences', 'labels'];
+
+/**
+ * The sections above, plus anything in the definitions none of them mention.
+ *
+ * This is the guarantee the screen is built on: add a key to DEFAULT_DEFINITIONS
+ * and it becomes editable from the panel on the next reload, described or not.
+ * Give it a home in a section when it deserves one; leave it out and it lands
+ * under "Other wording" rather than going missing.
+ */
+export function describeDefinitionFields() {
+  const claimed = new Set(
+    DEFINITION_SECTIONS.flatMap((s) => s.fields.map((f) => `${f.group}.${f.key}`))
+  );
+
+  const extras = [];
+  for (const group of TEXT_GROUPS) {
+    for (const key of Object.keys(DEFAULT_DEFINITIONS[group] || {})) {
+      if (claimed.has(`${group}.${key}`)) continue;
+      extras.push({
+        group,
+        key,
+        label: humaniseKey(key),
+        kind: group === 'sentences' ? 'multiline' : 'text',
+      });
+    }
+  }
+
+  if (!extras.length) return DEFINITION_SECTIONS;
+  return [
+    ...DEFINITION_SECTIONS,
+    {
+      id: 'other',
+      title: 'Other wording',
+      description:
+        'Text the contract prints that has not been filed under a section yet. Editable here all the same.',
+      fields: extras,
+    },
+  ];
+}
 
 /**
  * Substitutes `{name}` placeholders in an editable sentence.

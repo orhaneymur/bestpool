@@ -91,7 +91,7 @@ export default function Dashboard() {
         subtitle="Four Seasons commercial contract studio — new contracts, drafts, and pipeline"
       >
         <Button asChild variant="outline" className="flex-1 gap-2 sm:flex-none">
-          <Link to="/quotes">Existing Contracts</Link>
+          <Link to="/quotes">Contracts</Link>
         </Button>
         <Button asChild variant="accent" className="flex-1 gap-2 sm:flex-none">
           <Link to="/quotes/new">
@@ -123,7 +123,7 @@ export default function Dashboard() {
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         {[
           { to: '/quotes/new', label: 'New Contract' },
-          { to: '/quotes?status=taslak', label: 'Saved Drafts' },
+          { to: '/quotes?status=taslak', label: 'Saved' },
           { to: '/quotes?status=kabul', label: 'Completed' },
           { to: '/customers', label: 'Customers' },
         ].map((x) => (

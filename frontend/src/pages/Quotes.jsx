@@ -12,9 +12,17 @@ import { Input } from '@/components/ui/input.jsx';
 
 const PAGE_SIZE = 50;
 
+/**
+ * The one place contracts are listed.
+ *
+ * Saved drafts, sent and completed each used to have their own entry in the
+ * sidebar, all three opening this same screen with a different query string —
+ * three names for one page. They are the tabs below instead: one Contracts
+ * entry, and the status is picked from inside it.
+ */
 const STATUSES = [
   { key: '', label: 'All' },
-  { key: 'taslak', label: 'Saved Drafts' },
+  { key: 'taslak', label: 'Saved' },
   { key: 'gonderildi', label: 'Sent' },
   { key: 'kabul', label: 'Completed' },
   { key: 'red', label: 'Rejected' },
@@ -42,10 +50,14 @@ export default function Quotes() {
     setStatus(s);
   }, [searchParams]);
 
+  /**
+   * Tabs, not toggles: clicking the tab you are already on keeps you there
+   * rather than dumping you back into the unfiltered list. The status also
+   * lives in the URL, so a filtered list can be bookmarked and shared.
+   */
   function selectStatus(key) {
-    const next = status === key ? '' : key;
-    setStatus(next);
-    if (next) setSearchParams({ status: next });
+    setStatus(key);
+    if (key) setSearchParams({ status: key });
     else setSearchParams({});
   }
 
@@ -128,12 +140,15 @@ export default function Quotes() {
   }
 
   const lastPage = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  // The counts are for the whole filter minus the status, so "All" is their sum
+  // rather than the number of rows the current tab happens to be showing.
+  const allCount = Object.values(counts).reduce((sum, n) => sum + (Number(n) || 0), 0);
 
   return (
     <div className="space-y-4 sm:space-y-5">
       <PageHeader
-        title="Existing Contracts"
-        subtitle="All proposals — drafts, sent, and completed contracts"
+        title="Contracts"
+        subtitle="Every proposal — switch between saved, sent, completed and rejected below"
       >
         <Button asChild variant="accent" className="gap-2">
           <Link to="/quotes/new">
@@ -149,22 +164,27 @@ export default function Quotes() {
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-        {STATUSES.filter((s) => s.key).map((s) => (
-          <button
-            key={s.key}
-            type="button"
-            onClick={() => selectStatus(s.key)}
-            className={`rounded-2xl border px-3 py-3 text-left transition-colors ${
-              status === s.key
-                ? 'border-accent/40 bg-accent/10'
-                : 'border-border bg-card hover:bg-muted/40'
-            }`}
-          >
-            <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{s.label}</div>
-            <div className="mt-1 text-xl font-semibold tabular-nums">{counts[s.key] || 0}</div>
-          </button>
-        ))}
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+        {STATUSES.map((s) => {
+          const count = s.key ? counts[s.key] || 0 : allCount;
+          const active = status === s.key;
+          return (
+            <button
+              key={s.key || 'all'}
+              type="button"
+              aria-pressed={active}
+              onClick={() => selectStatus(s.key)}
+              className={`rounded-2xl border px-3 py-3 text-left transition-colors ${
+                active ? 'border-accent/40 bg-accent/10' : 'border-border bg-card hover:bg-muted/40'
+              }`}
+            >
+              <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                {s.label}
+              </div>
+              <div className="mt-1 text-xl font-semibold tabular-nums">{count}</div>
+            </button>
+          );
+        })}
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -189,17 +209,6 @@ export default function Quotes() {
           {years.map((y) => (
             <option key={y} value={y}>
               Season {y}
-            </option>
-          ))}
-        </select>
-        <select
-          value={status}
-          onChange={(e) => setStatus(e.target.value)}
-          className="h-11 rounded-xl border border-border bg-card px-3 text-sm shadow-soft sm:w-40"
-        >
-          {STATUSES.map((s) => (
-            <option key={s.key || 'all'} value={s.key}>
-              {s.label === 'All' ? 'All statuses' : s.label}
             </option>
           ))}
         </select>

@@ -13,85 +13,15 @@ import { cn } from '@/lib/utils.js';
 
 /**
  * Definitions — the company-wide control panel for everything the contract PDF
- * prints. The list of hideable blocks comes from the backend so the two can
- * never drift; nothing here is duplicated in the frontend.
+ * prints.
+ *
+ * Both the hideable blocks and every editable word arrive from
+ * GET /api/definitions/schema, described and grouped by the backend. This screen
+ * used to keep its own list of which key belonged under which heading, which
+ * meant a word added to the contract stayed invisible here until somebody
+ * remembered to update React too — and a few never were. There is one list now,
+ * and it lives with the definitions themselves.
  */
-
-/**
- * Grouped so the Wording tab reads like the contract does, top to bottom,
- * instead of as one long undifferentiated column of inputs.
- */
-const LABEL_GROUPS = [
-  ['Cover and headings', [
-    ['contractPrefix', 'Contract number prefix text', 'Contract :'],
-    ['titleLine1', 'Cover title — line 1'],
-    ['titleLine2', 'Cover title — line 2'],
-    ['specTitle', 'Specification page title'],
-  ]],
-  ['Parties', [
-    ['ownerColumn', 'Signature column — owner'],
-    ['contractorColumn', 'Signature column — contractor'],
-    ['contractorTitle', 'Signature column — contractor title', 'President'],
-    ['ownerParty', 'Owner party word', 'OWNER'],
-    ['initials', 'Initials line'],
-    ['facilityHeading', 'Property table — facility column'],
-    ['ownerHeading', 'Property table — owner column'],
-  ]],
-  ['Operating hours', [
-    ['normalSeason', 'Normal season heading'],
-    ['schoolSeason', 'School season heading'],
-    ['schoolSeasonNote', 'School season note'],
-    ['scheduleDay', 'Table column — day'],
-    ['scheduleOpen', 'Table column — open'],
-    ['scheduleClose', 'Table column — close'],
-    ['scheduleClosed', 'Closed-day wording'],
-  ]],
-  ['Staffing rows', [
-    ['staffLifeguards', 'Number of lifeguards'],
-    ['staffOperatingDays', 'Operating days'],
-    ['staffDailyHours', 'Daily hours'],
-    ['staffWeeklyHours', 'Weekly staffing hours'],
-    ['staffSeasonHours', 'Seasonal staffing hours'],
-  ]],
-  ['Services and money', [
-    ['servicesIncluded', 'Services table heading'],
-    ['itemsDescription', 'Table column — description'],
-    ['itemsQty', 'Table column — quantity'],
-    ['itemsUnit', 'Table column — unit'],
-    ['itemsUnitPrice', 'Table column — unit price'],
-    ['itemsAmount', 'Table column — amount'],
-    ['totalPrice', 'Total contract price'],
-    ['earlyBirdPrice', 'Early bird price'],
-    ['dueLabel', 'Payment due prefix'],
-    ['noInstallments', 'Empty payment schedule'],
-  ]],
-  ['Notes and prefixes', [
-    ['holidaysPrefix', 'Public holidays prefix'],
-    ['schoolNotePrefix', 'School calendar note prefix'],
-    ['noComments', 'Empty additional comments'],
-    ['signatoryPrefix', 'Signatory line caption', 'BY'],
-    ['signatureNote', 'Electronic signature note'],
-  ]],
-];
-
-/**
- * Full sentences. Each carries `{placeholders}` that are filled in at render
- * time; the hint lists which ones that sentence understands.
- */
-const SENTENCE_FIELDS = [
-  ['duration', 'Contract duration', '{contractor}, {owner}, {start}, {end}, {seasonSummary}'],
-  ['compensation', 'Compensation intro', '{contractor}, {owner}'],
-  ['earlyBirdNote', 'Early bird note', '{contractor}, {owner}, {deadline}'],
-];
-
-const SECTION_FIELDS = [
-  ['property', 'Section — property information'],
-  ['duration', 'Section — duration, schedule and personnel'],
-  ['comments', 'Section — additional comments'],
-  ['compensation', 'Section — compensation schedule'],
-  ['acceptance', 'Section — acceptance of proposal'],
-];
-
 const THEME_FIELDS = [
   ['primary', 'Headings & rules'],
   ['numeral', 'Section numerals'],
@@ -99,6 +29,56 @@ const THEME_FIELDS = [
   ['muted', 'Secondary text'],
   ['rule', 'Hairlines'],
 ];
+
+/**
+ * One editable line of the contract.
+ *
+ * Everything about it — where it belongs, what to call it, whether it needs a
+ * box or a single line — is described by the backend, so a word added to the
+ * definitions turns up here on its own. The Reset link puts the shipped wording
+ * back in that one field without touching anything else on the page.
+ */
+function WordingField({ field, value, fallback, readOnly, onChange }) {
+  const id = `def-${field.group}-${field.key}`;
+  const multiline = field.kind === 'multiline';
+  const changed = String(value ?? '') !== String(fallback ?? '');
+
+  return (
+    <div className={cn('space-y-1.5', multiline && 'sm:col-span-2')}>
+      <div className="flex items-baseline justify-between gap-3">
+        <Label htmlFor={id}>{field.label}</Label>
+        {!readOnly && changed && (
+          <button
+            type="button"
+            onClick={() => onChange(fallback)}
+            title="Put the shipped wording back in this field"
+            className="shrink-0 text-[11px] font-medium text-muted-foreground underline-offset-2 hover:text-accent hover:underline"
+          >
+            Reset
+          </button>
+        )}
+      </div>
+      {multiline ? (
+        <textarea
+          id={id}
+          rows={3}
+          value={value ?? ''}
+          disabled={readOnly}
+          onChange={(e) => onChange(e.target.value)}
+          className="flex w-full rounded-xl border border-input bg-transparent px-3 py-2 text-sm shadow-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/20 disabled:opacity-60"
+        />
+      ) : (
+        <Input id={id} value={value ?? ''} disabled={readOnly} onChange={(e) => onChange(e.target.value)} />
+      )}
+      {field.hint && <p className="text-xs text-muted-foreground">{field.hint}</p>}
+      {field.placeholders?.length > 0 && (
+        <p className="text-xs text-muted-foreground">
+          Filled in from the contract: {field.placeholders.map((p) => `{${p}}`).join(', ')}
+        </p>
+      )}
+    </div>
+  );
+}
 
 export default function Definitions() {
   const { user } = useAuth();
@@ -109,6 +89,10 @@ export default function Definitions() {
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
   const [warnings, setWarnings] = useState([]);
+  // The Wording tab holds a few dozen fields; typing a phrase narrows it to the
+  // ones worth reading rather than making anyone scroll for a word they can see
+  // on the contract in front of them.
+  const [wordSearch, setWordSearch] = useState('');
 
   useEffect(() => {
     Promise.all([api.get('/definitions/schema'), api.get('/definitions')])
@@ -128,6 +112,35 @@ export default function Definitions() {
     }
     return [...map.entries()];
   }, [schema]);
+
+  /**
+   * The wording, section by section, exactly as the backend describes it.
+   *
+   * A search matches the field's own name, its hint and the text currently
+   * saved in it, so looking up a phrase printed on the contract finds the box
+   * that holds it. Sections with nothing left in them drop out.
+   */
+  const wordSections = useMemo(() => {
+    const all = schema?.sections || [];
+    const needle = wordSearch.trim().toLowerCase();
+    if (!needle) return all;
+    return all
+      .map((section) => ({
+        ...section,
+        fields: section.fields.filter((f) =>
+          [f.label, f.hint, f.key, d?.[f.group]?.[f.key]]
+            .filter(Boolean)
+            .some((hay) => String(hay).toLowerCase().includes(needle))
+        ),
+      }))
+      .filter((section) => section.fields.length);
+  }, [schema, d, wordSearch]);
+
+  const totalFieldCount = useMemo(
+    () => (schema?.sections || []).reduce((n, section) => n + section.fields.length, 0),
+    [schema]
+  );
+  const matchCount = wordSections.reduce((n, section) => n + section.fields.length, 0);
 
   if (!d || !schema) {
     return (
@@ -202,7 +215,7 @@ export default function Definitions() {
     <div className="space-y-4 sm:space-y-5">
       <PageHeader
         title="Definitions"
-        subtitle="Company-wide defaults for the contract PDF — layout, wording, colours and which blocks print"
+        subtitle="Everything the contract PDF says and how it looks — wording, standard clauses, which blocks print, layout and numbering"
       >
         {!readOnly && (
           <>
@@ -236,13 +249,14 @@ export default function Definitions() {
         </div>
       )}
 
-      <Tabs defaultValue="visibility">
+      {/* Wording first: it is the tab with something to change on it most days. */}
+      <Tabs defaultValue="wording">
         <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1">
-          <TabsTrigger value="visibility">PDF blocks</TabsTrigger>
-          <TabsTrigger value="layout">Layout &amp; colours</TabsTrigger>
           <TabsTrigger value="wording">Wording</TabsTrigger>
           <TabsTrigger value="clauses">Standard clauses</TabsTrigger>
-          <TabsTrigger value="parties">Parties</TabsTrigger>
+          <TabsTrigger value="visibility">PDF blocks</TabsTrigger>
+          <TabsTrigger value="layout">Layout &amp; colours</TabsTrigger>
+          <TabsTrigger value="parties">Parties &amp; signing</TabsTrigger>
           <TabsTrigger value="numbering">Numbering</TabsTrigger>
         </TabsList>
 
@@ -460,62 +474,71 @@ export default function Definitions() {
 
         {/* ---------------- Wording ---------------- */}
         <TabsContent value="wording">
-          <div className="grid gap-4 lg:grid-cols-2">
+          <div className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle>Section titles</CardTitle>
-                <CardDescription>Numbers are assigned automatically — hide a section and the rest renumber.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {SECTION_FIELDS.map(([key, label]) => (
-                  <div key={key} className="space-y-1.5">
-                    <Label>{label}</Label>
-                    <Input {...text('sectionTitles', key)} />
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Sentences</CardTitle>
+                <CardTitle>Contract wording</CardTitle>
                 <CardDescription>
-                  The full lines of text the contract prints. Anything in braces is filled in from the
-                  contract — leave a placeholder out and it simply will not appear.
+                  Every word the contract prints, in the order it prints them. Section numbers are assigned
+                  automatically — hide a section on the <strong>PDF blocks</strong> tab and the rest renumber,
+                  sentences included. Changes apply to the PDF as soon as they are saved.
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-3">
-                {SENTENCE_FIELDS.map(([key, label, placeholders]) => (
-                  <div key={key} className="space-y-1.5">
-                    <Label>{label}</Label>
-                    <textarea
-                      rows={3}
-                      {...text('sentences', key)}
-                      className="flex w-full rounded-xl border border-input bg-transparent px-3 py-2 text-sm shadow-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/20 disabled:opacity-60"
-                    />
-                    <div className="text-xs text-muted-foreground">Placeholders: {placeholders}</div>
-                  </div>
-                ))}
+              <CardContent className="space-y-2">
+                <Input
+                  value={wordSearch}
+                  onChange={(e) => setWordSearch(e.target.value)}
+                  placeholder="Find a word or phrase — search the labels and the text itself"
+                  className="h-11"
+                />
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                  <span>
+                    {wordSearch.trim()
+                      ? `${matchCount} of ${totalFieldCount} fields match`
+                      : `${totalFieldCount} editable fields`}
+                  </span>
+                  {!wordSearch.trim() &&
+                    wordSections.map((section) => (
+                      <a
+                        key={section.id}
+                        href={`#definitions-${section.id}`}
+                        className="underline-offset-2 hover:text-accent hover:underline"
+                      >
+                        {section.title}
+                      </a>
+                    ))}
+                </div>
               </CardContent>
             </Card>
-          </div>
 
-          <div className="mt-4 grid gap-4 lg:grid-cols-2">
-            {LABEL_GROUPS.map(([groupLabel, fields]) => (
-              <Card key={groupLabel}>
+            {wordSections.map((section) => (
+              <Card key={section.id} id={`definitions-${section.id}`} className="scroll-mt-4">
                 <CardHeader>
-                  <CardTitle>{groupLabel}</CardTitle>
+                  <CardTitle>{section.title}</CardTitle>
+                  {section.description && <CardDescription>{section.description}</CardDescription>}
                 </CardHeader>
-                <CardContent className="space-y-3">
-                  {fields.map(([key, label, placeholder]) => (
-                    <div key={key} className="space-y-1.5">
-                      <Label>{label}</Label>
-                      <Input placeholder={placeholder} {...text('labels', key)} />
-                    </div>
+                <CardContent className="grid gap-4 sm:grid-cols-2">
+                  {section.fields.map((f) => (
+                    <WordingField
+                      key={`${f.group}.${f.key}`}
+                      field={f}
+                      value={d[f.group]?.[f.key] ?? ''}
+                      fallback={schema.defaults?.[f.group]?.[f.key] ?? ''}
+                      readOnly={readOnly}
+                      onChange={(v) => set(`${f.group}.${f.key}`, v)}
+                    />
                   ))}
                 </CardContent>
               </Card>
             ))}
+
+            {wordSections.length === 0 && (
+              <Card>
+                <CardContent className="p-8 text-center text-sm text-muted-foreground">
+                  Nothing matches “{wordSearch.trim()}”.
+                </CardContent>
+              </Card>
+            )}
           </div>
         </TabsContent>
 

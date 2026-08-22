@@ -1000,12 +1000,44 @@ export async function buildQuotePdf(quote, setting = {}, options = {}) {
      * title reads as the title, on its own line.
      */
     const byLabel = trimTrailingSeparators(def.labels.signatoryPrefix) || 'BY';
+    /**
+     * The other three captions under the acceptance rules.
+     *
+     * The customer's first rule asks for a name rather than a company: whoever
+     * signs writes their own name or the business they sign for, and the
+     * paperwork stops presuming which. All four are editable.
+     */
+    const ownerByLabel = trimTrailingSeparators(def.labels.ownerBy) || 'BY';
+    const titleLabel = trimTrailingSeparators(def.labels.titleCaption) || 'TITLE';
+    const dateLabel = trimTrailingSeparators(def.labels.dateCaption) || 'DATE';
+    const signatureLabel = trimTrailingSeparators(def.labels.signatureCaption) || 'SIGNATURE';
+
+    /**
+     * The sentence that opens the acceptance block, editable on the Definitions
+     * page like every other line of the contract.
+     *
+     * It counts sections, not sheets of paper. The specification is fitted to
+     * one page and carries all of them; the cover and the Terms and Conditions
+     * are the document's other pages. `lastSection` is read at this point on
+     * purpose — the acceptance section has not been pushed yet, and hidden
+     * sections were never pushed at all, so the range always matches the numbers
+     * actually printed alongside it.
+     */
+    const lastSectionNo = specSections.length + 1;
+    const acceptanceIntro = fillTemplate(
+      generalTerms.length ? def.sentences.acceptance : def.sentences.acceptanceNoTerms,
+      {
+        firstSection: 1,
+        lastSection: lastSectionNo,
+        sectionCount: lastSectionNo,
+        contractor: contractorWord,
+        owner: ownerWord,
+      }
+    );
 
     addSection('spec.acceptance', def.sectionTitles.acceptance, [
       {
-        text: generalTerms.length
-          ? `This Contract consists of the Specification page (sections 1–${specSections.length + 1}) and the attached Terms and Conditions.`
-          : `This Contract consists of the Specification page (sections 1–${specSections.length + 1}).`,
+        text: acceptanceIntro,
         fontSize: T.fs(8),
         color: T.muted,
         margin: [0, 0, 0, 6],
@@ -1027,13 +1059,13 @@ export async function buildQuotePdf(quote, setting = {}, options = {}) {
                * The owner signs without a title line, so the row the contractor
                * prints their name on is reserved here and left unruled. Every
                * row below then faces its opposite number at the same height:
-               * company against title, date against date, signature against
+               * name against title, date against date, signature against
                * signature.
                */
               T.sigLine('', { boxHeight: dateBox, rule: false }),
-              T.sigLine('COMPANY', { boxHeight: dateBox }),
-              T.sigLine('DATE', { boxHeight: dateBox }),
-              T.sigLine('SIGNATURE', { boxHeight: signatureBox, overlap: signatureOverlap }),
+              T.sigLine(ownerByLabel, { boxHeight: dateBox }),
+              T.sigLine(dateLabel, { boxHeight: dateBox }),
+              T.sigLine(signatureLabel, { boxHeight: signatureBox, overlap: signatureOverlap }),
             ],
           },
           {
@@ -1048,14 +1080,14 @@ export async function buildQuotePdf(quote, setting = {}, options = {}) {
                 margin: [0, 0, 0, 8],
               },
               T.sigLine(byLabel, { boxHeight: dateBox, value: signatoryName.toUpperCase() }),
-              T.sigLine('TITLE', { boxHeight: dateBox, value: signatoryTitle }),
-              T.sigLine('DATE', { boxHeight: dateBox, value: contractDate }),
+              T.sigLine(titleLabel, { boxHeight: dateBox, value: signatoryTitle }),
+              T.sigLine(dateLabel, { boxHeight: dateBox, value: contractDate }),
               /**
                * Last, because signing is the last thing anyone does — and
                * because a signature stranded above three empty lines read as a
                * stamp rather than as somebody having signed the page.
                */
-              T.sigLine('SIGNATURE', {
+              T.sigLine(signatureLabel, {
                 boxHeight: signatureBox,
                 overlap: signatureOverlap,
                 image: signatureImage ? 'contractorSignature' : null,
