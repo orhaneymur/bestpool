@@ -19,7 +19,12 @@ export const PDF_BLOCKS = [
   { key: 'cover.tagline', group: 'Cover', label: 'Tagline', hint: 'Italic motto at the very top' },
   { key: 'cover.title', group: 'Cover', label: 'Agreement title' },
   { key: 'cover.contractNo', group: 'Cover', label: 'Contract number' },
-  { key: 'cover.customer', group: 'Cover', label: 'Customer name' },
+  {
+    key: 'cover.customer',
+    group: 'Cover',
+    label: 'Customer name',
+    hint: 'Off by default — the cover names the facility, and the customer is named in Property Information',
+  },
   { key: 'cover.facility', group: 'Cover', label: 'Facility name' },
   { key: 'cover.facilityAddress', group: 'Cover', label: 'Facility address' },
   { key: 'cover.company', group: 'Cover', label: 'Company block', hint: 'Name, address, phone, website' },
@@ -330,9 +335,12 @@ export const DEFAULT_DEFINITIONS = {
    *
    * The cover is a title page: it carries the company block and the website, so
    * repeating the email is noise, and nothing on it is signed — the signature
-   * lines belong with the Acceptance section on the specification page.
+   * lines belong with the Acceptance section on the specification page. The
+   * customer's own name is left off it too: the cover names the property the
+   * contract is for, and who owns or acts for it is stated where it belongs, in
+   * Property Information on the specification page.
    */
-  hidden: ['cover.email', 'cover.initials'],
+  hidden: ['cover.email', 'cover.initials', 'cover.customer'],
 
   /**
    * One-time adjustments already applied to this settings row.
@@ -645,6 +653,21 @@ const DEFINITION_MIGRATIONS = [
     id: 'signatory-prefix-caption',
     apply(d) {
       d.labels.signatoryPrefix = 'BY';
+    },
+  },
+  {
+    /**
+     * The cover names the facility, not the customer.
+     *
+     * The title page carried the customer's name in the largest type on the
+     * page, above the property the contract is actually for. Who owns or acts
+     * for that property is stated in Property Information on the specification
+     * page, which is where a reader looks for it — so the cover stops repeating
+     * it and leads with the facility. Switchable back on the Definitions page.
+     */
+    id: 'hide-cover-customer-name',
+    apply(d) {
+      d.hidden = [...new Set([...d.hidden, 'cover.customer'])];
     },
   },
   {

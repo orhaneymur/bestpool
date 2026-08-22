@@ -48,13 +48,16 @@ const SERVICES = [
  *
  * Normally it must not: a contract copies the company defaults once, at
  * creation, precisely so that changing them later cannot alter paperwork
- * already signed and sent. These two are the exception, and only because they
- * are the company's own contact details on a title page rather than anything
- * agreed with a customer — reprinting an old contract should not put an email
- * address back on the cover that the company has decided to stop printing.
+ * already signed and sent. These are the exception, and only because every one
+ * of them is how the title page presents itself rather than anything agreed
+ * with a customer — reprinting an old contract should not put an email address
+ * back on the cover that the company has decided to stop printing, and the
+ * customer's name coming off the cover changes nothing in the contract, which
+ * still names them in Property Information and on the signature line.
  */
 const QUOTE_BACKFILLS = {
   'apply-cover-defaults-to-existing-contracts': ['cover.email', 'cover.initials'],
+  'hide-cover-customer-name': ['cover.customer'],
 };
 
 async function backfillQuoteHiddenFields(appliedMigrations) {
