@@ -493,6 +493,13 @@ function makeTheme(def) {
     sectionHead,
     hairline,
     sigLine,
+    thStyle: {
+      bold: true,
+      color: primary,
+      fontSize: fs(7.5),
+      characterSpacing: 0.6,
+      margin: [0, 1, 0, 1],
+    },
   };
 }
 
@@ -617,6 +624,34 @@ function staffingTable(T, lifeguards, season, labels, show, withSchool) {
       paddingBottom: () => T.pad + 0.5,
     },
   };
+}
+
+/** The document-wide text defaults; the measuring pass must use the same ones. */
+const defaultStyleFor = (T) => ({ font: 'Roboto', fontSize: T.fs(9), color: T.ink, lineHeight: 1.06 });
+
+/**
+ * How tall a node prints at a given width, in points.
+ *
+ * pdfmake has no vertical alignment between columns, so a block that should sit
+ * level with the middle of its neighbour needs to know both heights. The node is
+ * laid out on its own page with an empty marker after it, and the marker's top
+ * is the height. Layout annotates the nodes it measures, so the caller must pass
+ * one built for this purpose and never reuse it in the real document.
+ */
+function measureHeight(T, node, width) {
+  try {
+    const marker = { text: '' };
+    getPrinter().createPdfKitDocument({
+      pageSize: { width, height: 5000 },
+      pageMargins: 0,
+      defaultStyle: defaultStyleFor(T),
+      styles: { th: T.thStyle },
+      content: [node, marker],
+    });
+    return marker.positions?.[0]?.top ?? null;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -981,6 +1016,22 @@ export async function buildQuotePdf(quote, setting = {}, options = {}) {
       ? staffingTable(T, lifeguards, season, def.labels, show, withSchool)
       : null;
 
+    /**
+     * The staffing figures sit level with the middle of the hours table rather
+     * than hanging from its top. Both are measured at the widths they print at
+     * — the staffing column is 36% of the line, the hours take the rest less
+     * the gap — and the shorter one is dropped by half the difference.
+     */
+    const STAFF_SHARE = 0.36;
+    const STAFF_GAP = 16;
+    let staffingOffset = 0;
+    if (scheduleNode && staffingNode) {
+      const staffW = T.contentW * STAFF_SHARE;
+      const hoursH = measureHeight(T, scheduleTable(T, quote.schedules, def.labels, withSchool), T.contentW - staffW - STAFF_GAP);
+      const staffH = measureHeight(T, staffingTable(T, lifeguards, season, def.labels, show, withSchool), staffW);
+      if (hoursH && staffH && hoursH > staffH) staffingOffset = (hoursH - staffH) / 2;
+    }
+
     addSection('spec.duration', def.sectionTitles.duration, [
       {
         text: fillTemplate(def.sentences.duration, {
@@ -999,10 +1050,14 @@ export async function buildQuotePdf(quote, setting = {}, options = {}) {
             columns: [
               scheduleNode ? { width: '*', ...scheduleNode } : null,
               staffingNode
-                ? { width: scheduleNode ? '36%' : '50%', stack: [staffingNode] }
+                ? {
+                    width: scheduleNode ? `${STAFF_SHARE * 100}%` : '50%',
+                    stack: [staffingNode],
+                    margin: [0, staffingOffset, 0, 0],
+                  }
                 : null,
             ].filter(Boolean),
-            columnGap: 16,
+            columnGap: STAFF_GAP,
             margin: [0, 0, 0, 2],
           }
         : null,
@@ -1695,13 +1750,7 @@ export async function buildQuotePdf(quote, setting = {}, options = {}) {
   const pageMargins = [T.margin, T.margin - 6, T.margin, T.margin - 4];
 
   /** Every `style: 'th'` in the document is a specification table header. */
-  const specTableHeader = (theme) => ({
-    bold: true,
-    color: theme.primary,
-    fontSize: theme.fs(7.5),
-    characterSpacing: 0.6,
-    margin: [0, 1, 0, 1],
-  });
+  const specTableHeader = (theme) => theme.thStyle;
 
   const watermark = show('page.background') && def.branding.backgroundOpacity > 0
     ? asset('background-watermark.png')
@@ -1792,7 +1841,7 @@ export async function buildQuotePdf(quote, setting = {}, options = {}) {
     return {
       pageSize: T.size,
       pageMargins,
-      defaultStyle: { font: 'Roboto', fontSize: T.fs(9), color: T.ink, lineHeight: 1.06 },
+      defaultStyle: defaultStyleFor(T),
       // Registered by name: returning the data URI straight from background()
       // made pdfmake embed the same picture once per page, which took a 6-page
       // contract from ~90 KB to ~2.9 MB.

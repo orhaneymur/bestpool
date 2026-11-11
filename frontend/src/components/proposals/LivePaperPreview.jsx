@@ -178,7 +178,7 @@ export default function LivePaperPreview({
           {/* One table for both calendars, the staffing figures beside it —
               the same arrangement the PDF prints. */}
           {(show('spec.schedule') || show('spec.personnel')) && (
-            <div className="mb-3 grid grid-cols-[1fr_auto] items-start gap-3">
+            <div className="mb-3 grid grid-cols-[1fr_auto] items-center gap-3">
               {show('spec.schedule') ? (
                 <div>
                   <table className="w-full border-collapse text-[9px]">
