@@ -23,8 +23,8 @@ import { cn } from '@/lib/utils.js';
  * and it lives with the definitions themselves.
  */
 const THEME_FIELDS = [
-  ['primary', 'Headings & rules'],
-  ['numeral', 'Section numerals'],
+  ['primary', 'Headings, badges & edge band'],
+  ['numeral', 'Edge band stripe'],
   ['ink', 'Body text'],
   ['muted', 'Secondary text'],
   ['rule', 'Hairlines'],

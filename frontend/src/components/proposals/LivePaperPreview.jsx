@@ -10,14 +10,19 @@ function Money({ n, cur }) {
   return <span className="tabular-nums">{fmtMoney(n, cur)}</span>;
 }
 
-/** Mirrors the PDF: oversized soft-blue numeral, letterspaced title, hairline rule. */
+/**
+ * Mirrors the PDF: the section number in a solid badge, the letterspaced title
+ * beside it, and a soft tinted underline running to the margin.
+ */
 function SectionHead({ no, children }) {
   return (
-    <div className="mb-2 mt-3 border-b border-[#0d47a1] pb-0.5">
-      <div className="flex items-baseline gap-2">
-        <span className="text-[15px] font-bold leading-none text-[#93aed6]">{no}</span>
-        <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#0d47a1]">{children}</span>
-      </div>
+    <div className="mb-2 mt-3 flex items-stretch">
+      <span className="flex w-[18px] shrink-0 items-center justify-center bg-[#0d47a1] text-[9px] font-bold leading-[16px] text-white">
+        {no}
+      </span>
+      <span className="flex-1 border-b border-[#cad6ea] pl-2 text-[10px] font-bold uppercase leading-[16px] tracking-[0.11em] text-[#0d47a1]">
+        {children}
+      </span>
     </div>
   );
 }
@@ -142,8 +147,8 @@ export default function LivePaperPreview({
       node: (
         <div className={`mb-4 grid gap-3 ${propertyCols.length > 1 ? 'grid-cols-2' : 'grid-cols-1'}`}>
           {propertyCols.map((c) => (
-            <div key={c.key}>
-              <div className="mb-0.5 font-semibold text-slate-500">{c.heading}</div>
+            <div key={c.key} className="border-l-[3px] border-[#0d47a1] bg-[#ecf0f7] px-2.5 py-1.5">
+              <div className="mb-0.5 text-[8px] font-semibold uppercase tracking-wide text-slate-500">{c.heading}</div>
               <div className="font-semibold">{c.name || '—'}</div>
               <div className="text-slate-600">{c.detail || '—'}</div>
             </div>
@@ -170,66 +175,92 @@ export default function LivePaperPreview({
             })}
           </p>
 
-          {show('spec.schedule') && (
-            <div className={`mb-3 grid gap-3 ${seasonTables.length > 1 ? 'grid-cols-2' : 'grid-cols-1'}`}>
-              {seasonTables.map(([title, rows]) => (
-                <div key={title}>
-                  <div className="mb-1 font-semibold text-slate-900">{title}</div>
+          {/* One table for both calendars, the staffing figures beside it —
+              the same arrangement the PDF prints. */}
+          {(show('spec.schedule') || show('spec.personnel')) && (
+            <div className="mb-3 grid grid-cols-[1fr_auto] items-start gap-3">
+              {show('spec.schedule') ? (
+                <div>
                   <table className="w-full border-collapse text-[9px]">
                     <thead>
-                      <tr className="border-b border-[#0d47a1] text-[#0d47a1]">
+                      <tr className="text-[8px] text-[#0d47a1]">
+                        <th />
+                        {seasonTables.map(([title]) => (
+                          <th key={title} colSpan={2} className="px-1 pb-0.5 font-semibold">
+                            {title}
+                          </th>
+                        ))}
+                      </tr>
+                      <tr className="bg-[#ecf0f7] text-[#0d47a1]">
                         <th className="px-1 py-0.5 text-left font-semibold">{L.scheduleDay}</th>
-                        <th className="px-1 py-0.5">{L.scheduleOpen}</th>
-                        <th className="px-1 py-0.5">{L.scheduleClose}</th>
+                        {seasonTables.map(([title]) => [
+                          <th key={`${title}-o`} className="px-1 py-0.5">{L.scheduleOpen}</th>,
+                          <th key={`${title}-c`} className="px-1 py-0.5">{L.scheduleClose}</th>,
+                        ])}
                       </tr>
                     </thead>
                     <tbody>
-                      {rows.map(({ label, r }) => (
+                      {normal.map(({ label }, i) => (
                         <tr key={label} className="border-b border-slate-200">
                           <td className="px-1 py-0.5">{label}</td>
-                          <td className="px-1 py-0.5 text-center">
-                            {r?.is_closed ? L.scheduleClosed : formatTime12(r?.open_time)}
-                          </td>
-                          <td className="px-1 py-0.5 text-center">
-                            {r?.is_closed ? L.scheduleClosed : formatTime12(r?.close_time)}
-                          </td>
+                          {seasonTables.map(([title, rows]) => {
+                            const r = rows[i]?.r;
+                            const cls = `px-1 py-0.5 text-center ${r?.is_closed ? 'italic text-slate-400' : ''}`;
+                            return [
+                              <td key={`${title}-o`} className={cls}>
+                                {r?.is_closed ? L.scheduleClosed : formatTime12(r?.open_time)}
+                              </td>,
+                              <td key={`${title}-c`} className={cls}>
+                                {r?.is_closed ? L.scheduleClosed : formatTime12(r?.close_time)}
+                              </td>,
+                            ];
+                          })}
                         </tr>
                       ))}
                     </tbody>
                   </table>
+                  {seasonTables.length > 1 && L.schoolSeasonNote && (
+                    <div className="mt-0.5 text-[8px] italic text-slate-400">{L.schoolSeasonNote}</div>
+                  )}
                 </div>
-              ))}
-            </div>
-          )}
+              ) : (
+                <div />
+              )}
 
-          {show('spec.personnel') && (
-            <div className="mb-4 flex flex-wrap gap-x-4 gap-y-1 text-[10px]">
-              {show('spec.staffLifeguards') && (
-                <span>
-                  <strong>{L.staffLifeguards}:</strong> {Number(q.lifeguard_count || 0)} Lifeguard(s)
-                </span>
-              )}
-              {show('spec.staffOperatingDays') && (
-                <span>
-                  <strong>{L.staffOperatingDays}:</strong>{' '}
-                  {season ? `${season.openDays} of ${season.days} days` : '—'}
-                </span>
-              )}
-              {show('spec.staffDailyHours') && (
-                <span>
-                  <strong>{L.staffDailyHours}:</strong>{' '}
-                  {season ? `${season.avgDailyHoursPerGuard} Hrs/day` : '—'}
-                </span>
-              )}
-              {show('spec.staffWeeklyHours') && (
-                <span>
-                  <strong>{L.staffWeeklyHours}:</strong> {season ? `${season.weeklyStaffHours} Hrs/week` : '—'}
-                </span>
-              )}
-              {show('spec.staffSeasonHours') && (
-                <span>
-                  <strong>{L.staffSeasonHours}:</strong> {season ? `${season.staffHours} Hrs/season` : '—'}
-                </span>
+              {show('spec.personnel') && (
+                <div className="w-[170px] text-[9px]">
+                  {[
+                    show('spec.staffLifeguards') && [L.staffLifeguards, `${Number(q.lifeguard_count || 0)} Lifeguard(s)`],
+                    show('spec.staffOperatingDays') && [
+                      L.staffOperatingDays,
+                      season ? `${season.openDays} of ${season.days} days` : '—',
+                    ],
+                    show('spec.staffDailyHours') && [
+                      L.staffDailyHours,
+                      season ? `${season.avgDailyHoursPerGuard} Hrs/day` : '—',
+                    ],
+                    show('spec.staffWeeklyHours') && [
+                      L.staffWeeklyHours,
+                      season ? `${season.weeklyStaffHours} Hrs/week` : '—',
+                    ],
+                    show('spec.staffWeeklyHours') &&
+                      show('spec.scheduleSchool') && [
+                        L.staffWeeklyHoursSchool,
+                        season ? `${season.weeklyStaffHoursSchool ?? '—'} Hrs/week` : '—',
+                      ],
+                    show('spec.staffSeasonHours') && [
+                      L.staffSeasonHours,
+                      season ? `${season.staffHours} Hrs/season` : '—',
+                    ],
+                  ]
+                    .filter(Boolean)
+                    .map(([label, value]) => (
+                      <div key={label} className="flex justify-between gap-2 border-b border-slate-200 py-0.5">
+                        <span className="text-slate-500">{label}</span>
+                        <strong className="whitespace-nowrap">{value}</strong>
+                      </div>
+                    ))}
+                </div>
               )}
             </div>
           )}
@@ -238,21 +269,26 @@ export default function LivePaperPreview({
     });
   }
 
+  /**
+   * Compensation is built before the comments and pushed after them below, so
+   * the section order matches the PDF: the price first, then the conditions.
+   */
+  let commentsSection = null;
   if (show('spec.comments')) {
     const visibleNotes = specialNotes.filter((n) => n.body?.trim());
-    sections.push({
+    commentsSection = {
       title: S.comments,
       node: (
-        <ul className="mb-4 list-none space-y-0.5">
+        <ul className={`mb-4 list-none gap-x-4 space-y-0.5 ${visibleNotes.length > 3 ? 'columns-2' : ''}`}>
           {(visibleNotes.length ? visibleNotes : [{ label: '', body: L.noComments }]).map((n, i) => (
-            <li key={i} className={n.is_bold ? 'font-semibold' : undefined}>
-              <strong>{n.label ? `${n.label}. ` : ''}</strong>
-              {n.body}
+            <li key={i} className={`flex break-inside-avoid ${n.is_bold ? 'font-semibold' : ''}`}>
+              <strong className="w-4 shrink-0 text-[#0d47a1]">{n.label ? `${n.label}.` : ''}</strong>
+              <span>{n.body}</span>
             </li>
           ))}
         </ul>
       ),
-    });
+    };
   }
 
   if (show('spec.compensation')) {
@@ -266,12 +302,14 @@ export default function LivePaperPreview({
             </p>
           )}
 
+          <div className="grid grid-cols-[1fr_auto] items-start gap-3">
+          <div className="min-w-0">
           {show('spec.items') && lineItems.length > 0 && (
             <div className="mb-3">
               <div className="mb-1 font-semibold text-slate-700">{L.servicesIncluded}</div>
               <table className="mb-2 w-full border-collapse text-[9px]">
                 <thead>
-                  <tr className="border-b border-[#0d47a1] text-[#0d47a1]">
+                  <tr className="bg-[#ecf0f7] text-[#0d47a1]">
                     <th className="px-1 py-0.5 text-left">{L.itemsDescription}</th>
                     <th className="px-1 py-0.5 text-right">{L.itemsQty}</th>
                     <th className="px-1 py-0.5 text-right">{L.itemsAmount}</th>
@@ -290,35 +328,6 @@ export default function LivePaperPreview({
                 </tbody>
               </table>
             </div>
-          )}
-
-          {show('spec.totals') && (
-            <div className="mb-2 flex flex-wrap justify-between gap-2">
-              <div>
-                <span className="text-slate-500">{L.totalPrice}: </span>
-                <strong>
-                  <Money n={totals.total} cur={q.currency} />
-                </strong>
-              </div>
-              {Number(q.early_bird_discount) > 0 && show('spec.earlyBird') && (
-                <div>
-                  <span className="text-slate-500">{L.earlyBirdPrice}: </span>
-                  <strong>
-                    <Money n={earlyBirdPrice} cur={q.currency} />
-                  </strong>
-                </div>
-              )}
-            </div>
-          )}
-
-          {Number(q.early_bird_discount) > 0 && show('spec.earlyBird') && show('spec.earlyBirdNote') && (
-            <p className="mb-2 text-[9px] italic text-slate-500">
-              {fillTemplate(SENT.earlyBirdNote, {
-                contractor: contractorWord,
-                owner: ownerWord,
-                deadline: q.valid_until ? fmtDate(q.valid_until) : 'the stated deadline',
-              })}
-            </p>
           )}
 
           {show('spec.installments') && (
@@ -348,10 +357,46 @@ export default function LivePaperPreview({
               )}
             </div>
           )}
+          </div>
+          <div className={show('spec.totals') ? 'w-[160px]' : 'hidden'}>
+          {/* The prices in a tinted panel with an accent edge, as in the PDF. */}
+          {show('spec.totals') && (
+            <div className="mb-2 flex flex-col gap-y-1.5 border-l-[3px] border-[#0d47a1] bg-[#ecf0f7] px-3 py-2">
+              <div>
+                <div className="text-[8px] font-semibold uppercase tracking-wide text-slate-500">{L.totalPrice}</div>
+                <div className="text-[13px] font-bold text-[#0d47a1]">
+                  <Money n={totals.total} cur={q.currency} />
+                </div>
+              </div>
+              {Number(q.early_bird_discount) > 0 && show('spec.earlyBird') && (
+                <div>
+                  <div className="text-[8px] font-semibold uppercase tracking-wide text-slate-500">
+                    {L.earlyBirdPrice}
+                  </div>
+                  <div className="text-[13px] font-bold text-[#0d47a1]">
+                    <Money n={earlyBirdPrice} cur={q.currency} />
+                  </div>
+                </div>
+              )}
+              {Number(q.early_bird_discount) > 0 && show('spec.earlyBird') && show('spec.earlyBirdNote') && (
+                <p className="text-[8px] italic leading-snug text-slate-500">
+                  {fillTemplate(SENT.earlyBirdNote, {
+                    contractor: contractorWord,
+                    owner: ownerWord,
+                    deadline: q.valid_until ? fmtDate(q.valid_until) : 'the stated deadline',
+                  })}
+                </p>
+              )}
+            </div>
+          )}
+          </div>
+          </div>
         </>
       ),
     });
   }
+
+  if (commentsSection) sections.push(commentsSection);
 
   if (show('spec.acceptance')) {
     /**
@@ -380,7 +425,7 @@ export default function LivePaperPreview({
           {/* Signature last in both columns, and the same height reserved on
               each, exactly as the PDF lays it out. */}
           <div>
-            <div className="font-semibold">{L.ownerColumn}</div>
+            <div className="bg-[#ecf0f7] px-1.5 py-0.5 font-semibold tracking-wide text-[#0d47a1]">{L.ownerColumn}</div>
             {/* The owner has no title line: the row the contractor prints their
                 name on is reserved here and left unruled, so every rule below
                 faces its opposite number at the same height. */}
@@ -397,7 +442,9 @@ export default function LivePaperPreview({
             <div className="mt-0.5 text-[8px] uppercase tracking-wide text-slate-400">{signatureLabel}</div>
           </div>
           <div>
-            <div className="font-semibold">{L.contractorColumn}</div>
+            <div className="bg-[#ecf0f7] px-1.5 py-0.5 font-semibold tracking-wide text-[#0d47a1]">
+              {L.contractorColumn}
+            </div>
             <div className="mt-3 flex h-4 items-end text-[9px] text-slate-700">
               {String(signatoryName).toUpperCase()}
             </div>
@@ -479,29 +526,69 @@ export default function LivePaperPreview({
       </div>
 
       <div className="relative flex-1 overflow-auto rounded-2xl bg-gradient-to-b from-slate-200/80 to-slate-300/50 p-3 sm:p-6">
-        <div className="mx-auto min-h-[560px] max-w-[520px] origin-top rounded-[2px] bg-white px-4 py-6 text-[10.5px] leading-relaxed text-slate-800 shadow-paper ring-1 ring-black/5 transition-transform duration-300 sm:min-h-[735px] sm:px-7 sm:py-8">
+        <div className="mx-auto min-h-[560px] max-w-[520px] origin-top rounded-[2px] border-l-[6px] border-[#0d47a1] bg-white px-4 py-6 text-[10.5px] leading-relaxed text-slate-800 shadow-paper ring-1 ring-black/5 transition-transform duration-300 sm:min-h-[735px] sm:px-7 sm:py-8">
           {show('spec.header') && (
-            <div className="mb-5 text-center">
-              {show('cover.logo') && (
-                // Served from the backend rather than bundled, so the preview and
-                // the PDF can only ever show the same artwork.
-                <img
-                  src="/api/assets/logo.png"
-                  alt=""
-                  className="mx-auto mb-2 h-auto w-[140px]"
-                  onError={(e) => {
-                    e.currentTarget.style.display = 'none';
-                  }}
-                />
-              )}
-              <div className="text-[9px] italic text-slate-500">
-                Commercial Swimming Pool Management Agreement
+            // A tinted letterhead band closed by a solid accent rule, as in the PDF.
+            <div className="mb-5 border-b-[2px] border-[#0d47a1] bg-[#ecf0f7] px-3 py-2.5">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  {show('cover.logo') && (
+                    // Served from the backend rather than bundled, so the preview and
+                    // the PDF can only ever show the same artwork.
+                    <img
+                      src="/api/assets/logo.png"
+                      alt=""
+                      className="mb-1.5 h-auto w-[110px]"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                      }}
+                    />
+                  )}
+                  <div className="text-[12px] font-semibold">{q.facility_name || 'Facility Name'}</div>
+                  <div className="text-[10px] text-slate-500">{q.facility_address || 'Facility address'}</div>
+                </div>
+                <div className="shrink-0 text-right">
+                  <div className="text-[9px] font-semibold uppercase tracking-wide text-slate-700">
+                    Commercial Swimming Pool Management Agreement
+                  </div>
+                  <div className="mt-1 text-[12px] font-bold tracking-wide text-[#0d47a1]">
+                    Contract : {quoteNo || 'DRAFT'}
+                  </div>
+                </div>
               </div>
-              <div className="mt-2 text-[13px] font-bold tracking-wide text-slate-900">
-                Contract : {quoteNo || 'DRAFT'}
-              </div>
-              <div className="mt-2 text-[12px] font-semibold">{q.facility_name || 'Facility Name'}</div>
-              <div className="text-[10px] text-slate-500">{q.facility_address || 'Facility address'}</div>
+            </div>
+          )}
+
+          {/* The contract at a glance, as printed under the PDF letterhead. Each
+              tile follows the block it repeats. */}
+          {show('spec.summary') && (
+            <div className="mb-1 grid auto-cols-fr grid-flow-col divide-x divide-[#cad6ea] border-b border-[#cad6ea] pb-1.5">
+              {[
+                show('spec.duration') && season?.valid && [
+                  L.summaryPeriod,
+                  `${fmtDate(q.season_start)} – ${fmtDate(q.season_end)}`,
+                ],
+                show('spec.duration') && show('spec.personnel') && show('spec.staffOperatingDays') && season?.valid && [
+                  L.staffOperatingDays,
+                  `${season.openDays} of ${season.days} days`,
+                ],
+                show('spec.duration') && show('spec.personnel') && show('spec.staffLifeguards') && [
+                  L.staffLifeguards,
+                  `${Number(q.lifeguard_count || 0)} Lifeguard(s)`,
+                ],
+                show('spec.compensation') && show('spec.totals') && [
+                  L.totalPrice,
+                  <Money key="t" n={totals.total} cur={q.currency} />,
+                  true,
+                ],
+              ]
+                .filter(Boolean)
+                .map(([label, value, strong], i) => (
+                  <div key={label} className={i === 0 ? 'pr-2' : 'px-2'}>
+                    <div className="text-[8px] font-semibold text-slate-500">{label}</div>
+                    <div className={`font-semibold ${strong ? 'text-[#0d47a1]' : ''}`}>{value}</div>
+                  </div>
+                ))}
             </div>
           )}
 

@@ -38,6 +38,12 @@ export const PDF_BLOCKS = [
 
   // --- Specification page ---
   { key: 'spec.header', group: 'Specification', label: 'Page header', hint: 'Company name, title and contract no' },
+  {
+    key: 'spec.summary',
+    group: 'Specification',
+    label: 'At-a-glance strip',
+    hint: 'Period, operating days, lifeguards and total under the page header',
+  },
   { key: 'spec.property', group: 'Specification', label: 'Property information', hint: 'The whole section' },
   {
     key: 'spec.propertyFacility',
@@ -131,7 +137,7 @@ export const DEFAULT_DEFINITIONS = {
   },
   theme: {
     primary: '#0d47a1',      // headings, rules
-    numeral: '#93aed6',      // oversized section numerals
+    numeral: '#93aed6',      // the light stripe beside the edge band
     ink: '#1f2733',          // body text
     muted: '#5a6672',        // secondary text
     rule: '#c9d3de',         // hairlines
@@ -141,6 +147,8 @@ export const DEFAULT_DEFINITIONS = {
     titleLine1: 'COMMERCIAL POOL MANAGEMENT',
     titleLine2: 'AGREEMENT',
     specTitle: 'SWIMMING POOL MANAGEMENT AGREEMENT',
+    // Caption of the first tile in the at-a-glance strip.
+    summaryPeriod: 'Contract Period',
     ownerColumn: 'OWNER / CLIENT',
     contractorColumn: 'CONTRACTOR',
     ownerParty: 'OWNER',
@@ -165,6 +173,8 @@ export const DEFAULT_DEFINITIONS = {
     staffOperatingDays: 'Operating Days',
     staffDailyHours: 'Daily Hours (per guard, open days)',
     staffWeeklyHours: 'Weekly Staffing Hours',
+    // The second weekly row, printed when the school / off-season calendar is.
+    staffWeeklyHoursSchool: 'Weekly Staffing Hours (School / Off Season)',
     staffSeasonHours: 'Total Seasonal Staffing Hours',
 
     // --- Services table ---
@@ -386,7 +396,15 @@ export const DEFINITION_SECTIONS = [
     id: 'specHeader',
     title: 'Specification header',
     description: 'The band at the top of the specification page.',
-    fields: [{ group: 'labels', key: 'specTitle', label: 'Specification page title' }],
+    fields: [
+      { group: 'labels', key: 'specTitle', label: 'Specification page title' },
+      {
+        group: 'labels',
+        key: 'summaryPeriod',
+        label: 'At-a-glance strip — period caption',
+        hint: 'The other tiles reuse the staffing and total captions',
+      },
+    ],
   },
   {
     id: 'property',
@@ -432,6 +450,7 @@ export const DEFINITION_SECTIONS = [
       { group: 'labels', key: 'staffOperatingDays', label: 'Operating days' },
       { group: 'labels', key: 'staffDailyHours', label: 'Daily hours per guard' },
       { group: 'labels', key: 'staffWeeklyHours', label: 'Weekly staffing hours' },
+      { group: 'labels', key: 'staffWeeklyHoursSchool', label: 'Weekly staffing hours — school / off season' },
       { group: 'labels', key: 'staffSeasonHours', label: 'Seasonal staffing hours' },
     ],
   },

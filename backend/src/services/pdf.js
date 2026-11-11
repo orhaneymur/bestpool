@@ -8,7 +8,8 @@ import { fileURLToPath } from 'url';
 /**
  * Commercial Swimming Pool Management Agreement PDF.
  *
- * Editorial layout — oversized section numerals, hairline rules, no filled bands:
+ * Modern left-aligned layout — an accent band down the page edge, numbered
+ * section badges, tinted table headers and panels:
  *   Page 1  : Cover — tagline, title, contract no, facility, company block
  *   Page 2  : Specification sheet, sections numbered 1..n
  *   Page 3+ : Terms and Conditions from the selected template
@@ -222,6 +223,19 @@ function dateEN(d) {
   return `${MONTHS_EN[dt.getMonth()]} ${dt.getDate()}, ${dt.getFullYear()}`;
 }
 
+/**
+ * "May 23 – September 7, 2026": the year once when both ends share it, so the
+ * range fits a narrow tile on one line. Falls back to two full dates.
+ */
+function dateRangeEN(a, b) {
+  const x = new Date(a);
+  const y = new Date(b);
+  if (Number.isNaN(x.getTime()) || Number.isNaN(y.getTime()) || x.getFullYear() !== y.getFullYear()) {
+    return `${dateEN(a)} – ${dateEN(b)}`;
+  }
+  return `${MONTHS_EN[x.getMonth()]} ${x.getDate()} – ${MONTHS_EN[y.getMonth()]} ${y.getDate()}, ${y.getFullYear()}`;
+}
+
 function to12h(t) {
   if (!t) return '';
   const [hh, mm] = String(t).split(':').map(Number);
@@ -244,6 +258,15 @@ function romanToInt(s) {
     total += next && next > cur ? -cur : cur;
   }
   return total > 0 ? total : null;
+}
+
+/** `a` moved toward `b` by `t` (0..1), both #rrggbb. Falls back to `a` on bad input. */
+function mixHex(a, b, t) {
+  const parse = (h) => (/^#[0-9a-f]{6}$/i.test(h) ? [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)) : null);
+  const x = parse(String(a));
+  const y = parse(String(b));
+  if (!x || !y) return a;
+  return `#${x.map((v, i) => Math.round(v + (y[i] - v) * t).toString(16).padStart(2, '0')).join('')}`;
 }
 
 /**
@@ -269,8 +292,15 @@ function makeTheme(def) {
   const gap = (n) => Math.max(1, Math.round((tight ? n : n * 1.6) * spacing));
 
   const { primary, rule: ruleColor } = def.theme;
+  /**
+   * Washes of the primary colour, derived rather than configured so the whole
+   * palette still follows the one colour picked on the Definitions page.
+   * `tint` fills table headers and cards; `tintStrong` draws their edges.
+   */
+  const tint = mixHex(primary, '#ffffff', 0.92);
+  const tintStrong = mixHex(primary, '#ffffff', 0.78);
 
-  const rule = (width = contentW, color = ruleColor, lineWidth = 0.4, marginArr = [0, 0, 0, 0]) => ({
+  const rule =(width = contentW, color = ruleColor, lineWidth = 0.4, marginArr = [0, 0, 0, 0]) => ({
     canvas: [{ type: 'line', x1: 0, y1: 0, x2: width, y2: 0, lineWidth, lineColor: color }],
     margin: marginArr,
   });
@@ -283,43 +313,88 @@ function makeTheme(def) {
     };
   };
 
-  /** Oversized soft numeral + letterspaced title + hairline. */
+  /**
+   * Section number in a solid badge, the title beside it, and a soft tinted
+   * underline that runs from the badge to the margin.
+   */
+  const badgeW = fs(17);
   const sectionHead = (no, title, topMargin = gap(5)) => ({
     unbreakable: true,
-    margin: [0, topMargin, 0, 3],
-    stack: [
-      {
-        columns: [
-          { width: 24, text: String(no), fontSize: fs(15), bold: true, color: def.theme.numeral, margin: [0, -2, 0, 0] },
-          {
-            width: '*',
-            text: String(title).toUpperCase(),
-            fontSize: fs(9),
-            bold: true,
-            color: primary,
-            characterSpacing: 1.2,
-            margin: [0, 3, 0, 0],
-          },
-        ],
-        columnGap: 0,
-      },
-      rule(contentW, primary, 0.7, [0, 1, 0, 0]),
-    ],
+    margin: [0, topMargin, 0, gap(3)],
+    table: {
+      widths: [badgeW, '*'],
+      body: [[
+        {
+          text: String(no),
+          bold: true,
+          fontSize: fs(8.5),
+          color: '#ffffff',
+          fillColor: primary,
+          alignment: 'center',
+          border: [false, false, false, false],
+          margin: [0, 1.5, 0, 0.5],
+        },
+        {
+          text: String(title).toUpperCase(),
+          bold: true,
+          fontSize: fs(9),
+          color: primary,
+          characterSpacing: 1.1,
+          border: [false, false, false, true],
+          margin: [7, 1.5, 0, 0.5],
+        },
+      ]],
+    },
+    layout: {
+      hLineWidth: () => 0.9,
+      vLineWidth: () => 0,
+      hLineColor: () => tintStrong,
+      paddingLeft: () => 0,
+      paddingRight: () => 0,
+      paddingTop: () => 1,
+      paddingBottom: () => 1,
+    },
   });
 
-  /** Rules only — no vertical borders, no zebra fills. */
+  /** Tinted header row, soft row separators, a firmer line to close the table. */
   const hairline = () => ({
     hLineWidth: (i, node) => {
       if (i === 0) return 0;
-      if (i === 1) return 0.7;
+      if (i === 1) return 0;
       return i === node.table.body.length ? 0.7 : 0.35;
     },
     vLineWidth: () => 0,
-    hLineColor: (i, node) => (i === 1 || i === node.table.body.length ? primary : ruleColor),
-    paddingLeft: (i) => (i === 0 ? 0 : 5),
+    hLineColor: (i, node) => (i === node.table.body.length ? tintStrong : ruleColor),
+    fillColor: (row) => (row === 0 ? tint : null),
+    paddingLeft: () => 5,
     paddingRight: () => 5,
-    paddingTop: () => pad,
-    paddingBottom: () => pad,
+    paddingTop: (row) => (row === 0 ? pad + 1 : pad),
+    paddingBottom: (row) => (row === 0 ? pad + 1 : pad),
+  });
+
+  /** A small caption over a figure, the way the totals and the cover label things. */
+  const caption = (text, extra = {}) => ({
+    text: String(text ?? ''),
+    fontSize: fs(6.8),
+    bold: true,
+    color: def.theme.muted,
+    characterSpacing: 0.8,
+    ...extra,
+  });
+
+  /** A filled panel: one cell, tinted, with an accent edge down its left side. */
+  const panel = (content, { fill = tint, accent = primary, margin = [0, 0, 0, 0], padY = 6 } = {}) => ({
+    table: { widths: ['*'], body: [[{ stack: Array.isArray(content) ? content : [content], fillColor: fill }]] },
+    layout: {
+      hLineWidth: () => 0,
+      vLineWidth: (i) => (i === 0 ? 2.5 : 0),
+      vLineColor: () => accent,
+      paddingLeft: () => 10,
+      paddingRight: () => 10,
+      paddingTop: () => padY * spacing,
+      paddingBottom: () => padY * spacing,
+    },
+    margin,
   });
 
   const sigWidth = Math.floor((contentW - 24) / 2) - 16;
@@ -402,6 +477,10 @@ function makeTheme(def) {
   return {
     ...def.theme,
     ruleColor,
+    tint,
+    tintStrong,
+    caption,
+    panel,
     size,
     margin,
     contentW,
@@ -417,98 +496,126 @@ function makeTheme(def) {
   };
 }
 
-function scheduleColumn(T, schedules, seasonType, title, subtitle, labels) {
-  const rows = (schedules || [])
-    .filter((s) => s.season_type === seasonType)
-    .sort((a, b) => DAY_ORDER.indexOf(a.day_label) - DAY_ORDER.indexOf(b.day_label));
+/**
+ * Both operating calendars in one table: the day down the side, each season's
+ * open and close side by side under its own heading.
+ *
+ * The two seasons used to print as two separate tables that repeated every day
+ * name, which spent half the width saying the same thing twice and left no room
+ * beside them for the staffing figures. With `withSchool` false the table
+ * carries the normal season alone.
+ */
+function scheduleTable(T, schedules, labels, withSchool) {
+  const find = (type, day) => (schedules || []).find((x) => x.season_type === type && x.day_label === day);
+  const cell = (r, key) => (r ? (r.is_closed ? labels.scheduleClosed : to12h(r[key]) || '-') : '-');
+  const time = (text, closed) => ({
+    text,
+    fontSize: T.fs(7.5),
+    alignment: 'center',
+    color: closed ? T.muted : T.ink,
+    italics: !!closed,
+  });
 
-  const bodyRows = DAY_ORDER.map((day) => {
-    const r = rows.find((x) => x.day_label === day);
-    const open = r ? (r.is_closed ? labels.scheduleClosed : to12h(r.open_time) || '-') : '-';
-    // A closed day says so in both columns; a dash under CLOSE read as missing
-    // data rather than as "shut".
-    const close = r ? (r.is_closed ? labels.scheduleClosed : to12h(r.close_time) || '-') : '-';
+  const seasonHead = (text) => ({
+    text,
+    colSpan: 2,
+    bold: true,
+    fontSize: T.fs(7),
+    color: T.primary,
+    alignment: 'center',
+    characterSpacing: 0.3,
+  });
+
+  const head1 = [
+    { text: '', border: [false, false, false, false] },
+    seasonHead(labels.normalSeason),
+    {},
+    ...(withSchool ? [seasonHead(labels.schoolSeason), {}] : []),
+  ];
+  const head2 = [
+    { text: labels.scheduleDay, style: 'th' },
+    { text: labels.scheduleOpen, style: 'th', alignment: 'center' },
+    { text: labels.scheduleClose, style: 'th', alignment: 'center' },
+    ...(withSchool
+      ? [
+          { text: labels.scheduleOpen, style: 'th', alignment: 'center' },
+          { text: labels.scheduleClose, style: 'th', alignment: 'center' },
+        ]
+      : []),
+  ];
+
+  const body = DAY_ORDER.map((day) => {
+    const n = find('normal', day);
+    const s = find('okul', day);
     return [
-      { text: DAY_EN[day], fontSize: T.fs(7.5), color: T.ink },
-      { text: open, fontSize: T.fs(7.5), alignment: 'center', color: T.muted },
-      { text: close, fontSize: T.fs(7.5), alignment: 'center', color: T.muted },
+      { text: DAY_EN[day], fontSize: T.fs(7.5), color: T.ink, bold: day === 'tatil' },
+      time(cell(n, 'open_time'), n?.is_closed),
+      time(cell(n, 'close_time'), n?.is_closed),
+      ...(withSchool ? [time(cell(s, 'open_time'), s?.is_closed), time(cell(s, 'close_time'), s?.is_closed)] : []),
     ];
   });
 
   return {
-    width: '*',
-    stack: [
-      { text: title, bold: true, fontSize: T.fs(8), color: T.ink, characterSpacing: 0.4, margin: [0, 0, 0, 1] },
-      subtitle
-        ? { text: subtitle, italics: true, fontSize: T.fs(6.5), color: T.muted, margin: [0, 0, 0, 2] }
-        : { text: ' ', fontSize: T.fs(6.5), margin: [0, 0, 0, 2] },
-      {
-        table: {
-          headerRows: 1,
-          widths: ['*', 50, 50],
-          body: [
-            [
-              { text: labels.scheduleDay, style: 'th' },
-              { text: labels.scheduleOpen, style: 'th', alignment: 'center' },
-              { text: labels.scheduleClose, style: 'th', alignment: 'center' },
-            ],
-            ...bodyRows,
-          ],
-        },
-        layout: T.hairline(),
-      },
-    ],
+    table: {
+      headerRows: 2,
+      widths: withSchool ? ['*', 44, 44, 44, 44] : ['*', 60, 60],
+      body: [head1, head2, ...body],
+    },
+    layout: {
+      hLineWidth: (i, node) => (i <= 2 ? 0 : i === node.table.body.length ? 0.7 : 0.35),
+      // A single divider between the two seasons, so each pair reads as one.
+      vLineWidth: (i) => (withSchool && i === 3 ? 0.7 : 0),
+      vLineColor: () => T.tintStrong,
+      hLineColor: (i, node) => (i === node.table.body.length ? T.tintStrong : T.ruleColor),
+      fillColor: (row) => (row === 1 ? T.tint : null),
+      paddingLeft: () => 4,
+      paddingRight: () => 4,
+      paddingTop: (row) => (row <= 1 ? T.pad + 1 : T.pad),
+      paddingBottom: (row) => (row <= 1 ? T.pad + 1 : T.pad),
+    },
   };
 }
 
 /**
- * Staffing figures, all derived from the season calendar rather than from a
- * hand-typed hours-per-week multiplied by a rounded week count.
- */
-/**
- * Every staffing figure is its own hideable row.
+ * The staffing figures as one table.
  *
- * They used to travel together under a single "staffing" switch, so hiding the
- * hours also took the guard count with them — the one line most contracts want
- * to keep. `show` decides each row on its own; if all five are off the caller
- * drops the block entirely rather than printing an empty rule.
+ * Every figure but the weekly hours is the same in both seasons, and printing
+ * the whole list twice — once under each calendar — made the reader compare two
+ * columns to find the one line that differed. Now each figure prints once, and
+ * the off-season week gets a row of its own when that calendar is printed.
+ *
+ * Every row is still its own hideable block; with all of them off the caller
+ * drops the table rather than printing an empty frame.
  */
-function personnelRows(T, lifeguards, season, seasonType = 'normal', labels = {}, show = () => true) {
-  const daily = season.avgDailyHoursPerGuard;
-  // The configured week, not the season average — see scheduledWeekHours().
-  const weekly = seasonType === 'okul' ? season.weeklyStaffHoursSchool : season.weeklyStaffHours;
-  const seasonal = season.staffHours;
+function staffingTable(T, lifeguards, season, labels, show, withSchool) {
   const row = (label, value) => [
     { text: label, fontSize: T.fs(7.5), color: T.muted },
-    { text: value, fontSize: T.fs(7.5), bold: true, color: T.ink, alignment: 'right' },
+    { text: value, fontSize: T.fs(7.5), bold: true, color: T.ink, alignment: 'right', noWrap: true },
   ];
-
   const body = [
     show('spec.staffLifeguards') && row(labels.staffLifeguards, `${lifeguards} Lifeguard(s)`),
     show('spec.staffOperatingDays') && row(labels.staffOperatingDays, `${season.openDays} of ${season.days} days`),
-    show('spec.staffDailyHours') && row(labels.staffDailyHours, `${daily} Hrs/day`),
-    show('spec.staffWeeklyHours') && row(labels.staffWeeklyHours, `${weekly} Hrs/week`),
-    show('spec.staffSeasonHours') && row(labels.staffSeasonHours, `${seasonal} Hrs/season`),
+    show('spec.staffDailyHours') && row(labels.staffDailyHours, `${season.avgDailyHoursPerGuard} Hrs/day`),
+    // The configured week, not the season average — see scheduledWeekHours().
+    show('spec.staffWeeklyHours') && row(labels.staffWeeklyHours, `${season.weeklyStaffHours} Hrs/week`),
+    show('spec.staffWeeklyHours') &&
+      withSchool &&
+      row(labels.staffWeeklyHoursSchool, `${season.weeklyStaffHoursSchool} Hrs/week`),
+    show('spec.staffSeasonHours') && row(labels.staffSeasonHours, `${season.staffHours} Hrs/season`),
   ].filter(Boolean);
 
-  if (!body.length) return { width: '*', text: '' };
-
+  if (!body.length) return null;
   return {
-    width: '*',
-    table: {
-      widths: ['*', 'auto'],
-      body,
-    },
+    table: { widths: ['*', 'auto'], body },
     layout: {
-      hLineWidth: (i) => (i === 0 ? 0 : 0.35),
+      hLineWidth: (i, node) => (i === 0 ? 0 : i === node.table.body.length ? 0.7 : 0.35),
       vLineWidth: () => 0,
-      hLineColor: () => T.ruleColor,
+      hLineColor: (i, node) => (i === node.table.body.length ? T.tintStrong : T.ruleColor),
       paddingLeft: () => 0,
       paddingRight: () => 0,
-      paddingTop: () => T.pad,
-      paddingBottom: () => T.pad,
+      paddingTop: () => T.pad + 0.5,
+      paddingBottom: () => T.pad + 0.5,
     },
-    margin: [0, 3, 0, 0],
   };
 }
 
@@ -545,13 +652,16 @@ function renderTemplateBody(T, body) {
       out.push({
         text: line,
         bold: true,
-        fontSize: T.fs(12),
+        fontSize: T.fs(15),
         color: T.primary,
         characterSpacing: 1.6,
-        alignment: 'center',
-        margin: [0, 0, 0, 4],
+        alignment: 'left',
+        margin: [0, 2, 0, 6],
       });
-      out.push(T.rule(T.contentW, T.primary, 0.7, [0, 0, 0, 8]));
+      out.push({
+        canvas: [{ type: 'rect', x: 0, y: 0, w: 46, h: 3, color: T.primary }],
+        margin: [0, 0, 0, 10],
+      });
       continue;
     }
 
@@ -570,7 +680,7 @@ function renderTemplateBody(T, body) {
 
     // "A. Scope of Agreement" style sub-heads
     if (/^[A-Z]\.\s+\S/.test(line) && line.length <= 80) {
-      out.push({ text: line, bold: true, fontSize: T.fs(8.5), color: T.ink, margin: [0, 4, 0, 1] });
+      out.push({ text: line, bold: true, fontSize: T.fs(8.5), color: T.primary, margin: [0, 5, 0, 1.5] });
       continue;
     }
 
@@ -675,7 +785,9 @@ export async function buildQuotePdf(quote, setting = {}, options = {}) {
       show('cover.email') ? setting.company_email || '' : '',
     ]
       .filter(Boolean)
-      .join('  •  ');
+      // One per line: the contact column sits beside the company name, and a
+      // single long run squeezed the name onto two lines.
+      .join('\n');
 
     // The cover names the client once. When the facility carries the same name as
     // the customer, printing both would repeat it — so the second line is dropped.
@@ -688,17 +800,28 @@ export async function buildQuotePdf(quote, setting = {}, options = {}) {
       .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
     const commentLines = notes.length
       ? notes.map((n) => ({
-          text: [
-            { text: `${n.label ? `${n.label}. ` : ''}`, bold: true },
+          // The letter hangs in its own column in the accent colour, so the
+          // clauses read as a list and wrapped lines stay aligned.
+          columns: [
             {
+              width: T.fs(13),
+              text: n.label ? `${n.label}.` : '•',
+              bold: true,
+              color: T.primary,
+              fontSize: T.fs(8),
+            },
+            {
+              width: '*',
               text: applyContractorLabel(n.body || '', useContractorName ? contractorName : ''),
               // Per clause, so the commercial terms can stand out from the
               // boilerplate they sit among.
               bold: !!n.is_bold,
+              fontSize: T.fs(8),
+              color: T.ink,
             },
           ],
-          fontSize: T.fs(8),
-          margin: [0, 0, 0, 1],
+          columnGap: 0,
+          margin: [0, 0, 0, 1.2],
         }))
       : [{ text: def.labels.noComments, fontSize: T.fs(8), italics: true, color: T.muted }];
 
@@ -707,7 +830,7 @@ export async function buildQuotePdf(quote, setting = {}, options = {}) {
       ? {
           table: {
             headerRows: 1,
-            widths: ['*', 34, 38, 54, 54],
+            widths: ['*', 24, 34, 52, 54],
             body: [
               [
                 { text: def.labels.itemsDescription, style: 'th' },
@@ -740,18 +863,41 @@ export async function buildQuotePdf(quote, setting = {}, options = {}) {
       return 0;
     });
     const half = Math.ceil(insts.length / 2) || 0;
-    const dueStack = (list) =>
-      list.map((inst) => ({
-        columns: [
-          {
-            text: `${def.labels.dueLabel} ${inst.due_date ? dateEN(inst.due_date) : inst.label || '-'}`,
-            fontSize: T.fs(8),
-            color: T.muted,
-          },
-          { text: money(inst.amount, cur), fontSize: T.fs(8), bold: true, color: T.ink, alignment: 'right', width: 70 },
-        ],
-        margin: [0, 0, 0, 1],
-      }));
+    /**
+     * The due dates as one ruled table, read down the left pair of columns and
+     * then down the right, the same order the two stacked lists used to give.
+     */
+    const dueCells = (inst) =>
+      inst
+        ? [
+            {
+              text: `${def.labels.dueLabel} ${inst.due_date ? dateEN(inst.due_date) : inst.label || '-'}`,
+              fontSize: T.fs(8),
+              color: T.muted,
+            },
+            { text: money(inst.amount, cur), fontSize: T.fs(8), bold: true, color: T.ink, alignment: 'right' },
+          ]
+        : [{ text: '' }, { text: '' }];
+    const dueTable = {
+      table: {
+        widths: ['*', 'auto', 18, '*', 'auto'],
+        body: insts.slice(0, half).map((inst, i) => [
+          ...dueCells(inst),
+          { text: '' },
+          ...dueCells(insts[half + i]),
+        ]),
+      },
+      layout: {
+        hLineWidth: (i, node) => (i === 0 || i === node.table.body.length ? 0 : 0.35),
+        vLineWidth: () => 0,
+        hLineColor: () => T.ruleColor,
+        paddingLeft: () => 0,
+        paddingRight: () => 0,
+        paddingTop: () => T.pad + 0.5,
+        paddingBottom: () => T.pad + 0.5,
+      },
+      margin: [0, 0, 0, 4],
+    };
 
     const termsSource =
       useContractorName && def.contractor.scope === 'all'
@@ -782,21 +928,58 @@ export async function buildQuotePdf(quote, setting = {}, options = {}) {
       show('spec.propertyOwner') && { heading: def.labels.ownerHeading, value: ownerAddr },
     ].filter(Boolean);
 
+    /**
+     * Each party as a card: the heading as a caption, the name in bold, and the
+     * address beneath it — the name used to sit in the same weight as the street.
+     */
+    const partyCard = ({ heading, value }) => {
+      const [first, ...rest] = String(value || '-').split('\n');
+      return T.panel(
+        [
+          T.caption(heading, { margin: [0, 0, 0, 2] }),
+          { text: first, bold: true, fontSize: T.fs(8.5), color: T.ink },
+          rest.length ? { text: rest.join('\n'), fontSize: T.fs(8), color: T.muted, margin: [0, 1, 0, 0] } : null,
+        ].filter(Boolean),
+        { padY: 5 }
+      );
+    };
+
     addSection('spec.property', def.sectionTitles.property, [
       propertyColumns.length
         ? {
-            table: {
-              widths: propertyColumns.map(() => '*'),
-              body: [
-                propertyColumns.map((c) => ({ text: c.heading, style: 'th' })),
-                propertyColumns.map((c) => ({ text: c.value || '-', fontSize: T.fs(8), color: T.ink })),
-              ],
-            },
-            layout: T.hairline(),
+            columns: propertyColumns.map((c) => ({ width: '*', stack: [partyCard(c)] })),
+            columnGap: 12,
             margin: [0, 0, 0, 1],
           }
         : null,
     ]);
+
+    /**
+     * Schedule and staffing side by side: the combined hours table takes the
+     * wider column and the staffing figures sit beside it, so the two things a
+     * reader compares — when the pool is open, and who is on duty — share a line
+     * of sight instead of being stacked one under the other.
+     */
+    const withSchool = show('spec.scheduleSchool');
+    const scheduleNode = show('spec.schedule')
+      ? {
+          stack: [
+            scheduleTable(T, quote.schedules, def.labels, withSchool),
+            withSchool && def.labels.schoolSeasonNote
+              ? {
+                  text: def.labels.schoolSeasonNote,
+                  italics: true,
+                  fontSize: T.fs(6.5),
+                  color: T.muted,
+                  margin: [0, 2, 0, 0],
+                }
+              : null,
+          ].filter(Boolean),
+        }
+      : null;
+    const staffingNode = show('spec.personnel')
+      ? staffingTable(T, lifeguards, season, def.labels, show, withSchool)
+      : null;
 
     addSection('spec.duration', def.sectionTitles.duration, [
       {
@@ -809,29 +992,17 @@ export async function buildQuotePdf(quote, setting = {}, options = {}) {
         }),
         fontSize: T.fs(8),
         color: T.ink,
-        margin: [0, 0, 0, 3],
+        margin: [0, 0, 0, 4],
       },
-      show('spec.schedule')
+      scheduleNode || staffingNode
         ? {
             columns: [
-              scheduleColumn(T, quote.schedules, 'normal', def.labels.normalSeason, null, def.labels),
-              show('spec.scheduleSchool')
-                ? scheduleColumn(T, quote.schedules, 'okul', def.labels.schoolSeason, def.labels.schoolSeasonNote, def.labels)
-                : { width: '*', text: '' },
-            ],
-            columnGap: 18,
-            margin: [0, 0, 0, 2],
-          }
-        : null,
-      show('spec.personnel')
-        ? {
-            columns: [
-              personnelRows(T, lifeguards, season, 'normal', def.labels, show),
-              show('spec.scheduleSchool')
-                ? personnelRows(T, lifeguards, season, 'okul', def.labels, show)
-                : { width: '*', text: '' },
-            ],
-            columnGap: 18,
+              scheduleNode ? { width: '*', ...scheduleNode } : null,
+              staffingNode
+                ? { width: scheduleNode ? '36%' : '50%', stack: [staffingNode] }
+                : null,
+            ].filter(Boolean),
+            columnGap: 16,
             margin: [0, 0, 0, 2],
           }
         : null,
@@ -840,7 +1011,7 @@ export async function buildQuotePdf(quote, setting = {}, options = {}) {
       observedHolidays.length && show('spec.holidays')
         ? {
             text: [
-              { text: def.labels.holidaysPrefix, bold: true },
+              { text: def.labels.holidaysPrefix, bold: true, color: T.primary },
               {
                 text: observedHolidays
                   .map((h) => `${h.name} (${dateEN(h.date)}, ${h.weekday}) ${h.hours} hrs`)
@@ -855,7 +1026,7 @@ export async function buildQuotePdf(quote, setting = {}, options = {}) {
       quote.notes && show('spec.scheduleNote')
         ? {
             text: [
-              { text: def.labels.schoolNotePrefix, bold: true },
+              { text: def.labels.schoolNotePrefix, bold: true, color: T.primary },
               { text: quote.notes },
             ],
             fontSize: T.fs(7),
@@ -865,17 +1036,67 @@ export async function buildQuotePdf(quote, setting = {}, options = {}) {
         : null,
     ]);
 
-    addSection('spec.comments', def.sectionTitles.comments, commentLines);
+    /**
+     * Compensation comes before the additional comments now: the price is the
+     * thing the owner reads the page for, and the comments that follow are the
+     * conditions around it.
+     *
+     * The services and the due dates fill the main column, and the prices stand
+     * in a panel of their own down the right-hand side.
+     */
+    const adjustments = [
+      discountAmount > 0 ? `Discount: -${money(discountAmount, cur)}` : '',
+      vatAmount > 0 ? `Tax: ${money(vatAmount, cur)}` : '',
+    ]
+      .filter(Boolean)
+      .join('  ');
+    const priceFigure = (label, amount, size) => [
+      T.caption(label, { margin: [0, 0, 0, 1] }),
+      { text: money(amount, cur), bold: true, fontSize: T.fs(size), color: T.primary },
+    ];
+    const pricePanel = show('spec.totals')
+      ? T.panel(
+          [
+            ...priceFigure(def.labels.totalPrice, total, 15),
+            adjustments ? { text: adjustments, fontSize: T.fs(7), color: T.muted, margin: [0, 1, 0, 0] } : null,
+            ...(showEarlyBird
+              ? [
+                  {
+                    // A rule as wide as the panel, whatever width it lands at.
+                    table: { widths: ['*'], body: [[{ text: '', border: [false, false, false, true] }]] },
+                    layout: {
+                      hLineWidth: () => 0.5,
+                      hLineColor: () => T.tintStrong,
+                      vLineWidth: () => 0,
+                      paddingLeft: () => 0,
+                      paddingRight: () => 0,
+                      paddingTop: () => 0,
+                      paddingBottom: () => 0,
+                    },
+                    margin: [0, 5, 0, 5],
+                  },
+                  ...priceFigure(def.labels.earlyBirdPrice, earlyBirdPrice, 12),
+                  show('spec.earlyBirdNote')
+                    ? {
+                        text: fillTemplate(def.sentences.earlyBirdNote, {
+                          contractor: contractorWord,
+                          owner: ownerWord,
+                          deadline: earlyBirdDeadline,
+                        }),
+                        fontSize: T.fs(6.8),
+                        italics: true,
+                        color: T.muted,
+                        margin: [0, 3, 0, 0],
+                      }
+                    : null,
+                ]
+              : []),
+          ].filter(Boolean),
+          { padY: 7 }
+        )
+      : null;
 
-    addSection('spec.compensation', def.sectionTitles.compensation, [
-      show('spec.compensationIntro')
-        ? {
-            text: fillTemplate(def.sentences.compensation, { owner: ownerWord, contractor: contractorWord }),
-            fontSize: T.fs(8),
-            color: T.muted,
-            margin: [0, 0, 0, 3],
-          }
-        : null,
+    const paymentMain = [
       itemTable && show('spec.items')
         ? {
             text: def.labels.servicesIncluded,
@@ -887,75 +1108,9 @@ export async function buildQuotePdf(quote, setting = {}, options = {}) {
           }
         : null,
       itemTable && show('spec.items') ? itemTable : null,
-      show('spec.totals')
-        ? {
-            columns: [
-              {
-                width: '*',
-                stack: [
-                  {
-                    text: [
-                      { text: `${def.labels.totalPrice}   `, color: T.muted, fontSize: T.fs(8) },
-                      { text: money(total, cur), bold: true, fontSize: T.fs(11), color: T.primary },
-                    ],
-                    margin: [0, 0, 0, 2],
-                  },
-                  ...(showEarlyBird
-                    ? [
-                        {
-                          text: [
-                            { text: `${def.labels.earlyBirdPrice}   `, color: T.muted, fontSize: T.fs(8) },
-                            { text: money(earlyBirdPrice, cur), bold: true, fontSize: T.fs(11), color: T.primary },
-                          ],
-                          margin: [0, 0, 0, 2],
-                        },
-                      ]
-                    : []),
-                  ...(discountAmount > 0 || vatAmount > 0 || (items.length && subtotal)
-                    ? [
-                        {
-                          text: [
-                            discountAmount > 0 ? `Discount: -${money(discountAmount, cur)}  ` : '',
-                            vatAmount > 0 ? `Tax: ${money(vatAmount, cur)}` : '',
-                          ]
-                            .filter(Boolean)
-                            .join(''),
-                          fontSize: T.fs(7),
-                          color: T.muted,
-                          margin: [0, 0, 0, 1],
-                        },
-                      ]
-                    : []),
-                ],
-              },
-              showEarlyBird && show('spec.earlyBirdNote')
-                ? {
-                    width: '48%',
-                    text: fillTemplate(def.sentences.earlyBirdNote, {
-                      contractor: contractorWord,
-                      owner: ownerWord,
-                      deadline: earlyBirdDeadline,
-                    }),
-                    fontSize: T.fs(7),
-                    italics: true,
-                    color: T.muted,
-                  }
-                : { width: '48%', text: '' },
-            ],
-            columnGap: 12,
-            margin: [0, 0, 0, 4],
-          }
-        : null,
       show('spec.installments')
         ? insts.length
-          ? {
-              columns: [
-                { width: '*', stack: dueStack(insts.slice(0, half)) },
-                { width: '*', stack: dueStack(insts.slice(half)) },
-              ],
-              columnGap: 24,
-              margin: [0, 0, 0, 4],
-            }
+          ? dueTable
           : {
               text: def.labels.noInstallments,
               fontSize: T.fs(8),
@@ -964,6 +1119,44 @@ export async function buildQuotePdf(quote, setting = {}, options = {}) {
               margin: [0, 0, 0, 4],
             }
         : null,
+    ].filter(Boolean);
+
+    addSection('spec.compensation', def.sectionTitles.compensation, [
+      show('spec.compensationIntro')
+        ? {
+            text: fillTemplate(def.sentences.compensation, { owner: ownerWord, contractor: contractorWord }),
+            fontSize: T.fs(8),
+            color: T.muted,
+            margin: [0, 0, 0, 4],
+          }
+        : null,
+      paymentMain.length || pricePanel
+        ? {
+            columns: [
+              paymentMain.length ? { width: '*', stack: paymentMain } : null,
+              pricePanel ? { width: paymentMain.length ? '33%' : '50%', stack: [pricePanel] } : null,
+            ].filter(Boolean),
+            columnGap: 14,
+            margin: [0, 0, 0, 2],
+          }
+        : null,
+    ]);
+
+    /**
+     * The clauses in two columns, filled down the left and then the right, so
+     * the alphabetical order still reads naturally. A short list stays in one.
+     */
+    const commentHalf = Math.ceil(commentLines.length / 2);
+    addSection('spec.comments', def.sectionTitles.comments, [
+      commentLines.length > 3
+        ? {
+            columns: [
+              { width: '*', stack: commentLines.slice(0, commentHalf) },
+              { width: '*', stack: commentLines.slice(commentHalf) },
+            ],
+            columnGap: 18,
+          }
+        : { stack: commentLines },
     ]);
 
     /**
@@ -1051,6 +1244,24 @@ export async function buildQuotePdf(quote, setting = {}, options = {}) {
       }
     );
 
+    /** The party heading over each signature column: a tinted bar. */
+    const columnHeading = (text) => ({
+      table: {
+        widths: ['*'],
+        body: [[{
+          text,
+          bold: true,
+          fontSize: T.fs(8),
+          color: T.primary,
+          characterSpacing: 1,
+          fillColor: T.tint,
+          margin: [6, 2, 0, 2],
+        }]],
+      },
+      layout: 'noBorders',
+      margin: [0, 0, 0, 8],
+    });
+
     addSection('spec.acceptance', def.sectionTitles.acceptance, [
       {
         text: acceptanceIntro,
@@ -1063,14 +1274,7 @@ export async function buildQuotePdf(quote, setting = {}, options = {}) {
           {
             width: '*',
             stack: [
-              {
-                text: def.labels.ownerColumn,
-                bold: true,
-                fontSize: T.fs(8),
-                color: T.primary,
-                characterSpacing: 1,
-                margin: [0, 0, 0, 8],
-              },
+              columnHeading(def.labels.ownerColumn),
               /**
                * The owner signs without a title line, so the row the contractor
                * prints their name on is reserved here and left unruled. Every
@@ -1087,14 +1291,7 @@ export async function buildQuotePdf(quote, setting = {}, options = {}) {
           {
             width: '*',
             stack: [
-              {
-                text: def.labels.contractorColumn,
-                bold: true,
-                fontSize: T.fs(8),
-                color: T.primary,
-                characterSpacing: 1,
-                margin: [0, 0, 0, 8],
-              },
+              columnHeading(def.labels.contractorColumn),
               T.sigLine(byLabel, { boxHeight: dateBox, value: signatoryName.toUpperCase() }),
               T.sigLine(titleLabel, { boxHeight: dateBox, value: signatoryTitle }),
               T.sigLine(dateLabel, { boxHeight: dateBox, value: contractDate }),
@@ -1125,55 +1322,135 @@ export async function buildQuotePdf(quote, setting = {}, options = {}) {
         : null,
     ], { keepTogether: true });
 
-    const specContent = specSections.flatMap((s, i) => {
+    /**
+     * The contract at a glance, under the letterhead: the period, the operating
+     * days, the guards and the price, before any of the detail that explains
+     * them. Each tile follows the block it repeats, so a figure hidden from the
+     * page is never printed here either.
+     */
+    const summaryTiles = [
+      show('spec.duration') && season.valid && {
+        label: def.labels.summaryPeriod,
+        value: dateRangeEN(quote.season_start, quote.season_end),
+        wide: true,
+      },
+      show('spec.duration') && show('spec.personnel') && show('spec.staffOperatingDays') && season.valid && {
+        label: def.labels.staffOperatingDays,
+        value: `${season.openDays} of ${season.days} days`,
+      },
+      show('spec.duration') && show('spec.personnel') && show('spec.staffLifeguards') && {
+        label: def.labels.staffLifeguards,
+        value: `${lifeguards} Lifeguard(s)`,
+      },
+      show('spec.compensation') && show('spec.totals') && {
+        label: def.labels.totalPrice,
+        value: money(total, cur),
+        strong: true,
+      },
+    ].filter(Boolean);
+    const summaryStrip = show('spec.summary') && summaryTiles.length
+      ? [{
+          table: {
+            // The period sizes to its text so it never wraps; the rest share what is left.
+            widths: summaryTiles.map((t, i) => (i === 0 && t.wide ? 'auto' : '*')),
+            body: [summaryTiles.map((t) => ({
+              stack: [
+                T.caption(t.label, { margin: [0, 0, 0, 1.5] }),
+                {
+                  text: t.value,
+                  noWrap: !!t.wide,
+                  bold: true,
+                  fontSize: T.fs(t.strong ? 11 : 9.5),
+                  color: t.strong ? T.primary : T.ink,
+                },
+              ],
+            }))],
+          },
+          layout: {
+            hLineWidth: () => 0,
+            // Hairline dividers between the tiles, none at the outer edges.
+            vLineWidth: (i, node) => (i === 0 || i === node.table.widths.length ? 0 : 0.6),
+            vLineColor: () => T.tintStrong,
+            paddingLeft: (i) => (i === 0 ? 0 : 12),
+            paddingRight: () => 12,
+            paddingTop: () => 6 * (def.page.spacing ?? 1),
+            paddingBottom: () => 6 * (def.page.spacing ?? 1),
+          },
+          margin: [0, 2, 0, 0],
+        },
+        T.rule(T.contentW, T.tintStrong, 0.6, [0, 0, 0, 0])]
+      : [];
+
+    const specContent = [...summaryStrip, ...specSections.flatMap((s, i) => {
       const head = T.sectionHead(i + 1, s.title, i === 0 ? T.gap(6) : T.gap(5));
       // A kept-together section becomes one stack so pdfmake moves the heading
       // with its body instead of breaking between them.
       return s.keepTogether
         ? [{ unbreakable: true, stack: [head, ...s.content] }]
         : [head, ...s.content];
-    });
+    })];
 
+    /**
+     * A tinted letterhead band: the company on the left, the document and its
+     * number on the right, closed by a solid accent rule.
+     */
     const specHeader = show('spec.header')
       ? [
           {
-            text: company.toUpperCase(),
-            bold: true,
-            fontSize: T.fs(13),
-            color: T.primary,
-            characterSpacing: 2.2,
-            alignment: 'center',
+            table: {
+              widths: ['*', 'auto'],
+              body: [[
+                {
+                  stack: [
+                    {
+                      text: company.toUpperCase(),
+                      bold: true,
+                      fontSize: T.fs(11.5),
+                      color: T.primary,
+                      characterSpacing: 1.4,
+                    },
+                    {
+                      text: setting.company_address || '',
+                      fontSize: T.fs(8),
+                      color: T.muted,
+                      margin: [0, 2, 0, 0],
+                    },
+                  ],
+                },
+                {
+                  stack: [
+                    {
+                      text: def.labels.specTitle,
+                      bold: true,
+                      fontSize: T.fs(9),
+                      color: T.ink,
+                      characterSpacing: 0.9,
+                      alignment: 'right',
+                    },
+                    {
+                      text: contractLabel,
+                      fontSize: T.fs(8.5),
+                      color: T.primary,
+                      characterSpacing: 0.5,
+                      alignment: 'right',
+                      margin: [0, 2, 0, 0],
+                    },
+                  ],
+                },
+              ]],
+            },
+            layout: {
+              hLineWidth: () => 0,
+              vLineWidth: () => 0,
+              fillColor: () => T.tint,
+              paddingLeft: () => 10,
+              paddingRight: () => 10,
+              paddingTop: () => 8,
+              paddingBottom: () => 8,
+            },
           },
           {
-            text: setting.company_address || '',
-            fontSize: T.fs(8.5),
-            color: T.muted,
-            alignment: 'center',
-            margin: [0, 2, 0, 0],
-          },
-          {
-            text: def.labels.specTitle,
-            bold: true,
-            fontSize: T.fs(10.5),
-            color: T.ink,
-            characterSpacing: 1.1,
-            alignment: 'center',
-            margin: [0, 6, 0, 0],
-          },
-          {
-            text: contractLabel,
-            fontSize: T.fs(9.5),
-            color: T.muted,
-            characterSpacing: 0.6,
-            alignment: 'center',
-            margin: [0, 1, 0, 5],
-          },
-          // Double rule — the signature mark of this layout
-          {
-            canvas: [
-              { type: 'line', x1: 0, y1: 0, x2: T.contentW, y2: 0, lineWidth: 1.4, lineColor: T.primary },
-              { type: 'line', x1: 0, y1: 3.2, x2: T.contentW, y2: 3.2, lineWidth: 0.4, lineColor: T.primary },
-            ],
+            canvas: [{ type: 'rect', x: 0, y: 0, w: T.contentW, h: 2.2, color: T.primary }],
             margin: [0, 0, 0, 2],
           },
         ]
@@ -1182,117 +1459,184 @@ export async function buildQuotePdf(quote, setting = {}, options = {}) {
     // ---- Cover ----
     const logo = show('cover.logo') ? asset('logo.png') : null;
 
-    const cover = [
-      logo
+    /**
+     * The cover, top to bottom: the brand and the contract number on one line
+     * like a letterhead; the agreement title; the property it is for, framed as
+     * a card; and at the foot the company's motto above its own details — the
+     * promise signed off by the people making it.
+     *
+     * The edge band drawn by the page background runs down the left, so every
+     * block is indented clear of it.
+     */
+    const CI = 16;
+    const coverW = T.contentW - CI;
+
+    const contractChip = show('cover.contractNo')
+      ? {
+          table: {
+            widths: ['auto'],
+            body: [[{
+              text: contractLabel,
+              bold: true,
+              fontSize: T.fs(10),
+              color: T.primary,
+              characterSpacing: 0.8,
+              fillColor: T.tint,
+              margin: [10, 5, 10, 4],
+            }]],
+          },
+          layout: 'noBorders',
+        }
+      : null;
+
+    const facilityLines = [
+      show('cover.customer')
+        ? { text: customerName || 'Customer', bold: true, fontSize: T.fs(17), color: T.ink }
+        : null,
+      coverFacility && show('cover.facility')
         ? {
-            image: 'coverLogo',
-            width: def.branding.logoWidth,
-            alignment: 'center',
-            margin: [0, 18, 0, show('cover.tagline') ? 10 : 24],
+            text: coverFacility,
+            bold: true,
+            fontSize: T.fs(show('cover.customer') ? 13 : 17),
+            color: show('cover.customer') ? T.muted : T.ink,
+            margin: [0, show('cover.customer') ? 3 : 0, 0, 0],
           }
         : null,
-      show('cover.tagline')
+      show('cover.facilityAddress') && quote.facility_address
         ? {
-            text: `“${tagline}”`,
-            italics: true,
-            alignment: 'center',
-            fontSize: T.fs(12.5),
+            text: quote.facility_address,
+            fontSize: T.fs(10.5),
             color: T.muted,
-            margin: [0, logo ? 0 : 26, 0, 0],
+            lineHeight: 1.3,
+            margin: [0, 4, 0, 0],
           }
         : null,
-      show('cover.tagline') ? T.centeredRule(170, [0, 15, 0, 30]) : null,
+    ].filter(Boolean);
+
+    const cover = [
+      // Letterhead line: the logo on the left, the contract number on the right.
+      logo || contractChip
+        ? {
+            columns: [
+              logo
+                ? { width: def.branding.logoWidth, image: 'coverLogo', fit: [def.branding.logoWidth, 120] }
+                : { width: '*', text: '' },
+              { width: '*', text: '' },
+              contractChip ? { width: 'auto', stack: [contractChip], margin: [0, logo ? 14 : 0, 0, 0] } : null,
+            ].filter(Boolean),
+            margin: [CI, 18, 0, 0],
+          }
+        : null,
+
+      // Drops the title to roughly a third of the way down the sheet.
+      { text: ' ', margin: [0, logo ? 110 : 190, 0, 0] },
+
       show('cover.title')
         ? {
             text: def.labels.titleLine1,
             bold: true,
-            alignment: 'center',
-            fontSize: T.fs(24),
-            color: T.primary,
-            characterSpacing: 0.4,
+            fontSize: T.fs(14),
+            color: T.muted,
+            characterSpacing: 2.6,
+            margin: [CI, 0, 0, 0],
           }
         : null,
       show('cover.title')
         ? {
             text: def.labels.titleLine2,
             bold: true,
-            alignment: 'center',
-            fontSize: T.fs(24),
+            fontSize: T.fs(44),
             color: T.primary,
-            characterSpacing: 7,
-            margin: [0, 3, 0, 24],
+            characterSpacing: 1.5,
+            lineHeight: 1,
+            margin: [CI - 2, 2, 0, 0],
           }
         : null,
-      show('cover.contractNo')
+      {
+        canvas: [{ type: 'rect', x: 0, y: 0, w: 58, h: 4, color: T.primary }],
+        margin: [CI, show('cover.title') ? 14 : 0, 0, 34],
+      },
+
+      // The property, framed: caption, name, address.
+      facilityLines.length
         ? {
-            text: contractLabel,
-            bold: true,
-            alignment: 'center',
-            fontSize: T.fs(15),
-            color: T.ink,
-            characterSpacing: 0.9,
-            margin: [0, 0, 0, 34],
-          }
-        : null,
-      show('cover.customer')
-        ? { text: customerName || 'Customer', bold: true, alignment: 'center', fontSize: T.fs(19), color: T.ink }
-        : null,
-      coverFacility && show('cover.facility')
-        ? { text: coverFacility, alignment: 'center', fontSize: T.fs(15), color: T.ink, margin: [0, 7, 0, 0] }
-        : null,
-      show('cover.facilityAddress')
-        ? {
-            text: quote.facility_address || '',
-            alignment: 'center',
-            fontSize: T.fs(11.5),
-            color: T.muted,
-            lineHeight: 1.3,
-            margin: [0, 6, 0, 0],
+            stack: [
+              T.panel(
+                [T.caption(def.labels.facilityHeading, { margin: [0, 0, 0, 4] }), ...facilityLines],
+                { padY: 12 }
+              ),
+            ],
+            margin: [CI, 0, coverW * 0.25, 0],
           }
         : null,
 
-      // Pushes the company block toward the foot of the cover. Kept as a spacer
-      // rather than an absolute position so an unusually long facility address
-      // still reflows instead of colliding with it.
-      // The logo adds roughly 100pt to the top of the cover, so the spacer that
-      // pushes the company block to the foot has to give that height back.
-      { text: ' ', margin: [0, logo ? 130 : 235, 0, 0] },
+      // Pushes the closing block toward the foot of the cover. A spacer rather
+      // than an absolute position, so an unusually long facility address still
+      // reflows instead of colliding with it.
+      { text: ' ', margin: [0, logo ? 120 : 160, 0, 0] },
 
-      show('cover.company') ? T.centeredRule(220, [0, 0, 0, 14]) : null,
-      show('cover.company')
+      show('cover.tagline')
         ? {
-            text: company.toUpperCase(),
-            bold: true,
-            alignment: 'center',
-            fontSize: T.fs(14),
+            text: `“${tagline}”`,
+            italics: true,
+            fontSize: T.fs(12),
             color: T.primary,
-            characterSpacing: 2.2,
-            margin: [0, 0, 0, 6],
+            margin: [CI, 0, 0, 12],
           }
         : null,
       show('cover.company')
-        ? { text: setting.company_address || '', alignment: 'center', fontSize: T.fs(9.5), color: T.muted }
-        : null,
-      show('cover.company')
-        ? { text: contactLine, alignment: 'center', fontSize: T.fs(9.5), color: T.muted, margin: [0, 3, 0, 0] }
+        ? {
+            canvas: [{ type: 'line', x1: 0, y1: 0, x2: coverW, y2: 0, lineWidth: 0.6, lineColor: T.tintStrong }],
+            margin: [CI, 0, 0, 12],
+          }
         : null,
       show('cover.company')
         ? {
-            text: (setting.company_website || '').toUpperCase(),
-            alignment: 'center',
-            fontSize: T.fs(9.5),
-            color: T.primary,
-            characterSpacing: 1,
-            margin: [0, 3, 0, 0],
+            columns: [
+              {
+                width: '*',
+                stack: [
+                  {
+                    text: company.toUpperCase(),
+                    bold: true,
+                    fontSize: T.fs(11.5),
+                    color: T.primary,
+                    characterSpacing: 1.6,
+                  },
+                  {
+                    text: setting.company_address || '',
+                    fontSize: T.fs(9),
+                    color: T.muted,
+                    margin: [0, 3, 0, 0],
+                  },
+                ],
+              },
+              {
+                width: 'auto',
+                stack: [
+                  { text: contactLine, fontSize: T.fs(9), color: T.muted, alignment: 'right' },
+                  {
+                    text: (setting.company_website || '').toUpperCase(),
+                    fontSize: T.fs(9),
+                    bold: true,
+                    color: T.primary,
+                    characterSpacing: 0.8,
+                    alignment: 'right',
+                    margin: [0, 3, 0, 0],
+                  },
+                ],
+              },
+            ],
+            columnGap: 16,
+            margin: [CI, 0, 0, 0],
           }
         : null,
       show('cover.initials')
         ? {
             text: `${def.labels.initials}   ____________________`,
-            alignment: 'center',
             fontSize: T.fs(9),
             color: T.muted,
-            margin: [0, 30, 0, 0],
+            margin: [CI, 26, 0, 0],
           }
         : null,
     ].filter(Boolean);
@@ -1314,7 +1658,13 @@ export async function buildQuotePdf(quote, setting = {}, options = {}) {
    * object per page, so unlike content nodes it is safe to reuse.
    */
   const footer = (currentPage, pageCount) => ({
-    margin: [T.margin, 6, T.margin, 0],
+    margin: [T.margin, 4, T.margin, 0],
+    stack: [
+      {
+        canvas: [{ type: 'line', x1: 0, y1: 0, x2: T.contentW, y2: 0, lineWidth: 0.5, lineColor: T.tintStrong }],
+        margin: [0, 0, 0, 4],
+      },
+      {
     columns: [
       {
         text: currentPage > 1 && show('footer.initials') ? `${def.labels.initials} __________` : '',
@@ -1332,9 +1682,12 @@ export async function buildQuotePdf(quote, setting = {}, options = {}) {
       {
         text: show('footer.pageNo') ? `Page ${currentPage} of ${pageCount}` : '',
         fontSize: T.fs(7),
-        color: T.muted,
+        bold: true,
+        color: T.primary,
         alignment: 'right',
         width: '*',
+      },
+    ],
       },
     ],
   });
@@ -1353,6 +1706,25 @@ export async function buildQuotePdf(quote, setting = {}, options = {}) {
   const watermark = show('page.background') && def.branding.backgroundOpacity > 0
     ? asset('background-watermark.png')
     : null;
+
+  /**
+   * The accent band down the left edge of every sheet: broad on the cover with
+   * a lighter stripe beside it, a slim line of colour on the pages after.
+   * Drawn as background so it can never push the content about.
+   */
+  const edgeBand = (currentPage, pageSize) => {
+    const h = pageSize.height;
+    const shapes = currentPage === 1
+      ? [
+          { type: 'rect', x: 0, y: 0, w: 20, h, color: T.primary },
+          { type: 'rect', x: 24, y: 0, w: 3, h, color: def.theme.numeral },
+        ]
+      : [
+          { type: 'rect', x: 0, y: 0, w: 7, h, color: T.primary },
+          { type: 'rect', x: 9, y: 0, w: 1.5, h, color: def.theme.numeral },
+        ];
+    return { canvas: shapes, absolutePosition: { x: 0, y: 0 } };
+  };
 
   /** Streams a document definition to a Buffer. */
   function renderToBuffer(docDefinition) {
@@ -1431,17 +1803,20 @@ export async function buildQuotePdf(quote, setting = {}, options = {}) {
       },
       // Drawn under the content on every page, centred, at low opacity so the
       // contract stays the thing you read.
-      background: watermark
-        ? (currentPage, pageSize) => ({
-            image: 'watermark',
-            width: def.branding.backgroundWidth,
-            opacity: def.branding.backgroundOpacity,
-            absolutePosition: {
-              x: (pageSize.width - def.branding.backgroundWidth) / 2,
-              y: (pageSize.height - def.branding.backgroundWidth * (600 / 900)) / 2,
-            },
-          })
-        : undefined,
+      background: (currentPage, pageSize) => [
+        edgeBand(currentPage, pageSize),
+        watermark
+          ? {
+              image: 'watermark',
+              width: def.branding.backgroundWidth,
+              opacity: def.branding.backgroundOpacity,
+              absolutePosition: {
+                x: (pageSize.width - def.branding.backgroundWidth) / 2,
+                y: (pageSize.height - def.branding.backgroundWidth * (600 / 900)) / 2,
+              },
+            }
+          : null,
+      ].filter(Boolean),
       footer,
       content,
       styles: { th: specTableHeader((spec || shell).T) },
